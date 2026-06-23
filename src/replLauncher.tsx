@@ -16,7 +16,8 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
   const {
     REPL
   } = await import('./screens/REPL.js');
-  await renderAndRun(root, <App {...appProps}>
-      <REPL {...replProps} />
-    </App>);
+  await renderAndRun(root, 
+  <App {...appProps}>
+    <REPL {...replProps} />
+  </App>);
 }

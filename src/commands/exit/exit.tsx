@@ -1,13 +1,18 @@
 import { feature } from 'bun:bundle';
-import { spawnSync } from 'child_process';
 import sample from 'lodash-es/sample.js';
 import * as React from 'react';
 import { ExitFlow } from '../../components/ExitFlow.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { isBgSession } from '../../utils/concurrentSessions.js';
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js';
+import { runtimeRequire } from '../../utils/imports.js';
 import { getCurrentWorktreeSession } from '../../utils/worktree.js';
 const GOODBYE_MESSAGES = ['Goodbye!', 'See ya!', 'Bye!', 'Catch you later!'];
+function spawnSync(command: string, args: string[], options: {
+  stdio: 'ignore';
+}): void {
+  runtimeRequire('child_process').spawnSync(command, args, options);
+}
 function getRandomGoodbyeMessage(): string {
   return sample(GOODBYE_MESSAGES) ?? 'Goodbye!';
 }

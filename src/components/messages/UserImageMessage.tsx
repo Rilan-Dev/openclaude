@@ -1,6 +1,6 @@
 import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
-import { pathToFileURL } from 'url';
+import { pathToFileURL } from '../../utils/urlPath.js';
 import Link from '../../ink/components/Link.js';
 import { supportsHyperlinks } from '../../ink/supports-hyperlinks.js';
 import { Box, Text } from '../../ink.js';

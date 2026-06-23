@@ -1,8 +1,11 @@
-import type { IncomingMessage, ServerResponse } from 'http'
-import { createServer, type Server } from 'http'
-import type { AddressInfo } from 'net'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getOauthConfig } from '../../constants/oauth.js'
+import {
+  createHttpServer,
+  type HttpIncomingMessage as IncomingMessage,
+  type HttpServer,
+  type HttpServerResponse as ServerResponse,
+} from '../../utils/imports.js'
 import { logError } from '../../utils/log.js'
 import { shouldUseClaudeAIAuth } from './client.js'
 
@@ -16,7 +19,7 @@ import { shouldUseClaudeAIAuth } from './client.js'
  * Note: This is NOT an OAuth server - it's just a redirect capture mechanism.
  */
 export class AuthCodeListener {
-  private localServer: Server
+  private localServer: HttpServer | null = null
   private port: number = 0
   private promiseResolver: ((authorizationCode: string) => void) | null = null
   private promiseRejecter: ((error: Error) => void) | null = null
@@ -25,7 +28,6 @@ export class AuthCodeListener {
   private callbackPath: string // Configurable callback path
 
   constructor(callbackPath: string = '/callback') {
-    this.localServer = createServer()
     this.callbackPath = callbackPath
   }
 
@@ -36,16 +38,19 @@ export class AuthCodeListener {
    * @param host Optional loopback host to bind. Defaults to localhost.
    */
   async start(port?: number, host: string = 'localhost'): Promise<number> {
+    const localServer = this.localServer ?? (await createHttpServer())
+    this.localServer = localServer
+
     return new Promise((resolve, reject) => {
-      this.localServer.once('error', err => {
+      localServer.once('error', err => {
         reject(
           new Error(`Failed to start OAuth callback server: ${err.message}`),
         )
       })
 
       // Listen on specified port or 0 to let the OS assign an available port
-      this.localServer.listen(port ?? 0, host, () => {
-        const address = this.localServer.address() as AddressInfo
+      localServer.listen(port ?? 0, host, () => {
+        const address = localServer.address() as { port: number }
         this.port = address.port
         resolve(this.port)
       })
@@ -183,6 +188,11 @@ export class AuthCodeListener {
   }
 
   private startLocalListener(onReady: () => Promise<void>): void {
+    if (!this.localServer) {
+      this.handleError(new Error('OAuth callback server is not started'))
+      return
+    }
+
     // Server is already created and listening, just set up handlers
     this.localServer.on('request', this.handleRedirect.bind(this))
     this.localServer.on('error', this.handleError.bind(this))

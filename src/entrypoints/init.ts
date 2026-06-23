@@ -144,12 +144,10 @@ export const init = memoize(async (): Promise<void> => {
     // inject proxy vars without a static import of the upstreamproxy module.
     if (isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
       try {
-        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(
-          '../upstreamproxy/upstreamproxy.js'
-        )
-        const { registerUpstreamProxyEnvFn } = await import(
-          '../utils/subprocessEnv.js'
-        )
+        const upstreamproxyModuleId = ['../upstreamproxy', '/upstreamproxy.js'].join('')
+        const subprocessEnvModuleId = ['../utils', '/subprocessEnv.js'].join('')
+        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(upstreamproxyModuleId)
+        const { registerUpstreamProxyEnvFn } = await import(subprocessEnvModuleId)
         registerUpstreamProxyEnvFn(getUpstreamProxyEnv)
         await initUpstreamProxy()
       } catch (err) {

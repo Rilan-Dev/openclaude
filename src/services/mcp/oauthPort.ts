@@ -2,7 +2,7 @@
  * OAuth redirect port helpers — extracted from auth.ts to break the
  * auth.ts ↔ xaaIdpLogin.ts circular dependency.
  */
-import { createServer } from 'http'
+import { createHttpServer } from '../../utils/imports.js'
 import { getPlatform } from '../../utils/platform.js'
 
 // Windows dynamic port range 49152-65535 is reserved
@@ -48,8 +48,8 @@ export async function findAvailablePort(): Promise<number> {
     const port = min + Math.floor(Math.random() * range)
 
     try {
+      const testServer = await createHttpServer()
       await new Promise<void>((resolve, reject) => {
-        const testServer = createServer()
         testServer.once('error', reject)
         testServer.listen(port, () => {
           testServer.close(() => resolve())
@@ -64,8 +64,8 @@ export async function findAvailablePort(): Promise<number> {
 
   // If random selection failed, try the fallback port
   try {
+    const testServer = await createHttpServer()
     await new Promise<void>((resolve, reject) => {
-      const testServer = createServer()
       testServer.once('error', reject)
       testServer.listen(REDIRECT_PORT_FALLBACK, () => {
         testServer.close(() => resolve())

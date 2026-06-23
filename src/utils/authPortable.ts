@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { getExeca } from './imports.js'
 import { getMacOsKeychainStorageServiceName } from 'src/utils/secureStorage/macOsKeychainHelpers.js'
 
 export async function maybeRemoveApiKeyFromMacOSKeychainThrows(): Promise<void> {

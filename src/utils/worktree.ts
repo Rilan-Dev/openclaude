@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import chalk from 'chalk'
-import { spawnSync } from 'child_process'
+import { spawnSync } from '../utils/imports.js'
 import {
   copyFile,
   mkdir,
@@ -47,6 +47,7 @@ import { isInITerm2 } from './swarm/backends/detection.js'
 
 const VALID_WORKTREE_SLUG_SEGMENT = /^[a-zA-Z0-9._-]+$/
 const MAX_WORKTREE_SLUG_LENGTH = 64
+
 
 /**
  * Validates a worktree slug to prevent path traversal and directory escape.

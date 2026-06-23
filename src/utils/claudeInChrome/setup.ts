@@ -1,8 +1,7 @@
-import { BROWSER_TOOLS } from '@ant/claude-for-chrome-mcp'
 import { chmod, mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { join } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from '../urlPath.js'
 import {
   getSessionDangerousPermissionMode,
   getIsInteractive,
@@ -35,6 +34,25 @@ const CHROME_EXTENSION_RECONNECT_URL = 'https://clau.de/chrome/reconnect'
 
 const NATIVE_HOST_IDENTIFIER = 'com.anthropic.claude_code_browser_extension'
 const NATIVE_HOST_MANIFEST_NAME = `${NATIVE_HOST_IDENTIFIER}.json`
+const BROWSER_TOOLS = [
+  'javascript_tool',
+  'read_page',
+  'find',
+  'form_input',
+  'computer',
+  'navigate',
+  'resize_window',
+  'gif_creator',
+  'upload_image',
+  'get_page_text',
+  'tabs_context_mcp',
+  'tabs_create_mcp',
+  'update_plan',
+  'read_console_messages',
+  'read_network_requests',
+  'shortcuts_list',
+  'shortcuts_execute',
+].map(name => ({ name }))
 
 export function shouldEnableClaudeInChrome(chromeFlag?: boolean): boolean {
   // Disable by default in non-interactive sessions (e.g., SDK, CI)

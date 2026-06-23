@@ -21,9 +21,9 @@
  * don't interfere with each other.
  */
 
-import { AsyncLocalStorage } from 'async_hooks'
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../services/analytics/index.js'
 import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
+import { createAsyncContextStorage } from './imports.js'
 
 /**
  * Context for subagents (Agent tool agents).
@@ -90,7 +90,7 @@ export type TeammateAgentContext = {
  */
 export type AgentContext = SubagentContext | TeammateAgentContext
 
-const agentContextStorage = new AsyncLocalStorage<AgentContext>()
+const agentContextStorage = createAsyncContextStorage<AgentContext>()
 
 /**
  * Get the current agent context, if any.

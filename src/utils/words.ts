@@ -3,8 +3,6 @@
  * Inspired by https://github.com/nas5w/random-word-slugs
  * with Claude-flavored words
  */
-import { randomInt as cryptoRandomInt } from 'crypto'
-
 // Adjectives for slug generation - whimsical and delightful
 const ADJECTIVES = [
   // Classic pleasant adjectives
@@ -765,7 +763,15 @@ const VERBS = [
  * Generate a cryptographically random integer in the range [0, max)
  */
 function randomInt(max: number): number {
-  return cryptoRandomInt(max)
+  if (max <= 0) {
+    return 0
+  }
+  const buffer = new Uint32Array(1)
+  globalThis.crypto?.getRandomValues?.(buffer)
+  if (buffer[0] !== undefined) {
+    return buffer[0] % max
+  }
+  return Math.floor(Math.random() * max)
 }
 
 /**

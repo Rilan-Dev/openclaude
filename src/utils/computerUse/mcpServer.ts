@@ -2,7 +2,6 @@ import {
   buildComputerUseTools,
   createComputerUseMcpServer,
 } from '@ant/computer-use-mcp'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { homedir } from 'os'
 
@@ -10,6 +9,7 @@ import { shutdownDatadog } from '../../services/analytics/datadog.js'
 import { initializeAnalyticsSink } from '../../services/analytics/sink.js'
 import { enableConfigs } from '../config.js'
 import { logForDebugging } from '../debug.js'
+import { createStdioServerTransport } from '../imports.js'
 import { filterAppsForDescription } from './appNames.js'
 import { getChicagoCoordinateMode } from './gates.js'
 import { getComputerUseHostAdapter } from './hostAdapter.js'
@@ -91,7 +91,7 @@ export async function runComputerUseMcpServer(): Promise<void> {
   initializeAnalyticsSink()
 
   const server = await createComputerUseMcpServerForCli()
-  const transport = new StdioServerTransport()
+  const transport = await createStdioServerTransport()
 
   let exiting = false
   const shutdownAndExit = async (): Promise<void> => {

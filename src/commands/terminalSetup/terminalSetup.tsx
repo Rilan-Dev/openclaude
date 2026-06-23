@@ -1,10 +1,5 @@
 import chalk from 'chalk';
-import { randomBytes } from 'crypto';
-import { copyFile, mkdir, readFile, writeFile } from 'fs/promises';
-import { homedir, platform } from 'os';
-import { dirname, join } from 'path';
 import type { ThemeName } from 'src/utils/theme.js';
-import { pathToFileURL } from 'url';
 import { supportsHyperlinks } from '../../ink/supports-hyperlinks.js';
 import { color } from '../../ink.js';
 import { maybeMarkProjectOnboardingComplete } from '../../projectOnboardingState.js';
@@ -19,6 +14,18 @@ import { addItemToJSONCArray, safeParseJSONC } from '../../utils/json.js';
 import { logError } from '../../utils/log.js';
 import { getPlatform } from '../../utils/platform.js';
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js';
+import {
+  copyFile,
+  dirname,
+  homedir,
+  join,
+  mkdir,
+  pathToFileURL,
+  platform,
+  randomBytes,
+  readFile,
+  writeFile,
+} from '../../utils/imports.js';
 const EOL = '\n';
 
 // Terminals that natively support CSI u / Kitty keyboard protocol

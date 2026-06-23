@@ -28,6 +28,10 @@ import {
   listAtomicChatModels,
   listOllamaModels,
 } from './provider-discovery.ts'
+import {
+  loadLocalCodexAuthEnv,
+  loadProviderEnvFiles,
+} from './provider-env.ts'
 
 function parseArg(name: string): string | null {
   const args = process.argv.slice(2)
@@ -40,6 +44,11 @@ function parseProviderArg(): ProviderProfile | 'auto' {
   const p = parseArg('--provider')?.toLowerCase()
   if (p === 'openai' || p === 'ollama' || p === 'codex' || p === 'gemini' || p === 'mistral' || p === 'atomic-chat') return p
   return 'auto'
+}
+
+function hasUsableCodexLaunchAuth(env: NodeJS.ProcessEnv): boolean {
+  const credentials = resolveCodexApiCredentials(env)
+  return Boolean(credentials.apiKey && credentials.accountId)
 }
 
 async function resolveOllamaModel(
@@ -55,6 +64,13 @@ async function resolveOllamaModel(
 }
 
 async function main(): Promise<void> {
+  try {
+    loadProviderEnvFiles(process.argv.slice(2))
+    loadLocalCodexAuthEnv()
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
   const provider = parseProviderArg()
   const argModel = parseArg('--model')
   const argBaseUrl = parseArg('--base-url')
@@ -69,6 +85,8 @@ async function main(): Promise<void> {
     if (await hasLocalOllama(argBaseUrl || undefined)) {
       resolvedOllamaModel = await resolveOllamaModel(argModel, argBaseUrl, goal)
       selected = selectAutoProfile(resolvedOllamaModel)
+    } else if (hasUsableCodexLaunchAuth(process.env)) {
+      selected = 'codex'
     } else {
       selected = 'openai'
     }

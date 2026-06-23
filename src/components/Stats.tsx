@@ -4,7 +4,7 @@ import { plot as asciichart } from 'asciichart';
 import chalk from 'chalk';
 import figures from 'figures';
 import React, { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
-import { stripVTControlCharacters as stripAnsi } from 'node:util';
+import { stripVTControlCharacters as stripAnsi } from '../utils/stripVTControlCharacters.js';
 import type { CommandResultDisplay } from '../commands.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { applyColor } from '../ink/colorize.js';

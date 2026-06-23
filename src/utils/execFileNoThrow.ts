@@ -1,11 +1,10 @@
-// This file represents useful wrappers over node:child_process
+// This file represents useful wrappers over node:child_process.
 // These wrappers ease error handling and cross-platform compatibility.
-// By using cross-spawn, Windows gets .cmd/.bat compatibility without falling
-// back to a generic shell command string.
+// By resolving cross-spawn lazily we keep the browser bundle from pulling in
+// child_process transitively.
 
-import { spawn } from 'cross-spawn'
-import path from 'node:path'
 import { getCwd } from '../utils/cwd.js'
+import { isAbsolute, runtimeRequire } from './imports.js'
 import { logError } from './log.js'
 
 export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
@@ -46,10 +45,14 @@ const SAFE_BARE_EXECUTABLE_PATTERN = /^[A-Za-z0-9_.-]+$/
 
 function hasPathSyntax(value: string): boolean {
   return (
-    value.includes(path.sep) ||
+    value.includes('\\') ||
     value.includes('/') ||
-    path.isAbsolute(value)
+    isAbsolute(value)
   )
+}
+
+function getSpawn(): (typeof import('cross-spawn'))['spawn'] {
+  return runtimeRequire<typeof import('cross-spawn')>('cross-spawn').spawn
 }
 
 function validateExecutable(file: string): string | null {
@@ -212,7 +215,7 @@ export function execFileNoThrowWithCwd(
 
   return new Promise(resolve => {
     const stdinMode = finalInput !== undefined ? 'pipe' : finalStdin ?? 'pipe'
-    const child = spawn(file, args, {
+    const child = getSpawn()(file, args, {
       cwd: finalCwd,
       env: sanitizedEnv.value,
       shell: false,

@@ -1,10 +1,8 @@
 import {
   type ClaudeForChromeContext,
-  createClaudeForChromeMcpServer,
   type Logger,
   type PermissionMode,
 } from '@ant/claude-for-chrome-mcp'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { format } from 'util'
 import { shutdownDatadog } from '../../services/analytics/datadog.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
@@ -17,12 +15,14 @@ import { getClaudeAIOAuthTokens } from '../auth.js'
 import { enableConfigs, getGlobalConfig, saveGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
+import { createStdioServerTransport } from '../imports.js'
 import { sideQuery } from '../sideQuery.js'
 import { getAllSocketPaths, getSecureSocketPath } from './common.js'
 
 const EXTENSION_DOWNLOAD_URL = 'https://claude.ai/chrome'
 const BUG_REPORT_URL =
   'https://github.com/anthropics/claude-code/issues/new?labels=bug,claude-in-chrome'
+const CLAUDE_FOR_CHROME_MCP_PACKAGE = '@ant/claude-for-chrome-mcp'
 
 // String metadata keys safe to forward to analytics. Keys like error_message
 // are excluded because they could contain page content or user data.
@@ -248,9 +248,12 @@ export async function runClaudeInChromeMcpServer(): Promise<void> {
   enableConfigs()
   initializeAnalyticsSink()
   const context = createChromeContext()
+  const { createClaudeForChromeMcpServer } = await import(
+    CLAUDE_FOR_CHROME_MCP_PACKAGE
+  )
 
   const server = createClaudeForChromeMcpServer(context)
-  const transport = new StdioServerTransport()
+  const transport = await createStdioServerTransport()
 
   // Exit when parent process dies (stdin pipe closes).
   // Flush analytics before exiting so final-batch events (e.g. disconnect) aren't lost.

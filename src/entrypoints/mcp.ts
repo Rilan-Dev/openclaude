@@ -6,7 +6,6 @@
 process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ZodError } from 'zod'
 import {
   CallToolRequestSchema,
@@ -30,6 +29,7 @@ import { getTools } from '../tools.js'
 import { createAbortController } from '../utils/abortController.js'
 import { createFileStateCacheWithSizeLimit } from '../utils/fileStateCache.js'
 import { logError } from '../utils/log.js'
+import { createStdioServerTransport } from '../utils/imports.js'
 import { createAssistantMessage } from '../utils/messages.js'
 import { getMainLoopModel } from '../utils/model/model.js'
 import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
@@ -258,7 +258,7 @@ export async function startMCPServer(
   )
 
   async function runServer() {
-    const transport = new StdioServerTransport()
+    const transport = await createStdioServerTransport()
     await server.connect(transport)
   }
 

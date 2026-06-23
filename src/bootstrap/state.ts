@@ -17,6 +17,7 @@ import type { SettingSource } from 'src/utils/settings/constants.js'
 import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
 import type { PluginHookMatcher } from 'src/utils/settings/types.js'
 import { createSignal } from 'src/utils/signal.js'
+import { createAsyncContextStorage } from 'src/utils/imports.js'
 
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
@@ -417,9 +418,7 @@ type SdkContext = {
   parentSessionId?: SessionId
 }
 
-import { AsyncLocalStorage } from 'async_hooks'
-
-const sdkContextStorage = new AsyncLocalStorage<SdkContext>()
+const sdkContextStorage = createAsyncContextStorage<SdkContext>()
 
 /**
  * Run a function with an SDK-specific context that overrides global state.

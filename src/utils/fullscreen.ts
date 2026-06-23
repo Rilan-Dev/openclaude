@@ -1,4 +1,4 @@
-import { spawnSync } from 'child_process'
+import { spawnSync } from './imports.js'
 import { getIsInteractive } from '../bootstrap/state.js'
 import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
@@ -14,6 +14,10 @@ let checkedTmuxMouseHint = false
  */
 let tmuxControlModeProbed: boolean | undefined
 
+function hasProcess(): boolean {
+  return typeof process !== 'undefined'
+}
+
 /**
  * Env-var heuristic for iTerm2's tmux integration mode (`tmux -CC` / `tmux -2CC`).
  *
@@ -28,7 +32,7 @@ let tmuxControlModeProbed: boolean | undefined
  * authoritative backstop. Kept as a zero-subprocess fast path.
  */
 function isTmuxControlModeEnvHeuristic(): boolean {
-  if (!process.env.TMUX) return false
+  if (!hasProcess() || !process.env.TMUX) return false
   if (process.env.TERM_PROGRAM !== 'iTerm.app') return false
   // Belt-and-suspenders: in regular tmux TERM is screen-* or tmux-*;
   // in -CC mode iTerm2 sets its own TERM (xterm-*).
@@ -61,7 +65,7 @@ function probeTmuxControlModeSync(): void {
   // failure case) on every call.
   tmuxControlModeProbed = isTmuxControlModeEnvHeuristic()
   if (tmuxControlModeProbed) return
-  if (!process.env.TMUX) return
+  if (!hasProcess() || !process.env.TMUX) return
   // Only probe when iTerm might be involved: TERM_PROGRAM is iTerm.app
   // (covered above) or not set (SSH often doesn't propagate it). When
   // TERM_PROGRAM is explicitly a non-iTerm terminal, skip — tmux -CC is
@@ -119,6 +123,7 @@ export function _resetTmuxControlModeProbeForTesting(): void {
  */
 export function isFullscreenEnvEnabled(): boolean {
   // Explicit env opt-out always wins.
+  if (!hasProcess()) return false
   if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_NO_FLICKER)) return false
   // Explicit env opt-in overrides everything including tmux -CC.
   if (isEnvTruthy(process.env.CLAUDE_CODE_NO_FLICKER)) return true
@@ -150,7 +155,7 @@ export function isFullscreenEnvEnabled(): boolean {
  * disables alt-screen and virtualized scrollback.
  */
 export function isMouseTrackingEnabled(): boolean {
-  return !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE)
+  return hasProcess() ? !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE) : false
 }
 
 /**
@@ -161,7 +166,7 @@ export function isMouseTrackingEnabled(): boolean {
  * Fullscreen-specific — only reachable when CLAUDE_CODE_NO_FLICKER is active.
  */
 export function isMouseClicksDisabled(): boolean {
-  return isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE_CLICKS)
+  return hasProcess() ? isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_MOUSE_CLICKS) : false
 }
 
 /**
@@ -190,7 +195,7 @@ export function isFullscreenActive(): boolean {
  * `mouse` option is off; null otherwise.
  */
 export async function maybeGetTmuxMouseHint(): Promise<string | null> {
-  if (!process.env.TMUX) return null
+  if (!hasProcess() || !process.env.TMUX) return null
   // tmux -CC auto-disables fullscreen above, but belt-and-suspenders.
   if (!isFullscreenActive() || isTmuxControlMode()) return null
   if (checkedTmuxMouseHint) return null

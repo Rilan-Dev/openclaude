@@ -1,6 +1,6 @@
 import emojiRegex from 'emoji-regex'
 import { eastAsianWidth } from 'get-east-asian-width'
-import { stripVTControlCharacters as stripAnsi } from 'node:util'
+import { stripVTControlCharacters as stripAnsi } from '../utils/stripVTControlCharacters.js'
 import { getGraphemeSegmenter } from '../utils/intl.js'
 
 const EMOJI_REGEX = emojiRegex()

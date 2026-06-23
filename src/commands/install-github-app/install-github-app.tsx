@@ -1,4 +1,4 @@
-import { execa } from 'execa';
+import { getExeca } from '../../utils/imports.js';
 import React, { useCallback, useState } from 'react';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { WorkflowMultiselectDialog } from '../../components/WorkflowMultiselectDialog.js';

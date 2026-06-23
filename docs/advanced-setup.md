@@ -429,6 +429,12 @@ bun run profile:init -- --provider codex --model codexspark
 # launch using persisted user-level provider profile
 bun run dev:profile
 
+# dev launchers honor --provider-env-file before profile resolution, and they
+# also lift Codex auth settings from a local .env so custom auth.json paths
+# work without clobbering your OpenAI section.
+# If you want the whole file applied, pass it explicitly with
+# `--provider-env-file .env`.
+
 # codex profile (uses CODEX_API_KEY or ~/.codex/auth.json)
 bun run dev:codex
 

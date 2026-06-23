@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenClaude Web UI</title>
+    <meta name="description" content="OpenClaude Chat AI web interface using the existing REPL runtime." />
+    <meta name="author" content="OpenClaude" />
+
+    <meta property="og:title" content="OpenClaude Web UI" />
+    <meta property="og:description" content="OpenClaude Chat AI web interface." />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@openclaude" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@aws-sdk/credential-provider-ini": "./shims/optionalPackages.js",
+          "@aws-sdk/credential-provider-login": "./shims/optionalPackages.js",
+          "path": "./shims/nodeBuiltins.js",
+          "node:path": "./shims/nodeBuiltins.js",
+          "path/win32": "./shims/nodeBuiltins.js",
+          "node:path/win32": "./shims/nodeBuiltins.js"
+        }
+      }
+    </script>
+  <link rel="stylesheet" crossorigin href="./index-2padra6c.css"><script type="module" crossorigin src="./index-a0vv6cd8.js"></script></head>
+
+  <body>
+    <div id="root"></div>
+    
+  </body>
+</html>

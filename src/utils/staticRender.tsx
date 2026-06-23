@@ -2,7 +2,7 @@ import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { useLayoutEffect } from 'react';
 import { PassThrough } from 'stream';
-import { stripVTControlCharacters as stripAnsi } from 'node:util';
+import { stripVTControlCharacters as stripAnsi } from './stripVTControlCharacters.js';
 import { render, useApp } from '../ink.js';
 
 // This is a workaround for the fact that Ink doesn't support multiple <Static>

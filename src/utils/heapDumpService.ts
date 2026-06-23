@@ -6,7 +6,8 @@
 import { createWriteStream, writeFileSync } from 'fs'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { pipeline } from 'stream/promises'
+import { pipeline as pipelineCallback } from 'stream'
+import { promisify } from 'util'
 import {
   getHeapSnapshot,
   getHeapSpaceStatistics,
@@ -21,6 +22,8 @@ import { getDesktopPath } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
 import { jsonStringify } from './slowOperations.js'
+
+const pipeline = promisify(pipelineCallback)
 
 export type HeapDumpResult = {
   success: boolean

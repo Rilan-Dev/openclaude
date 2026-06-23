@@ -18,7 +18,7 @@ import { EXTERNAL_PERMISSION_MODES } from 'src/types/permissions.js'
 import { accumulateUsage, updateUsage } from 'src/services/api/claude.js'
 import type { NonNullableUsage } from 'src/services/api/logging.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
-import { stripVTControlCharacters as stripAnsi } from 'node:util'
+import { stripVTControlCharacters as stripAnsi } from './utils/stripVTControlCharacters.js'
 import type { Command } from './commands.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import {

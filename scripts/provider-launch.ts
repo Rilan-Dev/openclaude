@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { spawn } from 'node:child_process'
 import {
+  DEFAULT_CODEX_BASE_URL,
+  isCodexAlias,
   resolveCodexApiCredentials,
 } from '../src/services/api/providerConfig.js'
 import {
@@ -22,6 +24,10 @@ import {
   listAtomicChatModels,
   listOllamaModels,
 } from './provider-discovery.ts'
+import {
+  loadLocalCodexAuthEnv,
+  loadProviderEnvFiles,
+} from './provider-env.ts'
 
 type LaunchOptions = {
   requestedProfile: ProviderProfile | 'auto' | null
@@ -78,6 +84,29 @@ function parseLaunchOptions(argv: string[]): LaunchOptions {
 
 function loadPersistedProfile(): ProfileFile | null {
   return loadProfileFile()
+}
+
+function hasUsableCodexLaunchAuth(env: NodeJS.ProcessEnv): boolean {
+  const credentials = resolveCodexApiCredentials(env)
+  return Boolean(credentials.apiKey && credentials.accountId)
+}
+
+function normalizeCodexLaunchEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const nextEnv = { ...env }
+  nextEnv.OPENAI_BASE_URL = DEFAULT_CODEX_BASE_URL
+  nextEnv.OPENAI_MODEL = isCodexAlias(nextEnv.OPENAI_MODEL ?? '')
+    ? (nextEnv.OPENAI_MODEL as string)
+    : 'codexplan'
+  delete nextEnv.OPENAI_API_KEY
+  delete nextEnv.OPENAI_API_BASE
+  delete nextEnv.OPENAI_API_FORMAT
+  delete nextEnv.OPENAI_AUTH_HEADER
+  delete nextEnv.OPENAI_AUTH_SCHEME
+  delete nextEnv.OPENAI_AUTH_HEADER_VALUE
+  delete nextEnv.OPENAI_ORG
+  delete nextEnv.OPENAI_PROJECT
+  delete nextEnv.OPENAI_ORGANIZATION
+  return nextEnv
 }
 
 async function resolveOllamaDefaultModel(
@@ -153,10 +182,18 @@ function hasUsableGeminiLaunchAuth(env: NodeJS.ProcessEnv): boolean {
 }
 
 async function main(): Promise<void> {
-  const options = parseLaunchOptions(process.argv.slice(2))
+  const argv = process.argv.slice(2)
+  try {
+    loadProviderEnvFiles(argv)
+    loadLocalCodexAuthEnv()
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  }
+  const options = parseLaunchOptions(argv)
   const requestedProfile = options.requestedProfile
   if (!requestedProfile) {
-    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|mistral|atomic-chat|mistral|auto] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
+    console.error('Usage: bun run scripts/provider-launch.ts [openai|ollama|codex|gemini|mistral|atomic-chat|mistral|auto] [--provider-env-file <path>] [--fast] [--goal <latency|balanced|coding>] [-- <cli args>]')
     process.exit(1)
   }
 
@@ -170,6 +207,8 @@ async function main(): Promise<void> {
     } else if (await hasLocalOllama()) {
       resolvedOllamaModel = await resolveOllamaDefaultModel(options.goal)
       profile = selectAutoProfile(resolvedOllamaModel)
+    } else if (hasUsableCodexLaunchAuth(process.env)) {
+      profile = 'codex'
     } else {
       profile = 'openai'
     }
@@ -213,27 +252,29 @@ async function main(): Promise<void> {
     getAtomicChatChatBaseUrl,
     resolveAtomicChatDefaultModel: async () => resolvedAtomicChatModel,
   })
+  const runtimeEnv =
+    profile === 'codex' ? normalizeCodexLaunchEnv(env) : env
   if (options.fast) {
-    applyFastFlags(env)
+    applyFastFlags(runtimeEnv)
   }
 
-  if (profile === 'gemini' && !hasUsableGeminiLaunchAuth(env)) {
+  if (profile === 'gemini' && !hasUsableGeminiLaunchAuth(runtimeEnv)) {
     console.error('Gemini credentials are required for gemini profile. Use `bun run profile:init -- --provider gemini --api-key <key>`, save an access-token/ADC Gemini profile with `/provider`, or set GEMINI_API_KEY/GOOGLE_API_KEY/GEMINI_ACCESS_TOKEN.')
     process.exit(1)
   }
 
-  if (profile === 'mistral' && !env.MISTRAL_API_KEY) {
+  if (profile === 'mistral' && !runtimeEnv.MISTRAL_API_KEY) {
     console.error('MISTRAL_API_KEY is required for mistral profile. Run: bun run profile:init -- --provider mistral --api-key <key>')
     process.exit(1)
   }
 
-  if (profile === 'openai' && (!env.OPENAI_API_KEY || env.OPENAI_API_KEY === 'SUA_CHAVE')) {
+  if (profile === 'openai' && (!runtimeEnv.OPENAI_API_KEY || runtimeEnv.OPENAI_API_KEY === 'SUA_CHAVE')) {
     console.error('OPENAI_API_KEY is required for openai profile and cannot be SUA_CHAVE. Run: bun run profile:init -- --provider openai --api-key <key>')
     process.exit(1)
   }
 
   if (profile === 'codex') {
-    const credentials = resolveCodexApiCredentials(env)
+    const credentials = resolveCodexApiCredentials(runtimeEnv)
     if (!credentials.apiKey) {
       const authHint = credentials.authPath
         ? ` or make sure ${credentials.authPath} exists`
@@ -250,18 +291,18 @@ async function main(): Promise<void> {
 
   printSummary(profile)
 
-  const doctorCode = await runProcess('bun', ['run', 'scripts/system-check.ts'], env)
+  const doctorCode = await runProcess('bun', ['run', 'scripts/system-check.ts'], runtimeEnv)
   if (doctorCode !== 0) {
     console.error('Runtime doctor failed. Fix configuration before launching.')
     process.exit(doctorCode)
   }
 
-  const buildCode = await runProcess('bun', ['run', 'build'], env)
+  const buildCode = await runProcess('bun', ['run', 'build'], runtimeEnv)
   if (buildCode !== 0) {
     process.exit(buildCode)
   }
 
-  const devCode = await runProcess('node', ['bin/openclaude', ...options.passthroughArgs], env)
+  const devCode = await runProcess('node', ['bin/openclaude', ...options.passthroughArgs], runtimeEnv)
   process.exit(devCode)
 }
 

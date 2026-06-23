@@ -12,9 +12,21 @@
  *
  * Only runs on macOS - no-op on other platforms.
  */
-import { type ChildProcess, spawn } from 'child_process'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
+import { runtimeRequire } from '../utils/imports.js'
 import { logForDebugging } from '../utils/debug.js'
+
+type ChildProcessLike = {
+  kill: (signal?: string) => void
+  on: (event: 'error' | 'exit', listener: (error?: Error) => void) => void
+  unref: () => void
+}
+
+function spawnProcess(command: string, args: string[], options: {
+  stdio: 'ignore'
+}): ChildProcessLike {
+  return runtimeRequire('child_process').spawn(command, args, options)
+}
 
 // Caffeinate timeout in seconds. Process auto-exits after this duration.
 // We restart it before expiry to maintain continuous sleep prevention.
@@ -24,7 +36,7 @@ const CAFFEINATE_TIMEOUT_SECONDS = 300 // 5 minutes
 // Use 4 minutes to give plenty of buffer before the 5 minute timeout.
 const RESTART_INTERVAL_MS = 4 * 60 * 1000
 
-let caffeinateProcess: ChildProcess | null = null
+let caffeinateProcess: ChildProcessLike | null = null
 let restartInterval: ReturnType<typeof setInterval> | null = null
 let refCount = 0
 let cleanupRegistered = false
@@ -69,7 +81,7 @@ export function forceStopPreventSleep(): void {
 
 function startRestartInterval(): void {
   // Only run on macOS
-  if (process.platform !== 'darwin') {
+  if (typeof process === 'undefined' || process.platform !== 'darwin') {
     return
   }
 
@@ -100,7 +112,7 @@ function stopRestartInterval(): void {
 
 function spawnCaffeinate(): void {
   // Only run on macOS
-  if (process.platform !== 'darwin') {
+  if (typeof process === 'undefined' || process.platform !== 'darwin') {
     return
   }
 
@@ -122,7 +134,7 @@ function spawnCaffeinate(): void {
     //     This is the least aggressive option - display can still sleep
     // -t: Timeout in seconds - caffeinate exits automatically after this
     //     This provides self-healing if Node is killed with SIGKILL
-    caffeinateProcess = spawn(
+    caffeinateProcess = spawnProcess(
       'caffeinate',
       ['-i', '-t', String(CAFFEINATE_TIMEOUT_SECONDS)],
       {

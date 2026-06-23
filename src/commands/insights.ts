@@ -7,7 +7,7 @@ import {
   unlink,
   writeFile,
 } from 'fs/promises'
-import { extname, join } from 'path'
+import { extname, join } from '../utils/imports.js'
 import type { Command } from '../commands.js'
 import { queryWithModel } from '../services/api/claude.js'
 import {

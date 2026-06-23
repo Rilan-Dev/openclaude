@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { getExeca } from './imports.js'
 import { execSync_DEPRECATED } from './execSyncWrapper.js'
 
 async function whichNodeAsync(command: string): Promise<string | null> {

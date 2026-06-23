@@ -1,5 +1,5 @@
 import { feature } from 'bun:bundle'
-import { normalize, posix, win32 } from 'path'
+import { normalize, posix } from 'path'
 import {
   getAutoMemPath,
   getMemoryBaseDir,
@@ -8,6 +8,7 @@ import {
 } from '../memdir/paths.js'
 import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
+import { WINDOWS_PATH_SEPARATOR } from './imports.js'
 import {
   posixPathToWindowsPath,
   windowsPathToPosixPath,
@@ -23,7 +24,7 @@ const IS_WINDOWS = process.platform === 'win32'
 
 // Normalize path separators to posix (/). Does NOT translate drive encoding.
 function toPosix(p: string): string {
-  return p.split(win32.sep).join(posix.sep)
+  return p.split(WINDOWS_PATH_SEPARATOR).join(posix.sep)
 }
 
 // Convert a path to a stable string-comparable form: forward-slash separated,
@@ -65,7 +66,7 @@ export function detectSessionFileType(
 export function detectSessionPatternType(
   pattern: string,
 ): 'session_memory' | 'session_transcript' | null {
-  const normalized = pattern.split(win32.sep).join(posix.sep)
+  const normalized = pattern.split(WINDOWS_PATH_SEPARATOR).join(posix.sep)
   if (
     normalized.includes('session-memory') &&
     (normalized.includes('.md') || normalized.endsWith('*'))

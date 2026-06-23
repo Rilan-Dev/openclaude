@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { dirname, join } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from './urlPath.js'
 import { coerce } from 'semver'
 
 export const OPENCLAUDE_RELEASES_URL =

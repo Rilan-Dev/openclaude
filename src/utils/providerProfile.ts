@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve } from './imports.js'
 import {
   DEFAULT_CODEX_BASE_URL,
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENCODE_BASE_URL,
   isCodexBaseUrl,
+  isCodexAlias,
   parseOpenAICompatibleApiFormat,
   resolveCodexApiCredentials,
   resolveProviderRequest,
@@ -1147,6 +1148,31 @@ function hasConcreteProviderSelection(
   )
 }
 
+function createCodexLaunchProcessEnv(
+  processEnv: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const env = { ...processEnv }
+  delete env.CLAUDE_CODE_USE_OPENAI
+  delete env.CLAUDE_CODE_USE_GITHUB
+  delete env.CLAUDE_CODE_USE_GEMINI
+  delete env.CLAUDE_CODE_USE_MISTRAL
+  delete env.CLAUDE_CODE_USE_BEDROCK
+  delete env.CLAUDE_CODE_USE_VERTEX
+  delete env.CLAUDE_CODE_USE_FOUNDRY
+  delete env.OPENAI_BASE_URL
+  delete env.OPENAI_API_BASE
+  delete env.OPENAI_MODEL
+  delete env.OPENAI_API_FORMAT
+  delete env.OPENAI_AUTH_HEADER
+  delete env.OPENAI_AUTH_SCHEME
+  delete env.OPENAI_AUTH_HEADER_VALUE
+  delete env.OPENAI_API_KEY
+  delete env.OPENAI_ORG
+  delete env.OPENAI_PROJECT
+  delete env.OPENAI_ORGANIZATION
+  return env
+}
+
 export function selectAutoProfile(
   recommendedOllamaModel: string | null,
 ): ProviderProfile {
@@ -1229,7 +1255,12 @@ export async function buildLaunchEnv(options: {
   const persistedGeminiKey = sanitizeApiKey(persistedEnv.GEMINI_API_KEY)
   const persistedGeminiAuthMode = persistedEnv.GEMINI_AUTH_MODE
 
-  if (hasExplicitProviderSelection(processEnv)) {
+  const codexLaunchProcessEnv =
+    selectedProfile === 'codex'
+      ? createCodexLaunchProcessEnv(processEnv)
+      : processEnv
+
+  if (hasExplicitProviderSelection(codexLaunchProcessEnv)) {
     const explicitProfileOverrides: Array<[string, ProviderProfile]> = [
       ['CLAUDE_CODE_USE_GITHUB', 'github'],
       ['CLAUDE_CODE_USE_BEDROCK', 'bedrock'],
@@ -1240,7 +1271,7 @@ export async function buildLaunchEnv(options: {
     ]
 
     for (const [envKey, provider] of explicitProfileOverrides) {
-      if (isEnvTruthy(processEnv[envKey])) {
+      if (isEnvTruthy(codexLaunchProcessEnv[envKey])) {
         const isCodexOAuthProfile =
           selectedProfile === 'codex' &&
           provider === 'openai' &&
@@ -1552,6 +1583,10 @@ export async function buildLaunchEnv(options: {
 
   if (selectedProfile === 'codex') {
     const isCodexOAuthProfile = persistedEnv.CODEX_CREDENTIAL_SOURCE === 'oauth'
+    const persistedCodexModel =
+      persistedOpenAIModel && isCodexAlias(persistedOpenAIModel)
+        ? persistedOpenAIModel
+        : undefined
     const codexKey = isCodexOAuthProfile
       ? undefined
       : sanitizeApiKey(processEnv.CODEX_API_KEY) ||
@@ -1568,14 +1603,14 @@ export async function buildLaunchEnv(options: {
         persistedEnv.CODEX_ACCOUNT_ID
 
     return buildCompatibilityProcessEnv({
-      processEnv,
+      processEnv: codexLaunchProcessEnv,
       compatibilityMode: 'openai',
       profileEnv: {
         OPENAI_BASE_URL:
           persistedOpenAIBaseUrl && isCodexBaseUrl(persistedOpenAIBaseUrl)
             ? persistedOpenAIBaseUrl
             : DEFAULT_CODEX_BASE_URL,
-        OPENAI_MODEL: persistedOpenAIModel || 'codexplan',
+        OPENAI_MODEL: persistedCodexModel || 'codexplan',
         ...(codexKey ? { CODEX_API_KEY: codexKey } : {}),
         ...(codexAccountId ? { CHATGPT_ACCOUNT_ID: codexAccountId } : {}),
       },

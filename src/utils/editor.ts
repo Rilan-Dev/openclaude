@@ -1,14 +1,63 @@
-import {
-  type SpawnOptions,
-  type SpawnSyncOptions,
-  spawn,
-  spawnSync,
-} from 'child_process'
 import memoize from 'lodash-es/memoize.js'
-import { basename } from 'path'
 import instances from '../ink/instances.js'
+import { runtimeRequire } from './imports.js'
 import { logForDebugging } from './debug.js'
 import { whichSync } from './which.js'
+
+type ChildProcessLike = {
+  on: (event: 'error', listener: (error: Error) => void) => void
+  unref: () => void
+}
+
+type SpawnResultLike = {
+  error?: Error
+}
+
+function spawn(
+  command: string,
+  argsOrOptions: string[] | {
+    detached?: boolean
+    shell?: boolean
+    stdio?: 'ignore' | 'inherit'
+  },
+  maybeOptions?: {
+    detached?: boolean
+    shell?: boolean
+    stdio?: 'ignore' | 'inherit'
+  },
+): ChildProcessLike {
+  return runtimeRequire<{
+    spawn: (
+      cmd: string,
+      argvOrOpts: typeof argsOrOptions,
+      opts?: typeof maybeOptions,
+    ) => ChildProcessLike
+  }>('child_process').spawn(command, argsOrOptions, maybeOptions)
+}
+
+function spawnSync(
+  command: string,
+  argsOrOptions: string[] | {
+    shell?: boolean
+    stdio?: 'ignore' | 'inherit'
+  },
+  maybeOptions?: {
+    shell?: boolean
+    stdio?: 'ignore' | 'inherit'
+  },
+): SpawnResultLike {
+  return runtimeRequire<{
+    spawnSync: (
+      cmd: string,
+      argvOrOpts: typeof argsOrOptions,
+      opts?: typeof maybeOptions,
+    ) => SpawnResultLike
+  }>('child_process').spawnSync(command, argsOrOptions, maybeOptions)
+}
+
+function basename(path: string): string {
+  return path.replace(/\\/g, '/').split('/').pop() ?? path
+}
 
 function isCommandAvailable(command: string): boolean {
   return !!whichSync(command)
@@ -95,7 +144,7 @@ export function openFileInExternalEditor(
 
   if (guiFamily) {
     const gotoArgv = guiGotoArgv(guiFamily, filePath, line)
-    const detachedOpts: SpawnOptions = { detached: true, stdio: 'ignore' }
+    const detachedOpts = { detached: true, stdio: 'ignore' as const }
     let child
     if (process.platform === 'win32') {
       // shell: true on win32 so code.cmd / cursor.cmd / windsurf.cmd resolve —
@@ -129,7 +178,7 @@ export function openFileInExternalEditor(
   const useGotoLine = line && PLUS_N_EDITORS.test(basename(base))
   inkInstance.enterAlternateScreen()
   try {
-    const syncOpts: SpawnSyncOptions = { stdio: 'inherit' }
+    const syncOpts = { stdio: 'inherit' as const }
     let result
     if (process.platform === 'win32') {
       // On Windows use shell: true so cmd.exe builtins like `start` resolve.

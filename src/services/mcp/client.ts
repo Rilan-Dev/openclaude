@@ -9,7 +9,6 @@ import {
   SSEClientTransport,
   type SSEClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/sse.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import {
   StreamableHTTPClientTransport,
   type StreamableHTTPClientTransportOptions,
@@ -143,6 +142,31 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'
+
+type StdioClientTransportLike = Transport & {
+  stderr?: {
+    on(event: 'data', handler: (data: Buffer) => void): void
+    off(event: 'data', handler: (data: Buffer) => void): void
+  }
+  pid?: number
+}
+
+const MCP_STDIO_CLIENT_TRANSPORT_PACKAGE = [
+  '@modelcontextprotocol',
+  'sdk/client/stdio.js',
+].join('/')
+
+async function createStdioClientTransport(options: {
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+  stderr?: 'pipe' | 'inherit'
+}): Promise<StdioClientTransportLike> {
+  const { StdioClientTransport } = await import(
+    MCP_STDIO_CLIENT_TRANSPORT_PACKAGE
+  )
+  return new StdioClientTransport(options) as StdioClientTransportLike
+}
 
 /**
  * Custom error class to indicate that an MCP tool call failed due to
@@ -943,8 +967,9 @@ export const connectToServer = memoize(
         const { createChromeContext } = await import(
           '../../utils/claudeInChrome/mcpServer.js'
         )
+        const chromeMcpPackage = '@ant/claude-for-chrome-mcp'
         const { createClaudeForChromeMcpServer } = await import(
-          '@ant/claude-for-chrome-mcp'
+          chromeMcpPackage
         )
         const { createLinkedTransportPair } = await import(
           './InProcessTransport.js'
@@ -986,7 +1011,7 @@ export const connectToServer = memoize(
           serverRef.args ?? [],
           process.env.CLAUDE_CODE_SHELL_PREFIX,
         )
-        transport = new StdioClientTransport({
+        transport = await createStdioClientTransport({
           command: finalCommand,
           args: finalArgs,
           env: {
@@ -1005,7 +1030,7 @@ export const connectToServer = memoize(
       let stderrHandler: ((data: Buffer) => void) | undefined
       let stderrOutput = ''
       if (serverRef.type === 'stdio' || !serverRef.type) {
-        const stdioTransport = transport as StdioClientTransport
+        const stdioTransport = transport as StdioClientTransportLike
         if (stdioTransport.stderr) {
           stderrHandler = (data: Buffer) => {
             // Cap stderr accumulation to prevent unbounded memory growth
@@ -1461,7 +1486,7 @@ export const connectToServer = memoize(
 
         // Remove stderr event listener to prevent memory leaks
         if (stderrHandler && (serverRef.type === 'stdio' || !serverRef.type)) {
-          const stdioTransport = transport as StdioClientTransport
+          const stdioTransport = transport as StdioClientTransportLike
           stdioTransport.stderr?.off('data', stderrHandler)
         }
 
@@ -1470,7 +1495,7 @@ export const connectToServer = memoize(
         // (especially Docker containers) need explicit SIGINT/SIGTERM signals to trigger graceful shutdown
         if (serverRef.type === 'stdio') {
           try {
-            const stdioTransport = transport as StdioClientTransport
+            const stdioTransport = transport as StdioClientTransportLike
             const childPid = stdioTransport.pid
 
             if (childPid) {

@@ -1,6 +1,6 @@
 import type { Token, Tokens } from 'marked';
 import React from 'react';
-import { stripVTControlCharacters as stripAnsi } from 'node:util';
+import { stripVTControlCharacters as stripAnsi } from '../utils/stripVTControlCharacters.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { stringWidth } from '../ink/stringWidth.js';
 import { wrapAnsi } from '../ink/wrapAnsi.js';

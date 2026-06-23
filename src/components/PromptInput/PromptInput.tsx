@@ -11,7 +11,7 @@ import { type AppState, useAppState, useAppStateStore, useSetAppState } from 'sr
 import type { FooterItem } from 'src/state/AppStateStore.js';
 import { getCwd } from 'src/utils/cwd.js';
 import { isQueuedCommandEditable, popAllEditable } from 'src/utils/messageQueueManager.js';
-import { stripVTControlCharacters as stripAnsi } from 'node:util';
+import { stripVTControlCharacters as stripAnsi } from '../../utils/stripVTControlCharacters.js';
 import { companionReservedColumns } from '../../buddy/CompanionSprite.js';
 import { isBuddyEnabled } from '../../buddy/feature.js';
 import { findBuddyTriggerPositions, useBuddyNotification } from '../../buddy/useBuddyNotification.js';

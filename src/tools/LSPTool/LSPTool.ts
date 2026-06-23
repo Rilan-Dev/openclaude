@@ -1,6 +1,6 @@
 import { open } from 'fs/promises'
 import * as path from 'path'
-import { pathToFileURL } from 'url'
+import { pathToFileURL } from '../../utils/urlPath.js'
 import type {
   CallHierarchyIncomingCall,
   CallHierarchyItem,

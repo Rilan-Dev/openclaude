@@ -18,6 +18,14 @@ import {
   type TLSConfig,
 } from './mtls.js'
 
+const AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE = [
+  '@aws-sdk',
+  'credential-provider-node',
+].join('/')
+const SMITHY_NODE_HTTP_HANDLER_PACKAGE = ['@smithy', 'node-http-handler'].join(
+  '/',
+)
+
 // Disable fetch keep-alive after a stale-pool ECONNRESET so retries open a
 // fresh TCP connection instead of reusing the dead pooled socket. Sticky for
 // the process lifetime — once the pool is known-bad, don't trust it again.
@@ -401,8 +409,8 @@ export async function getAWSClientProxyConfig(): Promise<object> {
   }
 
   const [{ NodeHttpHandler }, { defaultProvider }] = await Promise.all([
-    import('@smithy/node-http-handler'),
-    import('@aws-sdk/credential-provider-node'),
+    import(SMITHY_NODE_HTTP_HANDLER_PACKAGE),
+    import(AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE),
   ])
 
   const agent = createHttpsProxyAgent(proxyUrl)

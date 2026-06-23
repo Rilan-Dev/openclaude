@@ -1,11 +1,14 @@
 import memoize from 'lodash-es/memoize.js'
 import * as path from 'path'
-import * as pathWin32 from 'path/win32'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { execSync_DEPRECATED } from './execSyncWrapper.js'
 import { memoizeWithLRU } from './memoize.js'
 import { getPlatform } from './platform.js'
+
+function win32Join(...parts: string[]): string {
+  return path.join(...parts).replace(/\//g, '\\')
+}
 
 /**
  * Check if a file or directory exists on Windows using the dir command
@@ -110,7 +113,7 @@ export const findGitBashPath = memoize((): string => {
 
   const gitPath = findExecutable('git')
   if (gitPath) {
-    const bashPath = pathWin32.join(gitPath, '..', '..', 'bin', 'bash.exe')
+    const bashPath = win32Join(gitPath, '..', '..', 'bin', 'bash.exe')
     if (checkPathExists(bashPath)) {
       return bashPath
     }

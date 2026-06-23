@@ -18,7 +18,6 @@
  *   bun scripts/generate-bitmap-font.ts
  */
 
-import { deflateSync } from 'zlib'
 import { stringWidth } from '../ink/stringWidth.js'
 import {
   type AnsiColor,
@@ -26,6 +25,7 @@ import {
   type ParsedLine,
   parseAnsi,
 } from './ansiToSvg.js'
+import { deflateSync } from './imports.js'
 
 // Glyph cell size — rasterized at output resolution so the default scale=1
 // is crisp (no nearest-neighbor upscaling artifacts).

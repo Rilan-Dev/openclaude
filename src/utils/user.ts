@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { getExeca } from './imports.js'
 import memoize from 'lodash-es/memoize.js'
 import { getSessionId } from '../bootstrap/state.js'
 import {

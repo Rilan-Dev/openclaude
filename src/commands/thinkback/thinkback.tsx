@@ -1,7 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
-import { execa } from 'execa';
+import { getExeca } from '../../utils/imports.js';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join } from '../../utils/imports.js';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { CommandResultDisplay } from '../../commands.js';

@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { getExeca } from '../imports.js'
 import { logForDebugging } from '../debug.js'
 import { memoizeWithLRU } from '../memoize.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'

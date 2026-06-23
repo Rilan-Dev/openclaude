@@ -6,6 +6,7 @@
 
 import type { performance as PerformanceType } from 'perf_hooks'
 import { formatFileSize } from './format.js'
+import { runtimeRequire } from './imports.js'
 
 // Lazy-load performance API only when profiling is enabled.
 // Shared across all profilers — perf_hooks.performance is a process-wide singleton.
@@ -13,8 +14,7 @@ let performance: typeof PerformanceType | null = null
 
 export function getPerformance(): typeof PerformanceType {
   if (!performance) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    performance = require('perf_hooks').performance
+    performance = runtimeRequire('perf_hooks').performance
   }
   return performance!
 }

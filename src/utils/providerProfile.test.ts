@@ -578,6 +578,24 @@ test('codex launch normalizes poisoned persisted base urls', async () => {
   assert.equal(env.OPENAI_MODEL, 'codexspark')
 })
 
+test('codex launch falls back to codexplan for non-codex persisted models', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'codex',
+    persisted: profile('codex', {
+      OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+      OPENAI_MODEL: 'gpt-4o',
+      CHATGPT_ACCOUNT_ID: 'acct_persisted',
+    }),
+    goal: 'balanced',
+    processEnv: {
+      CODEX_AUTH_JSON_PATH: missingCodexAuthPath,
+    },
+  })
+
+  assert.equal(env.OPENAI_BASE_URL, DEFAULT_CODEX_BASE_URL)
+  assert.equal(env.OPENAI_MODEL, 'codexplan')
+})
+
 test('codex launch ignores mismatched persisted openai env', async () => {
   const env = await buildLaunchEnv({
     profile: 'codex',
@@ -601,6 +619,30 @@ test('codex launch ignores mismatched persisted openai env', async () => {
   assert.equal(env.OPENAI_API_KEY, undefined)
   assert.equal(env.CODEX_API_KEY, 'codex-live')
   assert.equal(env.CHATGPT_ACCOUNT_ID, 'acct_live')
+})
+
+test('codex launch strips ambient openai selection hints', async () => {
+  const env = await buildLaunchEnv({
+    profile: 'codex',
+    persisted: profile('codex', {
+      OPENAI_BASE_URL: DEFAULT_CODEX_BASE_URL,
+      OPENAI_MODEL: 'codexplan',
+      CHATGPT_ACCOUNT_ID: 'acct_persisted',
+    }),
+    goal: 'balanced',
+    processEnv: {
+      CLAUDE_CODE_USE_OPENAI: '1',
+      OPENAI_BASE_URL: 'https://api.openai.com/v1',
+      OPENAI_MODEL: 'gpt-4o',
+      OPENAI_API_KEY: 'sk-openai-shell',
+      CODEX_AUTH_JSON_PATH: missingCodexAuthPath,
+    },
+  })
+
+  assert.equal(env.CLAUDE_CODE_USE_OPENAI, undefined)
+  assert.equal(env.OPENAI_BASE_URL, DEFAULT_CODEX_BASE_URL)
+  assert.equal(env.OPENAI_MODEL, 'codexplan')
+  assert.equal(env.OPENAI_API_KEY, undefined)
 })
 
 test('codex launch ignores placeholder codex env keys', async () => {

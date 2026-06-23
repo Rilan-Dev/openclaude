@@ -9,7 +9,11 @@
  * connection". This mirrors openclaw's `waitForLocalOAuthCallback`.
  */
 
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import {
+  createHttpServer,
+  type HttpIncomingMessage as IncomingMessage,
+  type HttpServerResponse as ServerResponse,
+} from '../../utils/imports.js'
 
 function escapeHtml(value: string): string {
   return value.replace(
@@ -127,7 +131,7 @@ export async function startXaiOAuthCallback(params: {
     }
   }
 
-  const server = createServer((req, res) => {
+  const server = await createHttpServer((req, res) => {
     try {
       applyCors(req, res, allowlist)
       const url = new URL(req.url ?? '/', `http://${params.host}:${params.port}`)

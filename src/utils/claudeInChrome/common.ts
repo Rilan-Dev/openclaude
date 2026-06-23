@@ -1,6 +1,6 @@
 import { readdirSync } from 'fs'
 import { stat } from 'fs/promises'
-import { homedir, platform, tmpdir, userInfo } from 'os'
+import { homedir, platform, tmpdir } from 'os'
 import { join } from 'path'
 import { normalizeNameForMCP } from '../../services/mcp/normalization.js'
 import { logForDebugging } from '../debug.js'
@@ -532,9 +532,5 @@ function getSocketName(): string {
 }
 
 function getUsername(): string {
-  try {
-    return userInfo().username || 'default'
-  } catch {
-    return process.env.USER || process.env.USERNAME || 'default'
-  }
+  return process.env.USER || process.env.USERNAME || 'default'
 }

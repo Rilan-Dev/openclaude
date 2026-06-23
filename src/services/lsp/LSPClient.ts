@@ -1,11 +1,4 @@
 import { type ChildProcess, spawn } from 'child_process'
-import {
-  createMessageConnection,
-  type MessageConnection,
-  StreamMessageReader,
-  StreamMessageWriter,
-  Trace,
-} from 'vscode-jsonrpc/node.js'
 import type {
   InitializeParams,
   InitializeResult,
@@ -15,6 +8,41 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+
+type MessageConnection = {
+  listen(): void
+  dispose(): void
+  onError(handler: (args: [Error, unknown, unknown]) => void): void
+  onClose(handler: () => void): void
+  trace(trace: unknown, tracer: { log(message: string): void }): Promise<void>
+  sendRequest<TResult = unknown>(
+    method: string,
+    params: unknown,
+  ): Promise<TResult>
+  sendNotification(method: string, params: unknown): Promise<void>
+  onNotification(method: string, handler: (params: unknown) => void): void
+  onRequest<TParams, TResult>(
+    method: string,
+    handler: (params: TParams) => TResult | Promise<TResult>,
+  ): void
+}
+
+type JsonRpcNodeModule = {
+  createMessageConnection(
+    reader: unknown,
+    writer: unknown,
+  ): MessageConnection
+  StreamMessageReader: new (stream: unknown) => unknown
+  StreamMessageWriter: new (stream: unknown) => unknown
+  Trace: { Verbose: unknown }
+}
+
+const VSCODE_JSONRPC_NODE_PACKAGE = 'vscode-jsonrpc/node.js'
+
+async function loadJsonRpcNode(): Promise<JsonRpcNodeModule> {
+  return (await import(VSCODE_JSONRPC_NODE_PACKAGE)) as JsonRpcNodeModule
+}
+
 /**
  * LSP client interface.
  */
@@ -94,6 +122,8 @@ export function createLSPClient(
       },
     ): Promise<void> {
       try {
+        const jsonRpc = await loadJsonRpcNode()
+
         // 1. Spawn LSP server process
         process = spawn(command, args, {
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -178,9 +208,9 @@ export function createLSPClient(
         })
 
         // 2. Create JSON-RPC connection
-        const reader = new StreamMessageReader(process.stdout)
-        const writer = new StreamMessageWriter(process.stdin)
-        connection = createMessageConnection(reader, writer)
+        const reader = new jsonRpc.StreamMessageReader(process.stdout)
+        const writer = new jsonRpc.StreamMessageWriter(process.stdin)
+        connection = jsonRpc.createMessageConnection(reader, writer)
 
         // 2.5. Register error/close handlers BEFORE listen() to catch all errors
         // This prevents unhandled promise rejections when the server crashes or closes unexpectedly
@@ -214,7 +244,7 @@ export function createLSPClient(
         // process has already exited. We catch and log the error rather than letting
         // it become an unhandled promise rejection.
         connection
-          .trace(Trace.Verbose, {
+          .trace(jsonRpc.Trace.Verbose, {
             log: (message: string) => {
               logForDebugging(`[LSP PROTOCOL ${serverName}] ${message}`)
             },

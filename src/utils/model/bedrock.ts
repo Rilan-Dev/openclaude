@@ -4,12 +4,28 @@ import { getAWSRegion, isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
 import { getAWSClientProxyConfig } from '../proxy.js'
 
+const optionalPackage = (scope: string, name: string): string =>
+  [scope, name].join('/')
+const AWS_BEDROCK_CLIENT_PACKAGE = optionalPackage(
+  '@aws-sdk',
+  'client-bedrock',
+)
+const AWS_BEDROCK_RUNTIME_PACKAGE = optionalPackage(
+  '@aws-sdk',
+  'client-bedrock-runtime',
+)
+const SMITHY_NODE_HTTP_HANDLER_PACKAGE = optionalPackage(
+  '@smithy',
+  'node-http-handler',
+)
+const SMITHY_CORE_PACKAGE = optionalPackage('@smithy', 'core')
+
 export const getBedrockInferenceProfiles = memoize(async function (): Promise<
   string[]
 > {
   const [client, { ListInferenceProfilesCommand }] = await Promise.all([
     createBedrockClient(),
-    import('@aws-sdk/client-bedrock'),
+    import(AWS_BEDROCK_CLIENT_PACKAGE),
   ])
   const allProfiles: Array<{ inferenceProfileId?: string }> = []
   let nextToken: string | undefined
@@ -48,7 +64,7 @@ export function findFirstMatch(
 }
 
 async function createBedrockClient() {
-  const { BedrockClient } = await import('@aws-sdk/client-bedrock')
+  const { BedrockClient } = await import(AWS_BEDROCK_CLIENT_PACKAGE)
   // Match the Anthropic Bedrock SDK's region behavior exactly:
   // - Reads AWS_REGION or AWS_DEFAULT_REGION env vars (not AWS config files)
   // - Falls back to 'us-east-1' if neither is set
@@ -65,13 +81,13 @@ async function createBedrockClient() {
     ...(await getAWSClientProxyConfig()),
     ...(skipAuth && {
       requestHandler: new (
-        await import('@smithy/node-http-handler')
+        await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)
       ).NodeHttpHandler(),
       httpAuthSchemes: [
         {
           schemeId: 'smithy.api#noAuth',
           identityProvider: () => async () => ({}),
-          signer: new (await import('@smithy/core')).NoAuthSigner(),
+          signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner(),
         },
       ],
       httpAuthSchemeProvider: () => [{ schemeId: 'smithy.api#noAuth' }],
@@ -95,7 +111,7 @@ async function createBedrockClient() {
 
 export async function createBedrockRuntimeClient() {
   const { BedrockRuntimeClient } = await import(
-    '@aws-sdk/client-bedrock-runtime'
+    AWS_BEDROCK_RUNTIME_PACKAGE
   )
   const region = getAWSRegion()
   const skipAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)
@@ -110,13 +126,13 @@ export async function createBedrockRuntimeClient() {
       // BedrockRuntimeClient defaults to HTTP/2 without fallback
       // proxy servers may not support this, so we explicitly force HTTP/1.1
       requestHandler: new (
-        await import('@smithy/node-http-handler')
+        await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)
       ).NodeHttpHandler(),
       httpAuthSchemes: [
         {
           schemeId: 'smithy.api#noAuth',
           identityProvider: () => async () => ({}),
-          signer: new (await import('@smithy/core')).NoAuthSigner(),
+          signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner(),
         },
       ],
       httpAuthSchemeProvider: () => [{ schemeId: 'smithy.api#noAuth' }],
@@ -144,7 +160,7 @@ export const getInferenceProfileBackingModel = memoize(async function (
   try {
     const [client, { GetInferenceProfileCommand }] = await Promise.all([
       createBedrockClient(),
-      import('@aws-sdk/client-bedrock'),
+      import(AWS_BEDROCK_CLIENT_PACKAGE),
     ])
     const command = new GetInferenceProfileCommand({
       inferenceProfileIdentifier: profileId,

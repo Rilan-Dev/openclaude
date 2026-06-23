@@ -15,7 +15,6 @@
  */
 
 import { createHash } from 'crypto'
-import { userInfo } from 'os'
 import { getOauthConfig } from 'src/constants/oauth.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
 import type { SecureStorageData } from './index.js'
@@ -52,11 +51,7 @@ export function getMacOsKeychainStorageServiceName(
 }
 
 export function getUsername(): string {
-  try {
-    return process.env.USER || userInfo().username
-  } catch {
-    return 'claude-code-user'
-  }
+  return process.env.USER || process.env.USERNAME || 'claude-code-user'
 }
 
 // --

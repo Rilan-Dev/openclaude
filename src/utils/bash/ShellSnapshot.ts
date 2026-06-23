@@ -1,7 +1,6 @@
 import { execFile } from 'child_process'
-import { execa } from 'execa'
+import { getExeca } from '../imports.js'
 import { mkdir, stat } from 'fs/promises'
-import * as os from 'os'
 import { join } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -18,6 +17,7 @@ import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { homedir, runtimeRequire } from '../imports.js'
 import { quote } from './shellQuote.js'
 
 const LITERAL_BACKSLASH = '\\'
@@ -185,9 +185,17 @@ function getConfigFile(shellPath: string): string {
       ? '.bashrc'
       : '.profile'
 
-  const configPath = join(os.homedir(), fileName)
+  const configPath = join(homedir(), fileName)
 
   return configPath
+}
+
+function getSignalNumber(signal: string): number | undefined {
+  const signals =
+    runtimeRequire<typeof import('os')>('os').constants?.signals as
+      | Record<string, number>
+      | undefined
+  return signals?.[signal]
 }
 
 /**
@@ -506,9 +514,7 @@ export const createAndSaveSnapshot = async (
             )
             // Convert signal name to number if present
             const signalNumber = execError?.signal
-              ? os.constants.signals[
-                  execError.signal as keyof typeof os.constants.signals
-                ]
+              ? getSignalNumber(execError.signal)
               : undefined
             logEvent('tengu_shell_snapshot_failed', {
               stderr_length: stderr?.length || 0,

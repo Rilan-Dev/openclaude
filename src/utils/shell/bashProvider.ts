@@ -1,8 +1,7 @@
 import { feature } from 'bun:bundle'
 import { access } from 'fs/promises'
 import { tmpdir as osTmpdir } from 'os'
-import { join as nativeJoin } from 'path'
-import { join as posixJoin } from 'path/posix'
+import { join as nativeJoin, posix } from 'path'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
 import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
@@ -23,6 +22,8 @@ import {
 } from '../tmuxSocket.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import type { ShellProvider } from './shellProvider.js'
+
+const posixJoin = posix.join
 
 /**
  * Returns a shell command to disable extended glob patterns for security.

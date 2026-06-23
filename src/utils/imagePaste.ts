@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import { randomBytes } from 'crypto'
-import { execa } from 'execa'
+import { getExeca } from './imports.js'
 import { basename, extname, isAbsolute, join } from 'path'
 import {
   IMAGE_MAX_HEIGHT,

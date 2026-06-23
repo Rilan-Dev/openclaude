@@ -1,12 +1,12 @@
 import { c as _c } from "react-compiler-runtime";
 // biome-ignore-all assist/source/organizeImports: internal-only import markers must not be reordered
 import { feature } from 'bun:bundle';
-import { spawnSync } from 'child_process';
+import { spawnSync } from '../utils/imports.js';
 import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTokens, getBudgetContinuationCount, getTotalInputTokens } from '../bootstrap/state.js';
 import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
-import { dirname, join } from 'path';
-import { tmpdir } from 'os';
+import { dirname, join } from '../utils/imports.js';
+import { tmpdir } from '../utils/imports.js';
 import figures from 'figures';
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- / n N Esc [ v are bare letters in transcript modal context, same class as g/G/j/k in ScrollKeybindingHandler
 import { useInput } from '../ink.js';
@@ -16,7 +16,7 @@ import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { openFileInExternalEditor } from '../utils/editor.js';
-import { writeFile } from 'fs/promises';
+import { writeFile } from '../utils/imports.js';
 import { Box, Text, useStdin, useTheme, useTerminalFocus, useTerminalTitle, useTabStatus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
@@ -155,7 +155,7 @@ import { useTasksV2WithCollapseEffect } from '../hooks/useTasksV2.js';
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
-import { randomUUID, type UUID } from 'crypto';
+import { randomUUID, type UUID } from '../utils/imports.js';
 import { processSessionStartHooks } from '../utils/sessionStart.js';
 import { executeSessionEndHooks, getSessionEndHookTimeoutMs } from '../utils/hooks.js';
 import { type IDESelection, useIdeSelection } from '../hooks/useIdeSelection.js';
@@ -191,7 +191,7 @@ import { getActiveSessionAgentModelSelection } from './replActiveAgentModel.js';
 import type { ModelSetting } from '../utils/model/model.js';
 // Dead code elimination: conditional import for loop mode
 /* eslint-disable @typescript-eslint/no-require-imports */
-const proactiveModule = feature('PROACTIVE') || feature('KAIROS') ? require('../proactive/index.js') : null;
+const proactiveModule = feature('PROACTIVE') ? require('../proactive/index.js') : feature('KAIROS') ? require('../proactive/index.js') : null;
 const PROACTIVE_NO_OP_SUBSCRIBE = (_cb: () => void) => () => { };
 const PROACTIVE_FALSE = () => false;
 const SUGGEST_BG_PR_NOOP = (_p: string, _n: string): boolean => false;
@@ -284,6 +284,7 @@ import { useMessageActions, MessageActionsKeybindings, MessageActionsBar, type M
 import { setClipboard } from '../ink/termio/osc.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
+
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -580,10 +581,391 @@ function summarizeActiveOperations(snapshot: QueryActiveOperationSnapshot): stri
 function logQueryLifecycle(event: string, context: QueryLifecycleContext, extras = ''): void {
   logForDebugging(formatQueryLifecycleLogMessage(event, context, extras));
 }
+type ReplRenderMode = 'terminal' | 'web';
+const WEB_SURFACE_STYLES: Record<string, React.CSSProperties> = {
+  shell: {
+    minHeight: '100vh',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(16rem, 22rem) minmax(0, 1fr)',
+    gap: '1rem',
+    padding: '1rem',
+    boxSizing: 'border-box',
+    color: '#f3eadc',
+    background: 'radial-gradient(circle at 16% 8%, rgba(239, 184, 90, 0.14), transparent 24rem), radial-gradient(circle at 82% 12%, rgba(95, 145, 154, 0.16), transparent 24rem), #0c1115'
+  },
+  sidebar: {
+    border: '1px solid rgba(243, 234, 220, 0.12)',
+    borderRadius: '1.5rem',
+    padding: '1rem',
+    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025))',
+    boxShadow: '0 1.5rem 4rem rgba(0, 0, 0, 0.32)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  },
+  brand: {
+    display: 'grid',
+    gap: '0.75rem'
+  },
+  badge: {
+    width: 'fit-content',
+    border: '1px solid rgba(239, 184, 90, 0.28)',
+    borderRadius: '999px',
+    padding: '0.35rem 0.7rem',
+    color: '#efb85a',
+    fontSize: '0.78rem',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase'
+  },
+  title: {
+    margin: 0,
+    fontSize: 'clamp(2rem, 5vw, 4.7rem)',
+    lineHeight: 0.92,
+    letterSpacing: '-0.08em',
+    fontFamily: '"Fraunces", "Georgia", serif'
+  },
+  sidebarText: {
+    color: 'rgba(243, 234, 220, 0.72)',
+    lineHeight: 1.55,
+    margin: 0
+  },
+  statGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: '0.65rem',
+    marginTop: '1.25rem'
+  },
+  stat: {
+    border: '1px solid rgba(243, 234, 220, 0.1)',
+    borderRadius: '1rem',
+    padding: '0.8rem',
+    background: 'rgba(0, 0, 0, 0.18)'
+  },
+  statValue: {
+    display: 'block',
+    color: '#fff6df',
+    fontSize: '1.35rem',
+    fontWeight: 750
+  },
+  statLabel: {
+    color: 'rgba(243, 234, 220, 0.58)',
+    fontSize: '0.76rem'
+  },
+  main: {
+    minWidth: 0,
+    border: '1px solid rgba(243, 234, 220, 0.12)',
+    borderRadius: '1.5rem',
+    overflow: 'hidden',
+    background: 'rgba(7, 11, 14, 0.72)',
+    boxShadow: '0 1.5rem 4rem rgba(0, 0, 0, 0.34)',
+    display: 'grid',
+    gridTemplateRows: 'auto minmax(0, 1fr) auto',
+    backdropFilter: 'blur(18px)'
+  },
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    padding: '0.9rem 1rem',
+    borderBottom: '1px solid rgba(243, 234, 220, 0.1)',
+    background: 'rgba(255, 255, 255, 0.045)'
+  },
+  toolbarTitle: {
+    margin: 0,
+    fontSize: '0.9rem',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'rgba(243, 234, 220, 0.68)'
+  },
+  statusPill: {
+    borderRadius: '999px',
+    padding: '0.35rem 0.7rem',
+    background: 'rgba(95, 145, 154, 0.14)',
+    color: '#a9d6db',
+    fontSize: '0.78rem',
+    whiteSpace: 'nowrap'
+  },
+  transcript: {
+    minHeight: 0,
+    overflowY: 'auto',
+    padding: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem'
+  },
+  message: {
+    maxWidth: 'min(54rem, 92%)',
+    border: '1px solid rgba(243, 234, 220, 0.1)',
+    borderRadius: '1.15rem',
+    padding: '0.85rem 0.95rem',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    lineHeight: 1.55
+  },
+  messageMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    marginBottom: '0.35rem',
+    color: 'rgba(243, 234, 220, 0.48)',
+    fontSize: '0.73rem',
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase'
+  },
+  placeholder: {
+    alignSelf: 'flex-end',
+    background: 'linear-gradient(135deg, rgba(239, 184, 90, 0.2), rgba(239, 184, 90, 0.08))'
+  },
+  assistant: {
+    alignSelf: 'flex-start',
+    background: 'rgba(255, 255, 255, 0.055)'
+  },
+  user: {
+    alignSelf: 'flex-end',
+    background: 'linear-gradient(135deg, rgba(95, 145, 154, 0.22), rgba(95, 145, 154, 0.08))'
+  },
+  system: {
+    alignSelf: 'center',
+    maxWidth: 'min(46rem, 100%)',
+    background: 'rgba(239, 184, 90, 0.09)',
+    color: '#ecd7ad'
+  },
+  composer: {
+    borderTop: '1px solid rgba(243, 234, 220, 0.1)',
+    padding: '1rem',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) auto',
+    gap: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.035)'
+  },
+  textarea: {
+    minHeight: '3rem',
+    maxHeight: '12rem',
+    resize: 'vertical',
+    border: '1px solid rgba(243, 234, 220, 0.16)',
+    borderRadius: '1rem',
+    padding: '0.9rem 1rem',
+    color: '#fff8ea',
+    background: 'rgba(0, 0, 0, 0.28)',
+    outline: 'none',
+    font: 'inherit',
+    lineHeight: 1.45
+  },
+  send: {
+    border: 0,
+    borderRadius: '1rem',
+    padding: '0 1.25rem',
+    color: '#1b1206',
+    background: 'linear-gradient(135deg, #ffd37b, #e79a32)',
+    fontWeight: 800,
+    cursor: 'pointer'
+  },
+  disabledSend: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  }
+};
+function webMessageRole(message: MessageType): 'assistant' | 'user' | 'system' {
+  if (message.type === 'assistant') return 'assistant';
+  if (message.type === 'user' || message.type === 'attachment') return 'user';
+  return 'system';
+}
+function stringifyWebContent(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(stringifyWebContent).filter(Boolean).join('\n');
+  if (typeof value !== 'object') return '';
+  const block = value as {
+    type?: string;
+    text?: string;
+    content?: unknown;
+    name?: string;
+    input?: unknown;
+    message?: unknown;
+    title?: string;
+    prompt?: string;
+  };
+  if (typeof block.text === 'string') return block.text;
+  if (block.type === 'tool_use') return `Tool call: ${block.name ?? 'unknown'}${block.input ? `\n${stringifyWebContent(block.input)}` : ''}`;
+  if (block.type === 'tool_result') return stringifyWebContent(block.content);
+  if (block.type === 'image') return '[image]';
+  if (block.content !== undefined) return stringifyWebContent(block.content);
+  if (block.message !== undefined) return stringifyWebContent(block.message);
+  if (block.title) return block.title;
+  if (block.prompt) return block.prompt;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+function webMessageText(message: MessageType): string {
+  const candidate = message as {
+    message?: {
+      content?: unknown;
+    };
+    attachment?: unknown;
+    content?: unknown;
+    text?: string;
+  };
+  return stringifyWebContent(candidate.message?.content ?? candidate.attachment ?? candidate.content ?? candidate.text ?? message);
+}
+function webElement(type: string, props: Record<string, unknown> | null, ...children: React.ReactNode[]): React.ReactElement {
+  return React.createElement(type, props, ...children);
+}
+function WebREPLSurface({
+  messages,
+  streamingText,
+  placeholderText,
+  inputValue,
+  setInputValue,
+  onSubmit,
+  isLoading,
+  disabled,
+  streamMode,
+  model,
+  toolCount
+}: {
+  messages: MessageType[];
+  streamingText: string | null;
+  placeholderText?: string;
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  onSubmit: (input: string, helpers: PromptInputHelpers) => Promise<void>;
+  isLoading: boolean;
+  disabled: boolean;
+  streamMode: SpinnerMode;
+  model: string;
+  toolCount: number;
+}) {
+  const handleSubmit = useCallback((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextInput = inputValue.trim();
+    if (!nextInput || isLoading || disabled) return;
+    void onSubmit(nextInput, {
+      setCursorOffset: () => { },
+      clearBuffer: () => setInputValue(''),
+      resetHistory: () => { }
+    });
+  }, [disabled, inputValue, isLoading, onSubmit, setInputValue]);
+  const sendStyle = isLoading || disabled || inputValue.trim().length === 0 ? {
+    ...WEB_SURFACE_STYLES.send,
+    ...WEB_SURFACE_STYLES.disabledSend
+  } : WEB_SURFACE_STYLES.send;
+  const emptyMessage = webElement('article', {
+    style: {
+      ...WEB_SURFACE_STYLES.message,
+      ...WEB_SURFACE_STYLES.system
+    }
+  }, webElement('div', {
+    style: WEB_SURFACE_STYLES.messageMeta
+  }, webElement('span', null, 'system'), webElement('span', null, 'empty')), 'Start a prompt below. The web UI calls the same REPL submit function directly.');
+  const renderedMessages = messages.length === 0 ? [emptyMessage] : messages.map((message, index) => {
+    const role = webMessageRole(message);
+    return webElement('article', {
+      key: `${message.uuid ?? role}-${index}`,
+      style: {
+        ...WEB_SURFACE_STYLES.message,
+        ...WEB_SURFACE_STYLES[role]
+      }
+    }, webElement('div', {
+      style: WEB_SURFACE_STYLES.messageMeta
+    }, webElement('span', null, role), webElement('span', null, message.type)), webMessageText(message));
+  });
+  const placeholderMessage = placeholderText ? webElement('article', {
+    style: {
+      ...WEB_SURFACE_STYLES.message,
+      ...WEB_SURFACE_STYLES.placeholder
+    }
+  }, webElement('div', {
+    style: WEB_SURFACE_STYLES.messageMeta
+  }, webElement('span', null, 'you'), webElement('span', null, 'queued')), placeholderText) : null;
+  const streamingMessage = streamingText ? webElement('article', {
+    style: {
+      ...WEB_SURFACE_STYLES.message,
+      ...WEB_SURFACE_STYLES.assistant
+    }
+  }, webElement('div', {
+    style: WEB_SURFACE_STYLES.messageMeta
+  }, webElement('span', null, 'assistant'), webElement('span', null, 'streaming')), streamingText) : null;
+  return webElement('div', {
+    style: WEB_SURFACE_STYLES.shell
+  }, webElement('aside', {
+    style: WEB_SURFACE_STYLES.sidebar
+  }, webElement('div', {
+    style: WEB_SURFACE_STYLES.brand
+  }, webElement('span', {
+    style: WEB_SURFACE_STYLES.badge
+  }, 'Agentic AI'), webElement('h1', {
+    style: WEB_SURFACE_STYLES.title
+  }, 'OpenClaude'), webElement('p', {
+    style: WEB_SURFACE_STYLES.sidebarText
+  }, 'Same REPL controller, message stream, submit path, tools, and model loop. This branch only changes the render surface from terminal rows to browser UI.')), webElement('div', {
+    style: WEB_SURFACE_STYLES.statGrid
+  }, webElement('div', {
+    style: WEB_SURFACE_STYLES.stat
+  }, webElement('span', {
+    style: WEB_SURFACE_STYLES.statValue
+  }, String(messages.length)), webElement('span', {
+    style: WEB_SURFACE_STYLES.statLabel
+  }, 'messages')), webElement('div', {
+    style: WEB_SURFACE_STYLES.stat
+  }, webElement('span', {
+    style: WEB_SURFACE_STYLES.statValue
+  }, String(toolCount)), webElement('span', {
+    style: WEB_SURFACE_STYLES.statLabel
+  }, 'tools')), webElement('div', {
+    style: WEB_SURFACE_STYLES.stat
+  }, webElement('span', {
+    style: WEB_SURFACE_STYLES.statValue
+  }, isLoading ? 'live' : 'idle'), webElement('span', {
+    style: WEB_SURFACE_STYLES.statLabel
+  }, 'state')), webElement('div', {
+    style: WEB_SURFACE_STYLES.stat
+  }, webElement('span', {
+    style: WEB_SURFACE_STYLES.statValue
+  }, model), webElement('span', {
+    style: WEB_SURFACE_STYLES.statLabel
+  }, 'model')))), webElement('main', {
+    style: WEB_SURFACE_STYLES.main
+  }, webElement('header', {
+    style: WEB_SURFACE_STYLES.toolbar
+  }, webElement('h2', {
+    style: WEB_SURFACE_STYLES.toolbarTitle
+  }, 'Live Session'), webElement('span', {
+    style: WEB_SURFACE_STYLES.statusPill
+  }, isLoading ? streamMode : 'ready')), webElement('section', {
+    style: WEB_SURFACE_STYLES.transcript,
+    'aria-live': 'polite'
+  }, ...renderedMessages, placeholderMessage, streamingMessage), webElement('form', {
+    style: WEB_SURFACE_STYLES.composer,
+    onSubmit: handleSubmit
+  }, webElement('textarea', {
+    style: WEB_SURFACE_STYLES.textarea,
+    value: inputValue,
+    disabled,
+    placeholder: isLoading ? 'Assistant is responding...' : 'Ask OpenClaude to inspect, edit, or explain code...',
+    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(event.currentTarget.value),
+    onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+      }
+    }
+  }), webElement('button', {
+    style: sendStyle,
+    disabled: isLoading || disabled || inputValue.trim().length === 0,
+    type: 'submit'
+  }, 'Send'))));
+}
 export type Props = {
   commands: Command[];
   debug: boolean;
   initialTools: Tool[];
+  // Optional DOM renderer. Default keeps existing Ink terminal behavior.
+  renderMode?: ReplRenderMode;
   // Initial messages to populate the REPL with
   initialMessages?: MessageType[];
   // Deferred hook messages promise — REPL renders immediately and injects
@@ -634,6 +1016,7 @@ export function REPL({
   commands: initialCommands,
   debug,
   initialTools,
+  renderMode = 'terminal',
   initialMessages,
   pendingHookMessages,
   initialFileHistorySnapshots,
@@ -1675,7 +2058,7 @@ export function REPL({
     setSpinnerColor(null);
     setSpinnerShimmerColor(null);
     pickNewSpinnerTip();
-        // Speculative bash classifier checks are only valid for the current
+    // Speculative bash classifier checks are only valid for the current
     // turn's commands — clear after each turn to avoid accumulating
     // Promise chains for unconsumed checks (denied/aborted paths).
     clearSpeculativeChecks();
@@ -2193,8 +2576,10 @@ export function REPL({
     // Suppress lower-priority interrupt dialogs while user is actively typing
     if (promptTypingSuppressionActive) return undefined;
     if (allowDialogsWithAnimation && idleReturnPending) return 'idle-return';
-    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
-    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanLaunchPending) return 'ultraplan-launch';
+    if (feature('ULTRAPLAN')) {
+      if (allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
+      if (allowDialogsWithAnimation && !isLoading && ultraplanLaunchPending) return 'ultraplan-launch';
+    }
 
     // Onboarding dialogs (special conditions)
     if (allowDialogsWithAnimation && showIdeOnboarding) return 'ide-onboarding';
@@ -2263,7 +2648,7 @@ export function REPL({
 
     // Pause proactive mode so the user gets control back.
     // It will resume when they submit their next input (see onSubmit).
-    if (feature('PROACTIVE') || feature('KAIROS')) {
+    if (proactiveModule) {
       proactiveModule?.pauseProactive();
     }
     const cancelContext = queryGuard.activeContext;
@@ -2807,7 +3192,7 @@ export function REPL({
         // stale memoized rows remount with post-compact content.
         setConversationId(randomUUID());
         // Compaction succeeded — clear the context-blocked flag so ticks resume
-        if (feature('PROACTIVE') || feature('KAIROS')) {
+        if (proactiveModule) {
           proactiveModule?.setContextBlocked(false);
         }
       } else if (newMessage.type === 'progress' && isEphemeralToolProgress(newMessage.data.type)) {
@@ -2836,7 +3221,7 @@ export function REPL({
       // Block ticks on API errors to prevent tick → error → tick
       // runaway loops (e.g., auth failure, rate limit, blocking limit).
       // Cleared on compact boundary (above) or successful response (below).
-      if (feature('PROACTIVE') || feature('KAIROS')) {
+      if (proactiveModule) {
         if (newMessage.type === 'assistant' && 'isApiErrorMessage' in newMessage && newMessage.isApiErrorMessage) {
           proactiveModule?.setContextBlocked(true);
         } else if (newMessage.type === 'assistant') {
@@ -2930,7 +3315,7 @@ export function REPL({
         // Bump conversationId so Messages.tsx row keys change and
         // stale memoized rows remount with post-compact content.
         setConversationId(randomUUID());
-        if (feature('PROACTIVE') || feature('KAIROS')) {
+        if (proactiveModule) {
           proactiveModule?.setContextBlocked(false);
         }
       }
@@ -2970,7 +3355,7 @@ export function REPL({
     const userContext = {
       ...baseUserContext,
       ...getCoordinatorUserContext(freshMcpClients, isScratchpadEnabled() ? getScratchpadDir() : undefined),
-      ...((feature('PROACTIVE') || feature('KAIROS')) && proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
+      ...(proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
         terminalFocus: 'The terminal is unfocused \u2014 the user is not actively watching.'
       } : {})
     };
@@ -3306,12 +3691,14 @@ export function REPL({
         let updatedToolPermissionContext = initialMsg.mode ? applyPermissionUpdatesToLiveContext(prev.toolPermissionContext, buildPermissionUpdates(initialMsg.mode, initialMsg.allowedPrompts)) : prev.toolPermissionContext;
         // For auto, override the mode (buildPermissionUpdates maps
         // it to 'default' via toExternalPermissionMode) and strip dangerous rules
-        if (feature('TRANSCRIPT_CLASSIFIER') && initialMsg.mode === 'auto') {
-          updatedToolPermissionContext = stripDangerousPermissionsForAutoMode({
-            ...updatedToolPermissionContext,
-            mode: 'auto',
-            prePlanMode: undefined
-          });
+        if (feature('TRANSCRIPT_CLASSIFIER')) {
+          if (initialMsg.mode === 'auto') {
+            updatedToolPermissionContext = stripDangerousPermissionsForAutoMode({
+              ...updatedToolPermissionContext,
+              mode: 'auto',
+              prePlanMode: undefined
+            });
+          }
         }
         return {
           ...prev,
@@ -3383,7 +3770,7 @@ export function REPL({
     repinScroll();
 
     // Resume loop mode if paused
-    if (feature('PROACTIVE') || feature('KAIROS')) {
+    if (proactiveModule) {
       proactiveModule?.resumeProactive();
     }
 
@@ -3845,12 +4232,14 @@ export function REPL({
     // In bg sessions, always detach instead of kill — even when a worktree is
     // active. Without this guard, the worktree branch below short-circuits into
     // ExitFlow (which calls gracefulShutdown) before exit.tsx is ever loaded.
-    if (feature('BG_SESSIONS') && isBgSession()) {
-      spawnSync('tmux', ['detach-client'], {
-        stdio: 'ignore'
-      });
-      setIsExiting(false);
-      return;
+    if (feature('BG_SESSIONS')) {
+      if (isBgSession()) {
+        spawnSync('tmux', ['detach-client'], {
+          stdio: 'ignore'
+        });
+        setIsExiting(false);
+        return;
+      }
     }
     const showWorktree = getCurrentWorktreeSession() !== null;
     if (showWorktree) {
@@ -4568,6 +4957,10 @@ export function REPL({
   });
   // Auto-exit viewing mode when teammate completes or errors
   useTeammateViewAutoExit();
+  if (renderMode === 'web') {
+    const webPlaceholderText = userInputOnProcessing && messages.length <= userInputBaselineRef.current ? userInputOnProcessing : undefined;
+    return <WebREPLSurface messages={messages} streamingText={isLoading ? visibleStreamingText : null} placeholderText={webPlaceholderText} inputValue={inputValue} setInputValue={setInputValue} onSubmit={onSubmit} isLoading={isLoading} disabled={disabled} streamMode={streamMode} model={mainLoopModel} toolCount={tools.length} />;
+  }
   if (screen === 'transcript') {
     // Virtual scroll replaces the 30-message cap: everything is scrollable
     // and memory is bounded by the viewport. Without it, wrapping transcript
@@ -4738,7 +5131,7 @@ export function REPL({
           stays suppressed while a modal is showing so scroll doesn't
           stamp divider/pill state. */}
     <ScrollKeybindingHandler scrollRef={scrollRef} isActive={isFullscreenEnvEnabled() && (centeredModal != null || !focusedInputDialog || focusedInputDialog === 'tool-permission')} onScroll={centeredModal || toolPermissionOverlay || viewedAgentTask ? undefined : composedOnScroll} />
-    {feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null}
+    {feature('MESSAGE_ACTIONS') ? isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null : null}
     <CancelRequestHandler {...cancelRequestProps} />
     <MCPConnectionManager key={remountKey} dynamicMcpConfig={dynamicMcpConfig} isStrictMcpConfig={strictMcpConfig}>
       <FullscreenLayout scrollRef={scrollRef} overlay={toolPermissionOverlay} bottomFloat={isBuddyEnabled() && companionVisible && !companionNarrow ? <CompanionFloatingBubble /> : undefined} modal={centeredModal} modalScrollRef={modalScrollRef} dividerYRef={dividerYRef} hidePill={!!viewedAgentTask} hideSticky={!!viewedTeammateTask} newMessageCount={unseenDivider?.count ?? 0} onPillClick={() => {
@@ -4767,7 +5160,11 @@ export function REPL({
             `✓ Done` for ~1.5s. Suppressed wherever another element owns the
             row or the user's attention. */}
         <CompletionFlash turnActive={isLoading || userInputOnProcessing !== undefined} suppressed={isBriefOnly || hasRunningTeammates || hasActivePrompt || viewedAgentTask !== undefined} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} />
-        {compactProgressRatio !== null && feature('RESUME_COMPACT_PROMPT') && <CompactProgressBar ratio={compactProgressRatio} />}
+        {feature('RESUME_COMPACT_PROMPT')
+          ? compactProgressRatio !== null
+            ? <CompactProgressBar ratio={compactProgressRatio} />
+            : null
+          : null}
         {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
         {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
       </>} bottom={<Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
@@ -4997,9 +5394,9 @@ export function REPL({
             if (choice === 'yes') {
               skipIdleCheckRef.current = true;
               void onSubmitRef.current('/compact', {
-                setCursorOffset: () => {},
-                clearBuffer: () => {},
-                resetHistory: () => {}
+                setCursorOffset: () => { },
+                clearBuffer: () => { },
+                resetHistory: () => { }
               });
             }
           }} />}
@@ -5089,7 +5486,7 @@ export function REPL({
             { }
             <PromptInput debug={debug} ideSelection={ideSelection} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={renderCommands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
               // Works during isLoading — edit cancels first; uuid selection survives appends.
-              feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
+              feature('MESSAGE_ACTIONS') ? isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
             <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
           </>}
           {cursor &&
@@ -5153,7 +5550,7 @@ export function REPL({
             // Partial compact bypasses handleMessageFromStream — clear
             // the auto-compact breaker and context-blocked flag.
             setAutoCompactTrackingForSession(getSessionId(), undefined);
-            if (feature('PROACTIVE') || feature('KAIROS')) {
+            if (proactiveModule) {
               proactiveModule?.setContextBlocked(false);
             }
             setConversationId(randomUUID());

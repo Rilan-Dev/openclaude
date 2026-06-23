@@ -1,4 +1,4 @@
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from '../../utils/urlPath.js'
 import type { PublishDiagnosticsParams } from 'vscode-languageserver-protocol'
 import { logForDebugging } from '../../utils/debug.js'
 import { toError } from '../../utils/errors.js'

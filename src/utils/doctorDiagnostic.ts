@@ -1,7 +1,12 @@
-import { execa } from 'execa'
+import { getExeca } from './imports.js'
 import { readFile, realpath } from 'fs/promises'
-import { homedir } from 'os'
-import { delimiter, join, posix, win32 } from 'path'
+import {
+  WINDOWS_PATH_SEPARATOR,
+  POSIX_PATH_SEPARATOR,
+  homedir,
+  join,
+  pathDelimiter,
+} from './imports.js'
 import { checkGlobalInstallPermissions } from './autoUpdater.js'
 import { isInBundledMode } from './bundledMode.js'
 import {
@@ -91,8 +96,8 @@ function getNormalizedPaths(): [invokedPath: string, execPath: string] {
 
   // On Windows, convert backslashes to forward slashes for consistent path matching
   if (getPlatform() === 'windows') {
-    invokedPath = invokedPath.split(win32.sep).join(posix.sep)
-    execPath = execPath.split(win32.sep).join(posix.sep)
+    invokedPath = invokedPath.split(WINDOWS_PATH_SEPARATOR).join(POSIX_PATH_SEPARATOR)
+    execPath = execPath.split(WINDOWS_PATH_SEPARATOR).join(POSIX_PATH_SEPARATOR)
   }
 
   return [invokedPath, execPath]
@@ -448,14 +453,16 @@ async function detectConfigurationIssues(
   // Check if ~/.local/bin is in PATH for native installations
   if (type === 'native') {
     const path = process.env.PATH || ''
-    const pathDirectories = path.split(delimiter)
+    const pathDirectories = path.split(pathDelimiter())
     const homeDir = homedir()
     const localBinPath = join(homeDir, '.local', 'bin')
 
     // On Windows, convert backslashes to forward slashes for consistent path matching
     let normalizedLocalBinPath = localBinPath
     if (getPlatform() === 'windows') {
-      normalizedLocalBinPath = localBinPath.split(win32.sep).join(posix.sep)
+      normalizedLocalBinPath = localBinPath
+        .split(WINDOWS_PATH_SEPARATOR)
+        .join(POSIX_PATH_SEPARATOR)
     }
 
     // Check if ~/.local/bin is in PATH (handle both expanded and unexpanded forms)
@@ -463,7 +470,7 @@ async function detectConfigurationIssues(
     const localBinInPath = pathDirectories.some(dir => {
       let normalizedDir = dir
       if (getPlatform() === 'windows') {
-        normalizedDir = dir.split(win32.sep).join(posix.sep)
+        normalizedDir = dir.split(WINDOWS_PATH_SEPARATOR).join(POSIX_PATH_SEPARATOR)
       }
       // Remove trailing slashes for comparison (handles paths like /home/user/.local/bin/)
       const trimmedDir = normalizedDir.replace(/\/+$/, '')
@@ -480,8 +487,8 @@ async function detectConfigurationIssues(
       if (isWindows) {
         // Windows-specific PATH instructions
         const windowsLocalBinPath = localBinPath
-          .split(posix.sep)
-          .join(win32.sep)
+          .split(POSIX_PATH_SEPARATOR)
+          .join(WINDOWS_PATH_SEPARATOR)
         warnings.push({
           issue: `Native installation exists but ${windowsLocalBinPath} is not in your PATH`,
           fix: `Add it by opening: System Properties → Environment Variables → Edit User PATH → New → Add the path above. Then restart your terminal.`,

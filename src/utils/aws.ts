@@ -1,8 +1,9 @@
 import { logForDebugging } from './debug.js'
 import { runtimeRequire } from './imports.js'
 
-const isBrowserRuntime =
-  typeof window !== 'undefined' && typeof document !== 'undefined'
+function isBrowserRuntime(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined'
+}
 
 const AWS_STS_CLIENT_PACKAGE = ['@aws-sdk', 'client-sts'].join('/')
 const AWS_CREDENTIAL_PROVIDERS_PACKAGE = [
@@ -58,7 +59,7 @@ export function isValidAwsStsOutput(obj: unknown): obj is AwsStsOutput {
 
 /** Throws if STS caller identity cannot be retrieved. */
 export async function checkStsCallerIdentity(): Promise<void> {
-  if (isBrowserRuntime) return
+  if (isBrowserRuntime()) return
 
   const { STSClient, GetCallerIdentityCommand } = runtimeRequire<
     typeof import('@aws-sdk/client-sts')
@@ -71,7 +72,7 @@ export async function checkStsCallerIdentity(): Promise<void> {
  * This ensures that any changes to ~/.aws/credentials are picked up immediately
  */
 export async function clearAwsIniCache(): Promise<void> {
-  if (isBrowserRuntime) return
+  if (isBrowserRuntime()) return
 
   try {
     logForDebugging('Clearing AWS credential provider cache')

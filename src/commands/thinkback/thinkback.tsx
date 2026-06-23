@@ -109,7 +109,7 @@ export async function playAnimation(skillDir: string): Promise<{
   }
   inkInstance.enterAlternateScreen();
   try {
-    await execa('node', [playerPath], {
+    await getExeca()('node', [playerPath], {
       stdio: 'inherit',
       cwd: skillDir,
       reject: false

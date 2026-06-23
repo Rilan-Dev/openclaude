@@ -1,244 +1,409 @@
-(base) PS C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude> bun --hot webui/index.html
- DEV  Bun v1.3.14 ready in 41.77 ms
-
-➜ http://localhost:3000/
-
-Press h + Enter to show shortcuts
-16 | import { AsyncLocalStorage } from 'async_hooks'
-                                       ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\teammateContext.ts:16:35
-420 | import { AsyncLocalStorage } from 'async_hooks'
-                                        ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\bootstrap\state.ts:420:35
-1 | import { AsyncLocalStorage } from 'async_hooks'
-                                      ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\cwd.ts:1:35
-2 | import { exec } from 'child_process'
-                         ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\auth.ts:2:22
-4 | import { spawnSync } from 'child_process';
-                              ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\screens\REPL.tsx:4:27
-3 | const cp = require('child_process');
-                       ^
-error: Browser build cannot require() Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\cross-spawn\index.js:3:20
-48 |   const tls = require('tls') as typeof import('tls')
-                           ^
-error: Browser build cannot require() Node.js builtin: "tls"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\caCerts.ts:48:23
-2 | import { relative } from 'path'
-                             ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\permissions\permissionSetup.ts:2:26
-1 | import { homedir } from 'os'
-                            ^
-error: Could not resolve: "/bun-vfs$$/node_modules/os/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\path.ts:1:25
-
-2 | import { dirname, isAbsolute, join, normalize, relative, resolve } from 'path'
-                                                                            ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\path.ts:2:73
-12 | import { execFile } from 'child_process'
-                              ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\settings\mdm\rawRead.ts:12:26
-17 |     performance = require('perf_hooks').performance
-                               ^
-error: Browser build cannot require() Node.js builtin: "perf_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\profilerBase.ts:17:27
-12 |     import('@aws-sdk/client-bedrock'),
-                ^
-error: Could not resolve: "@aws-sdk/client-bedrock". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\model\bedrock.ts:12:12
-
-51 |   const { BedrockClient } = await import('@aws-sdk/client-bedrock')
-                                              ^
-error: Could not resolve: "@aws-sdk/client-bedrock". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\model\bedrock.ts:51:42
-
-147 |       import('@aws-sdk/client-bedrock'),
-                   ^
-error: Could not resolve: "@aws-sdk/client-bedrock". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\model\bedrock.ts:147:14
-24 | import { AsyncLocalStorage } from 'async_hooks'
-                                       ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\agentContext.ts:24:35
-7 | import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
-                                                               ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\hooks.ts:7:60
-2 | import { dirname, join, resolve } from 'node:path'
-                                           ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\providerProfile.ts:2:40
-3 | import * as pathWin32 from 'path/win32'
-                               ^
-error: Browser build cannot import Node.js builtin: "path/win32"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\windowsPaths.ts:3:28
-19 | import { basename, dirname, join } from 'path'
-                                             ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\sessionStorage.ts:19:41
-2 | import * as tls from 'tls';
-                         ^
-error: Browser build cannot import Node.js builtin: "tls"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\https-proxy-agent\dist\index.js:2:22
-6 | } from 'child_process'
-           ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\execSyncWrapper.ts:6:8
-7 | import path from 'node:path'
-                     ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\execFileNoThrow.ts:7:18
-2 | import { execFile, spawn } from 'child_process'
-                                    ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\ripgrep.ts:2:33
-1 | import { execFileSync, spawn } from 'child_process'
-                                        ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\Shell.ts:1:37
-52 |     '@aws-sdk/client-sts'
-         ^
-error: Could not resolve: "@aws-sdk/client-sts". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\aws.ts:52:5
-19 | import { AsyncLocalStorage } from 'async_hooks'
-                                       ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\workloadContext.ts:19:35
-1 | import { execFile as execFileCb } from 'child_process'
-                                           ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\getWorktreePathsPortable.ts:1:40
-1 | import { execFileSync } from 'child_process'
-                                 ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\commands\insights.ts:1:30
-
-10 | import { extname, join } from 'path'
-                                   ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\commands\insights.ts:10:31
-113 |       DatabaseSync = require('node:sqlite').DatabaseSync
-                                   ^
-error: Could not resolve: "node:sqlite". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\undici\lib\cache\sqlite-cache-store.js:113:30
-3 | import { spawnSync } from 'child_process'
-                              ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\worktree.ts:3:27
-6 | import { execFileSync } from 'child_process'
-                                 ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\idePathConversion.ts:6:30
-6 | } from '@ant/claude-for-chrome-mcp'
-           ^
-error: Could not resolve: "@ant/claude-for-chrome-mcp". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\claudeInChrome\mcpServer.ts:6:8
-1 | import { spawnSync } from 'child_process'
-                              ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\fullscreen.ts:1:27
-1 | import { relative } from 'path';
-                             ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\commands\sandbox-toggle\sandbox-toggle.tsx:1:26
-2 | import { spawnSync } from 'child_process';
-                              ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\commands\exit\exit.tsx:2:27
-4 | import { join } from 'path';
-                         ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\commands\thinkback\thinkback.tsx:4:22
-9 |   'node:sqlite': () => require('node:sqlite')
-                                   ^
-error: Could not resolve: "node:sqlite". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\undici\lib\util\runtime-features.js:9:32
-2 | import { lookup as dnsLookup } from 'dns'
-                                        ^
-error: Browser build cannot import Node.js builtin: "dns"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\hooks\ssrfGuard.ts:2:37
-6 | const childProcess = require('child_process');
-                                 ^
-error: Browser build cannot require() Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\detect-libc\lib\detect-libc.js:6:30
-17 | const child_process_1 = require("child_process");
-                                     ^
-error: Browser build cannot require() Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\google-auth-library\build\src\auth\googleauth.js:17:33
-1 | import { spawn } from 'child_process'
-                          ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\services\autoFix\autoFixRunner.ts:1:23
-1 | import { type ChildProcess, spawn } from 'child_process'
-                                             ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\services\lsp\LSPClient.ts:1:42
-
-8 | } from 'vscode-jsonrpc/node.js'
-           ^
-error: Could not resolve: "vscode-jsonrpc/node.js". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\services\lsp\LSPClient.ts:8:8
-420 |   const { getMcpConfigForManifest } = await import('@anthropic-ai/mcpb')
-                                                         ^
-error: Could not resolve: "@anthropic-ai/mcpb". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\plugins\mcpbHandler.ts:420:52
-2 | import { spawn } from 'child_process';
-                          ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\@anthropic-ai\sandbox-runtime\dist\sandbox\macos-sandbox-utils.js:2:23
-8 | import { AsyncLocalStorage } from 'async_hooks'
-                                      ^
-error: Browser build cannot import Node.js builtin: "async_hooks"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\knowledgeGraph.ts:8:35
-9 | import { pipeline } from 'stream/promises'
-                             ^
-error: Browser build cannot import Node.js builtin: "stream/promises"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\heapDumpService.ts:9:26
-
-15 | } from 'v8'
-            ^
-error: Browser build cannot import Node.js builtin: "v8"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\heapDumpService.ts:15:8
-3 | import { plot as asciichart } from 'asciichart';
-                                       ^
-error: Could not resolve: "asciichart". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\components\Stats.tsx:3:36
-6 | } from 'child_process'
-           ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\editor.ts:6:8
-1 | import { BROWSER_TOOLS } from '@ant/claude-for-chrome-mcp'
-                                  ^
-error: Could not resolve: "@ant/claude-for-chrome-mcp". Maybe you need to "bun install"?
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\claudeInChrome\setup.ts:1:31
-18 | const childProcess = require("child_process");
-                                  ^
-error: Browser build cannot require() Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\google-auth-library\build\src\auth\pluggable-auth-handler.js:18:30
-1 | import { spawn } from 'child_process';
-                          ^
-error: Browser build cannot import Node.js builtin: "child_process"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\@anthropic-ai\sandbox-runtime\dist\utils\ripgrep.js:1:23
-2 | import { randomUUID } from 'crypto';
-                               ^
-error: Could not resolve: "/bun-vfs$$/node_modules/crypto/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\src\utils\processUserInput\processBashCommand.tsx:2:28
-31 | const tls = __importStar(require("tls"));
-                                      ^
-error: Browser build cannot require() Node.js builtin: "tls"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\gaxios\node_modules\https-proxy-agent\dist\index.js:31:34
-2 | import { basename } from 'node:path'
-                             ^
-error: Could not resolve: "/bun-vfs$$/node_modules/path/index.js"
-    at C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\node_modules\fetch-blob\from.js:2:26
+[{
+	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.\n  Type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is missing the following properties from type 'ZodObject<any, any, any, { [x: string]: any; }, { [x: string]: any; }>': _cached, _getCached, _parse, nonstrict, and 13 more.",
+	"source": "ts",
+	"startLineNumber": 4761,
+	"startColumn": 5,
+	"endLineNumber": 4761,
+	"endColumn": 39,
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.\n  Type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is missing the following properties from type 'ZodObject<any, any, any, { [x: string]: any; }, { [x: string]: any; }>': _cached, _getCached, _parse, nonstrict, and 13 more.",
+	"source": "ts",
+	"startLineNumber": 4837,
+	"startColumn": 5,
+	"endLineNumber": 4837,
+	"endColumn": 39,
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/exit/exit.tsx",
+	"owner": "typescript",
+	"code": "2571",
+	"severity": 8,
+	"message": "Object is of type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 14,
+	"startColumn": 3,
+	"endLineNumber": 14,
+	"endColumn": 34,
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/components/App.tsx",
+	"owner": "typescript",
+	"code": "2769",
+	"severity": 8,
+	"message": "No overload matches this call.",
+	"source": "ts",
+	"startLineNumber": 84,
+	"startColumn": 44,
+	"endLineNumber": 84,
+	"endColumn": 44
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/components/App.tsx",
+	"owner": "typescript",
+	"code": "2769",
+	"severity": 8,
+	"message": "No overload matches this call.",
+	"source": "ts",
+	"startLineNumber": 86,
+	"startColumn": 35,
+	"endLineNumber": 86,
+	"endColumn": 35
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/components/App.tsx",
+	"owner": "typescript",
+	"code": "2769",
+	"severity": 8,
+	"message": "No overload matches this call.",
+	"source": "ts",
+	"startLineNumber": 88,
+	"startColumn": 38,
+	"endLineNumber": 88,
+	"endColumn": 38
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/components/Messages.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 458,
+	"startColumn": 5,
+	"endLineNumber": 458,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/hooks/useIdeAtMentioned.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"at_mentioned\">; params: ZodObject<{ filePath: ZodString; lineStart: ZodOptional<ZodNumber>; lineEnd: ZodOptional<ZodNumber>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 50,
+	"startColumn": 9,
+	"endLineNumber": 50,
+	"endColumn": 9
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/hooks/useIdeLogging.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"log_event\">; params: ZodObject<{ eventName: ZodString; eventData: ZodObject<{}, $loose>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 30,
+	"startColumn": 9,
+	"endLineNumber": 30,
+	"endColumn": 9
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/hooks/useIdeSelection.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"selection_changed\">; params: ZodObject<{ selection: ZodOptional<ZodNullable<ZodObject<{ start: ZodObject<{ line: ZodNumber; character: ZodNumber; }, $strip>; end: ZodObject<...>; }, $strip>>>; text: ZodOptional<...>; filePath: ZodOptional<...>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 113,
+	"startColumn": 7,
+	"endLineNumber": 113,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/bootstrap.ts",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2-3 arguments, but got 1.",
+	"source": "ts",
+	"startLineNumber": 37,
+	"startColumn": 20,
+	"endLineNumber": 37,
+	"endColumn": 20
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/claude.lifecycle.test.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'diagnostics' is missing in type '{ id: string; type: \"message\"; role: \"assistant\"; model: \"claude-lifecycle-test\"; content: never[]; container: null; context_management: null; stop_details: null; stop_reason: \"end_turn\"; stop_sequence: null; usage: { ...; }; }' but required in type 'BetaMessage'.",
+	"source": "ts",
+	"startLineNumber": 79,
+	"startColumn": 3,
+	"endLineNumber": 79,
+	"endColumn": 9,
+	"relatedInformation": [
+		{
+			"startLineNumber": 1446,
+			"startColumn": 5,
+			"endLineNumber": 1446,
+			"endColumn": 16,
+			"message": "'diagnostics' is declared here.",
+			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/node_modules/@anthropic-ai/sdk/resources/beta/messages/messages.d.mts"
+		}
+	],
+	"modelVersionId": 3,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/emptyUsage.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'output_tokens_details' is missing in type '{ input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number; server_tool_use: { web_search_requests: number; web_fetch_requests: number; }; ... 4 more ...; speed: \"standard\"; }' but required in type 'Readonly<NonNullableUsage>'.",
+	"source": "ts",
+	"startLineNumber": 8,
+	"startColumn": 14,
+	"endLineNumber": 8,
+	"endColumn": 14
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/lsp/passiveFeedback.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type '(diag: { message: string; severity?: number; range: { start: { line: number; character: number; }; end: { line: number; character: number; }; }; source?: string; code?: string | number; }) => { ...; }' is not assignable to parameter of type '(value: Diagnostic, index: number, array: Diagnostic[]) => { message: string; severity: \"Error\" | \"Warning\" | \"Info\" | \"Hint\"; range: { start: { line: number; character: number; }; end: { ...; }; }; source: string | undefined; code: string | undefined; }'.",
+	"source": "ts",
+	"startLineNumber": 64,
+	"startColumn": 5,
+	"endLineNumber": 64,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/client.ts",
+	"owner": "typescript",
+	"code": "18048",
+	"severity": 8,
+	"message": "'inProcessServer' is possibly 'undefined'.",
+	"source": "ts",
+	"startLineNumber": 980,
+	"startColumn": 15,
+	"endLineNumber": 980,
+	"endColumn": 15
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/useManageMCPConnections.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 508,
+	"startColumn": 19,
+	"endLineNumber": 508,
+	"endColumn": 19
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/useManageMCPConnections.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel/permission\">; params: ZodObject<{ request_id: ZodString; behavior: ZodEnum<{ allow: \"allow\"; deny: \"deny\"; }>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 545,
+	"startColumn": 21,
+	"endLineNumber": 545,
+	"endColumn": 21
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/vscodeSdkMcp.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"log_event\">; params: ZodObject<{ eventName: ZodString; eventData: ZodObject<{}, $loose>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
+	"source": "ts",
+	"startLineNumber": 72,
+	"startColumn": 7,
+	"endLineNumber": 72,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/AgentTool/UI.tsx",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'output_tokens_details' is missing in type '{ inference_geo: null; iterations: null; speed: null; input_tokens: number; output_tokens: number; cache_creation_input_tokens: number | null; cache_read_input_tokens: number | null; server_tool_use: { ...; } | null; service_tier: \"priority\" | ... 2 more ... | null; cache_creation: { ...; } | null; }' but required in type 'BetaUsage'.",
+	"source": "ts",
+	"startLineNumber": 281,
+	"startColumn": 5,
+	"endLineNumber": 281,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/upstreamproxy/relay.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'string | Blob | BufferSource'.",
+	"source": "ts",
+	"startLineNumber": 393,
+	"startColumn": 13,
+	"endLineNumber": 393,
+	"endColumn": 13
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/upstreamproxy/relay.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'string | Blob | BufferSource'.",
+	"source": "ts",
+	"startLineNumber": 441,
+	"startColumn": 13,
+	"endLineNumber": 441,
+	"endColumn": 13
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/upstreamproxy/relay.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'string | Blob | BufferSource'.",
+	"source": "ts",
+	"startLineNumber": 449,
+	"startColumn": 13,
+	"endLineNumber": 449,
+	"endColumn": 13
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'stdout' does not exist on type '{ on: (event: \"exit\", listener: (code: number | null) => void) => void; }'.",
+	"source": "ts",
+	"startLineNumber": 679,
+	"startColumn": 17,
+	"endLineNumber": 679,
+	"endColumn": 23,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'stderr' does not exist on type '{ on: (event: \"exit\", listener: (code: number | null) => void) => void; }'.",
+	"source": "ts",
+	"startLineNumber": 689,
+	"startColumn": 17,
+	"endLineNumber": 689,
+	"endColumn": 23,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type '\"close\"' is not assignable to parameter of type '\"exit\"'.",
+	"source": "ts",
+	"startLineNumber": 697,
+	"startColumn": 20,
+	"endLineNumber": 697,
+	"endColumn": 27,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'stdout' does not exist on type '{ on: (event: \"exit\", listener: (code: number | null) => void) => void; }'.",
+	"source": "ts",
+	"startLineNumber": 947,
+	"startColumn": 17,
+	"endLineNumber": 947,
+	"endColumn": 23,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'stderr' does not exist on type '{ on: (event: \"exit\", listener: (code: number | null) => void) => void; }'.",
+	"source": "ts",
+	"startLineNumber": 957,
+	"startColumn": 17,
+	"endLineNumber": 957,
+	"endColumn": 23,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type '\"close\"' is not assignable to parameter of type '\"exit\"'.",
+	"source": "ts",
+	"startLineNumber": 965,
+	"startColumn": 20,
+	"endLineNumber": 965,
+	"endColumn": 27,
+	"modelVersionId": 6,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/dxt/helpers.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'join' does not exist on type '{}'.",
+	"source": "ts",
+	"startLineNumber": 25,
+	"startColumn": 47,
+	"endLineNumber": 25,
+	"endColumn": 47
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/hooks.ts",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 1.",
+	"source": "ts",
+	"startLineNumber": 1868,
+	"startColumn": 22,
+	"endLineNumber": 1868,
+	"endColumn": 30,
+	"relatedInformation": [
+		{
+			"startLineNumber": 209,
+			"startColumn": 40,
+			"endLineNumber": 209,
+			"endColumn": 50,
+			"message": "An argument for 'p0' was not provided.",
+			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts"
+		}
+	],
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ide.ts",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 1.",
+	"source": "ts",
+	"startLineNumber": 1257,
+	"startColumn": 33,
+	"endLineNumber": 1257,
+	"endColumn": 41,
+	"relatedInformation": [
+		{
+			"startLineNumber": 209,
+			"startColumn": 40,
+			"endLineNumber": 209,
+			"endColumn": 50,
+			"message": "An argument for 'p0' was not provided.",
+			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts"
+		}
+	],
+	"modelVersionId": 2,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'SpawnSyncReturns<string | NonSharedBuffer>' is not assignable to type '{ error?: Error | undefined; status: number | null; stdout?: string | undefined; stderr?: string | undefined; }'.\n  Types of property 'stdout' are incompatible.\n    Type 'string | NonSharedBuffer' is not assignable to type 'string | undefined'.\n      Type 'NonSharedBuffer' is not assignable to type 'string'.",
+	"source": "ts",
+	"startLineNumber": 333,
+	"startColumn": 3,
+	"endLineNumber": 333,
+	"endColumn": 9,
+	"modelVersionId": 2,
+	"origin": "extHost1"
+}]

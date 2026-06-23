@@ -1,5 +1,6 @@
 
 import * as browserBuiltins from '../../webui/shims/nodeBuiltins.js'
+import processShim from '../../webui/shims/process.js'
 
 export type UUID = string
 
@@ -45,35 +46,49 @@ export const POSIX_PATH_SEPARATOR = '/'
 type RuntimeRequireFn = <T>(id: string) => T
 const browserPathModule = browserBuiltins as typeof import('path')
 const browserOsModule = browserBuiltins as typeof import('os')
-const isBrowserRuntime =
-  typeof window !== 'undefined' && typeof document !== 'undefined'
+
+export function isBrowserRuntime(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined'
+}
 
 function getRuntimeRequire(): RuntimeRequireFn {
   return (0, eval)('require') as RuntimeRequireFn
 }
 
 function getPathModule(): typeof import('path') {
-  return isBrowserRuntime
+  return isBrowserRuntime()
     ? browserPathModule
     : runtimeRequire<typeof import('path')>('path')
 }
 
 function getOsModule(): typeof import('os') {
-  return isBrowserRuntime
+  return isBrowserRuntime()
     ? browserOsModule
     : runtimeRequire<typeof import('os')>('os')
 }
 
 function getFsPromisesModule(): typeof import('fs/promises') {
-  return isBrowserRuntime
+  return isBrowserRuntime()
     ? (browserBuiltins as typeof import('fs/promises'))
     : runtimeRequire<typeof import('fs/promises')>('fs/promises')
 }
 
+function getFsModule(): typeof import('fs') {
+  return isBrowserRuntime()
+    ? (browserBuiltins as typeof import('fs'))
+    : runtimeRequire<typeof import('fs')>('fs')
+}
+
 function getChildProcessModule(): typeof import('child_process') {
-  return isBrowserRuntime
+  return isBrowserRuntime()
     ? (browserBuiltins as typeof import('child_process'))
     : runtimeRequire<typeof import('child_process')>('child_process')
+}
+
+function getProcessModule(): typeof import('process') {
+  return isBrowserRuntime()
+    ? processShim
+    : runtimeRequire<typeof import('process')>('process')
 }
 
 export function runtimeRequire<T>(id: string): T {
@@ -174,14 +189,14 @@ export function randomInt(max: number): number {
 }
 
 export function randomBytes(size: number) {
-  if (isBrowserRuntime) {
+  if (isBrowserRuntime()) {
     return browserBuiltins.randomBytes(size)
   }
   return runtimeRequire<typeof import('crypto')>('crypto').randomBytes(size)
 }
 
 export function deflateSync(data: Uint8Array) {
-  if (isBrowserRuntime) {
+  if (isBrowserRuntime()) {
     return browserBuiltins.deflateSync(data)
   }
   return runtimeRequire<typeof import('zlib')>('zlib').deflateSync(data)
@@ -191,7 +206,7 @@ export function dirname(path: string): string {
   return getPathModule().dirname(path)
 }
 
-export function basename(path: string): string {
+export function basename(path: string, p0: string): string {
   return getPathModule().basename(path)
 }
 
@@ -244,6 +259,10 @@ export function platform(): NodeJS.Platform {
   return getOsModule().platform()
 }
 
+export function cwd(): string {
+  return getProcessModule().cwd()
+}
+
 export function type(): string {
   return getOsModule().type()
 }
@@ -263,6 +282,10 @@ export async function readFile(
   return getFsPromisesModule().readFile(path, options)
 }
 
+export async function stat(path: string): Promise<import('fs').Stats> {
+  return getFsPromisesModule().stat(path)
+}
+
 export async function mkdir(
   path: string,
   options?: {
@@ -278,6 +301,17 @@ export async function copyFile(path: string, destination: string): Promise<void>
 
 export async function writeFile(path: string, data: string): Promise<void> {
   await getFsPromisesModule().writeFile(path, data)
+}
+
+export function realpathSync(path: string): string {
+  return getFsModule().realpathSync(path)
+}
+
+export function readFileSync(
+  path: string,
+  options?: BufferEncoding | { encoding?: BufferEncoding | null },
+): string | Buffer {
+  return getFsModule().readFileSync(path, options as any)
 }
 
 export function spawnSync(
@@ -312,4 +346,13 @@ export function exec(
 
 export function getExeca(): typeof import('execa').execa {
   return runtimeRequire<typeof import('execa')>('execa').execa
+}
+
+export type ChokidarModule = typeof import('chokidar')
+
+export function getChokidar(): ChokidarModule {
+  if (isBrowserRuntime()) {
+    throw new Error('Chokidar is not available in the browser web UI')
+  }
+  return runtimeRequire<ChokidarModule>('chokidar')
 }

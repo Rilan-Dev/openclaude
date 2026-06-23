@@ -4,6 +4,7 @@ import {
   type Notification,
   useNotifications,
 } from '../../context/notifications.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 import { logError } from '../../utils/log.js'
 
 type Result = Notification | Notification[] | null
@@ -19,6 +20,10 @@ type Result = Notification | Notification[] | null
 export function useStartupNotification(
   compute: () => Result | Promise<Result>,
 ): void {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   const { addNotification } = useNotifications()
   const hasRunRef = useRef(false)
   const computeRef = useRef(compute)

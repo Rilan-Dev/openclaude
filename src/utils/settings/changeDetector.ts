@@ -1,10 +1,15 @@
-import chokidar, { type FSWatcher } from 'chokidar'
-import { stat } from 'fs/promises'
-import * as platformPath from 'path'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
+import {
+  dirname,
+  getChokidar,
+  isBrowserRuntime,
+  normalize,
+  sep,
+  stat,
+} from '../imports.js'
 import {
   type ConfigChangeSource,
   executeConfigChangeHooks,
@@ -68,6 +73,9 @@ const DELETION_GRACE_MS =
  */
 const SETTINGS_DEBOUNCE_MS = 500
 
+type ChokidarModule = typeof import('chokidar')
+type FSWatcher = import('chokidar').FSWatcher
+
 let watcher: FSWatcher | null = null
 let mdmPollTimer: ReturnType<typeof setInterval> | null = null
 let lastMdmSnapshot: string | null = null
@@ -97,16 +105,21 @@ const defaultDependencies = {
   hasBlockingResult,
   resetSettingsCache,
   stat,
-  watch: chokidar.watch.bind(chokidar),
+  watch: ((...args: Parameters<ChokidarModule['watch']>) =>
+    getChokidar().watch(...args)) as ChokidarModule['watch'],
 }
 type SettingsChangeDetectorDependencies = typeof defaultDependencies
 let dependencies: SettingsChangeDetectorDependencies = defaultDependencies
+
+function getDependencies(): SettingsChangeDetectorDependencies {
+  return dependencies ?? defaultDependencies
+}
 
 /**
  * Initialize file watching
  */
 export async function initialize(): Promise<void> {
-  if (getIsRemoteMode()) return
+  if (isBrowserRuntime() || getIsRemoteMode()) return
   if (initialized || disposed) return
   initialized = true
 
@@ -124,7 +137,7 @@ export async function initialize(): Promise<void> {
     `Watching for changes in setting files ${[...settingsFiles].join(', ')}...${dropInDir ? ` and drop-in directory ${dropInDir}` : ''}`,
   )
 
-  watcher = dependencies.watch(dirs, {
+  watcher = getDependencies().watch(dirs, {
     persistent: true,
     ignoreInitial: true,
     depth: 0, // Only watch immediate children, not subdirectories
@@ -139,19 +152,19 @@ export async function initialize(): Promise<void> {
       // and will error with EOPNOTSUPP on macOS.
       if (stats && !stats.isFile() && !stats.isDirectory()) return true
       // Ignore .git directories
-      if (path.split(platformPath.sep).some(dir => dir === '.git')) return true
+      if (path.split(sep).some(dir => dir === '.git')) return true
       // Allow directories (chokidar needs them for directory-level watching)
       // and paths without stats (chokidar's initial check before stat)
       if (!stats || stats.isDirectory()) return false
       // Only watch known settings files, ignore everything else in the directory
       // Note: chokidar normalizes paths to forward slashes on Windows, so we
       // normalize back to native format for comparison
-      const normalized = platformPath.normalize(path)
+      const normalized = normalize(path)
       if (settingsFiles.has(normalized)) return false
       // Also accept .json files inside the managed-settings.d/ drop-in directory
       if (
         dropInDir &&
-        normalized.startsWith(dropInDir + platformPath.sep) &&
+        normalized.startsWith(dropInDir + sep) &&
         normalized.endsWith('.json')
       ) {
         return false
@@ -186,7 +199,7 @@ export function dispose(): Promise<void> {
   clearSettingsDebounce()
   settingsSourceGenerations.clear()
   lastMdmSnapshot = null
-  dependencies.clearInternalWrites()
+  getDependencies().clearInternalWrites()
   settingsChanged.clear()
   const w = watcher
   watcher = null
@@ -208,6 +221,10 @@ async function getWatchTargets(): Promise<{
   settingsFiles: Set<string>
   dropInDir: string | null
 }> {
+  if (isBrowserRuntime()) {
+    return { dirs: [], settingsFiles: new Set<string>(), dropInDir: null }
+  }
+
   // Map from directory to all potential settings files in that directory
   const dirToSettingsFiles = new Map<string, Set<string>>()
   const dirsWithExistingFiles = new Set<string>()
@@ -220,12 +237,12 @@ async function getWatchTargets(): Promise<{
     if (source === 'flagSettings') {
       continue
     }
-    const path = dependencies.getSettingsFilePathForSource(source)
+    const path = getDependencies().getSettingsFilePathForSource(source)
     if (!path) {
       continue
     }
 
-    const dir = platformPath.dirname(path)
+    const dir = dirname(path)
 
     // Track all potential settings files in each directory
     if (!dirToSettingsFiles.has(dir)) {
@@ -235,7 +252,7 @@ async function getWatchTargets(): Promise<{
 
     // Check if file exists - only watch directories that have at least one existing file
     try {
-      const stats = await dependencies.stat(path)
+      const stats = await getDependencies().stat(path)
       if (stats.isFile()) {
         dirsWithExistingFiles.add(dir)
       }
@@ -261,9 +278,9 @@ async function getWatchTargets(): Promise<{
   // its immediate children (the .json files). Any .json file inside it maps
   // to the 'policySettings' source.
   let dropInDir: string | null = null
-  const managedDropIn = dependencies.getManagedSettingsDropInDir()
+  const managedDropIn = getDependencies().getManagedSettingsDropInDir()
   try {
-    const stats = await dependencies.stat(managedDropIn)
+    const stats = await getDependencies().stat(managedDropIn)
     if (stats.isDirectory()) {
       dirsWithExistingFiles.add(managedDropIn)
       dropInDir = managedDropIn
@@ -292,7 +309,7 @@ function settingSourceToConfigChangeSource(
 }
 
 function handleChange(path: string): void {
-  if (disposed) return
+  if (isBrowserRuntime() || disposed) return
   const source = getSourceForPath(path)
   if (!source) return
 
@@ -308,7 +325,7 @@ function handleChange(path: string): void {
   }
 
   // Check if this was an internal write
-  if (dependencies.consumeInternalWrite(path, INTERNAL_WRITE_WINDOW_MS)) {
+  if (getDependencies().consumeInternalWrite(path, INTERNAL_WRITE_WINDOW_MS)) {
     return
   }
 
@@ -317,11 +334,11 @@ function handleChange(path: string): void {
   // Fire ConfigChange hook first — if blocked (exit code 2 or decision: 'block'),
   // skip applying the change to the session
   const generation = nextSettingsSourceGeneration(source)
-  void dependencies.executeConfigChangeHooks(
+  void getDependencies().executeConfigChangeHooks(
     settingSourceToConfigChangeSource(source),
     path,
   ).then(results => {
-    if (dependencies.hasBlockingResult(results)) {
+    if (getDependencies().hasBlockingResult(results)) {
       logForDebugging(`ConfigChange hook blocked change to ${path}`)
       return
     }
@@ -335,7 +352,7 @@ function handleChange(path: string): void {
  * pending deletion grace timer and treats the event as a change.
  */
 function handleAdd(path: string): void {
-  if (disposed) return
+  if (isBrowserRuntime() || disposed) return
   const source = getSourceForPath(path)
   if (!source) return
 
@@ -358,7 +375,7 @@ function handleAdd(path: string): void {
  * the deletion is cancelled and treated as a normal change instead.
  */
 function handleDelete(path: string): void {
-  if (disposed) return
+  if (isBrowserRuntime() || disposed) return
   const source = getSourceForPath(path)
   if (!source) return
 
@@ -374,11 +391,11 @@ function handleDelete(path: string): void {
       pendingDeletions.delete(p)
 
       // Fire ConfigChange hook first — if blocked, skip applying the deletion
-      void dependencies.executeConfigChangeHooks(
+      void getDependencies().executeConfigChangeHooks(
         settingSourceToConfigChangeSource(src),
         p,
       ).then(results => {
-        if (dependencies.hasBlockingResult(results)) {
+        if (getDependencies().hasBlockingResult(results)) {
           logForDebugging(`ConfigChange hook blocked deletion of ${p}`)
           return
         }
@@ -396,20 +413,20 @@ function handleDelete(path: string): void {
 
 function getSourceForPath(path: string): SettingSource | undefined {
   // Normalize path because chokidar uses forward slashes on Windows
-  const normalizedPath = platformPath.normalize(path)
+  const normalizedPath = normalize(path)
 
   // Check if the path is inside the managed-settings.d/ drop-in directory
-  const dropInDir = platformPath.normalize(
-    dependencies.getManagedSettingsDropInDir(),
+  const dropInDir = normalize(
+    getDependencies().getManagedSettingsDropInDir(),
   )
-  if (normalizedPath.startsWith(dropInDir + platformPath.sep)) {
+  if (normalizedPath.startsWith(dropInDir + sep)) {
     return 'policySettings'
   }
 
   return SETTING_SOURCES.find(
     source =>
-      platformPath.normalize(
-        dependencies.getSettingsFilePathForSource(source) ?? '',
+      normalize(
+        getDependencies().getSettingsFilePathForSource(source) ?? '',
       ) === normalizedPath,
   )
 }
@@ -475,7 +492,7 @@ function startMdmPoll(): void {
  * repopulates; all subsequent listeners hit the cache.
  */
 function fanOut(source: SettingSource): void {
-  dependencies.resetSettingsCache()
+  getDependencies().resetSettingsCache()
   settingsChanged.emit(source)
 }
 
@@ -516,7 +533,7 @@ function scheduleFanOut(source: SettingSource, generation: number): void {
 
     if (sources.length === 0) return
 
-    dependencies.resetSettingsCache()
+    getDependencies().resetSettingsCache()
     for (const src of sources) {
       settingsChanged.emit(src)
     }

@@ -1192,7 +1192,7 @@ async function parsePowerShellCommandImpl(
   let timedOut = false
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await execa(pwshPath, args, {
+      const result = await getExeca()(pwshPath, args, {
         timeout: parseTimeoutMs,
         reject: false,
       })

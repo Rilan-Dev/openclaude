@@ -574,7 +574,7 @@ async function _executeApiKeyHelper(
     }
   }
 
-  const result = await execa(apiKeyHelper, {
+  const result = await getExeca()(apiKeyHelper, {
     shell: true,
     timeout: 10 * 60 * 1000,
     reject: false,
@@ -759,7 +759,7 @@ async function getAwsCredsFromCredentialExport(): Promise<{
     // only actually do the export if caller-identity calls
     try {
       logForDebugging('Running AWS credential export command')
-      const result = await execa(awsCredentialExport, {
+      const result = await getExeca()(awsCredentialExport, {
         shell: true,
         reject: false,
       })
@@ -1134,7 +1134,7 @@ export async function saveApiKey(apiKey: string): Promise<void> {
       // Process monitors only see "security -i", not the password
       const command = `add-generic-password -U -a "${username}" -s "${storageServiceName}" -X "${hexValue}"\n`
 
-      await execa('security', ['-i'], {
+      await getExeca()('security', ['-i'], {
         input: command,
         reject: false,
       })

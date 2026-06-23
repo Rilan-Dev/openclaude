@@ -279,7 +279,7 @@ async function getClaudeCodeSnapshotContent(): Promise<string> {
   let pathValue = process.env.PATH
   if (getPlatform() === 'windows') {
     // On Windows with git-bash, read the Cygwin PATH
-    const cygwinResult = await execa('echo $PATH', {
+    const cygwinResult = await getExeca()('echo $PATH', {
       shell: true,
       reject: false,
     })

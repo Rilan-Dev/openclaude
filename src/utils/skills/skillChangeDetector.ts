@@ -1,5 +1,3 @@
-import chokidar, { type FSWatcher } from 'chokidar'
-import * as platformPath from 'path'
 import { getAdditionalDirectoriesForClaudeMd } from '../../bootstrap/state.js'
 import {
   clearCommandMemoizationCaches,
@@ -18,6 +16,7 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
+import { getChokidar, isBrowserRuntime, join, resolve, sep } from '../imports.js'
 import { createSignal } from '../signal.js'
 
 /**
@@ -65,6 +64,9 @@ const POLLING_INTERVAL_MS = 2000
  */
 const USE_POLLING = typeof Bun !== 'undefined'
 
+type ChokidarModule = typeof import('chokidar')
+type FSWatcher = import('chokidar').FSWatcher
+
 let watcher: FSWatcher | null = null
 let reloadTimer: ReturnType<typeof setTimeout> | null = null
 const pendingChangedPaths = new Set<string>()
@@ -96,7 +98,8 @@ const defaultDependencies = {
   hasBlockingResult,
   onDynamicSkillsLoaded,
   resetSentSkillNames,
-  watch: chokidar.watch.bind(chokidar),
+  watch: ((...args: Parameters<ChokidarModule['watch']>) =>
+    getChokidar().watch(...args)) as ChokidarModule['watch'],
 }
 type SkillChangeDetectorDependencies = typeof defaultDependencies
 let dependencies: SkillChangeDetectorDependencies = defaultDependencies
@@ -105,6 +108,7 @@ let dependencies: SkillChangeDetectorDependencies = defaultDependencies
  * Initialize file watching for skill directories
  */
 export async function initialize(): Promise<void> {
+  if (isBrowserRuntime()) return
   if (initialized || disposed) return
   initialized = true
 
@@ -152,7 +156,7 @@ export async function initialize(): Promise<void> {
     ignored: (path, stats) => {
       if (stats && !stats.isFile() && !stats.isDirectory()) return true
       // Ignore .git directories
-      return path.split(platformPath.sep).some(dir => dir === '.git')
+      return path.split(sep).some(dir => dir === '.git')
     },
     ignorePermissionErrors: true,
     usePolling: USE_POLLING,
@@ -237,7 +241,7 @@ async function getWatchablePaths(): Promise<string[]> {
   if (projectSkillsPath) {
     try {
       // For project settings, resolve to absolute path
-      const absolutePath = platformPath.resolve(projectSkillsPath)
+      const absolutePath = resolve(projectSkillsPath)
       await fs.stat(absolutePath)
       paths.push(absolutePath)
     } catch {
@@ -253,7 +257,7 @@ async function getWatchablePaths(): Promise<string[]> {
   if (projectCommandsPath) {
     try {
       // For project settings, resolve to absolute path
-      const absolutePath = platformPath.resolve(projectCommandsPath)
+      const absolutePath = resolve(projectCommandsPath)
       await fs.stat(absolutePath)
       paths.push(absolutePath)
     } catch {
@@ -263,7 +267,7 @@ async function getWatchablePaths(): Promise<string[]> {
 
   // Additional directories (--add-dir) skills
   for (const dir of getAdditionalDirectoriesForClaudeMd()) {
-    const additionalSkillsPath = platformPath.join(dir, '.claude', 'skills')
+    const additionalSkillsPath = join(dir, '.claude', 'skills')
     try {
       await fs.stat(additionalSkillsPath)
       paths.push(additionalSkillsPath)

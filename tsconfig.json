@@ -16,7 +16,9 @@
     "declaration": false,
     "outDir": "./dist",
     "rootDir": "./src",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
+    "types": ["bun", "node"],
     "paths": {
       "src/*": ["./src/*"]
     }

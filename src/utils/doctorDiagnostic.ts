@@ -152,7 +152,7 @@ export async function getCurrentInstallationType(): Promise<InstallationType> {
     return 'npm-global'
   }
 
-  const npmConfigResult = await execa('npm config get prefix', {
+  const npmConfigResult = await getExeca()('npm config get prefix', {
     shell: true,
     reject: false,
   })

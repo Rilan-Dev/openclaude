@@ -165,7 +165,7 @@ async function getEmailAsync(): Promise<string | undefined> {
  * Memoized so the subprocess only spawns once per process.
  */
 export const getGitEmail = memoize(async (): Promise<string | undefined> => {
-  const result = await execa('git config --get user.email', {
+  const result = await getExeca()('git config --get user.email', {
     shell: true,
     reject: false,
     cwd: getCwd(),

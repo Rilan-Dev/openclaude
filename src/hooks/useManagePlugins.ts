@@ -27,6 +27,7 @@ import { loadPluginMcpServers } from '../utils/plugins/mcpPluginIntegration.js'
 import { detectAndUninstallDelistedPlugins } from '../utils/plugins/pluginBlocklist.js'
 import { getFlaggedPlugins } from '../utils/plugins/pluginFlagging.js'
 import { loadAllPlugins } from '../utils/plugins/pluginLoader.js'
+import { isBrowserRuntime } from '../utils/imports.js'
 import type { HookMatcher, HooksSettings } from '../utils/settings/types.js'
 
 /**
@@ -46,6 +47,10 @@ export function useManagePlugins({
 }: {
   enabled?: boolean
 } = {}) {
+  if (isBrowserRuntime()) {
+    return [] as Command[]
+  }
+
   const pluginCommands = useSyncExternalStore(
     subscribePluginCommands,
     getPluginCommandsState,

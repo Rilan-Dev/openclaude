@@ -3,9 +3,9 @@ dist/
 *.tsbuildinfo
 web/dist/
 web/*.tsbuildinfo
-.env
-.env.*
-!.env.example
+# .env
+# .env.*
+# !.env.example
 auth.json
 .openclaude-profile.json
 .openclaude/
@@ -24,3 +24,4 @@ agent.log
 plan/
 .tmp
 temp_reference/
+.vscode

@@ -6,12 +6,16 @@ import { useNotifications } from 'src/context/notifications.js';
 import { getIsRemoteMode } from '../../bootstrap/state.js';
 import { Text } from '../../ink.js';
 import { hasClaudeAiMcpEverConnected } from '../../services/mcp/claudeai.js';
+import { isBrowserRuntime } from '../../utils/imports.js';
 import type { MCPServerConnection } from '../../services/mcp/types.js';
 type Props = {
   mcpClients?: MCPServerConnection[];
 };
 const EMPTY_MCP_CLIENTS: MCPServerConnection[] = [];
 export function useMcpConnectivityStatus(t0) {
+  if (isBrowserRuntime()) {
+    return;
+  }
   const $ = _c(4);
   const {
     mcpClients: t1

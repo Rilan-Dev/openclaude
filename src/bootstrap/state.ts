@@ -1,7 +1,5 @@
 import type { BetaMessageStreamParams } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { realpathSync } from 'fs'
 import sumBy from 'lodash-es/sumBy.js'
-import { cwd } from 'process'
 import type { HookEvent, ModelUsage } from 'src/entrypoints/agentSdkTypes.js'
 import type { AgentColorName } from 'src/tools/AgentTool/agentColorManager.js'
 import type { HookCallbackMatcher } from 'src/types/hooks.js'
@@ -11,6 +9,7 @@ import type { HookCallbackMatcher } from 'src/types/hooks.js'
 // (rule only checks ./ and / prefixes); explicit disable documents intent.
 // eslint-disable-next-line custom-rules/bootstrap-isolation
 import { randomUUID } from 'src/utils/crypto.js'
+import { cwd as processCwd, realpathSync } from 'src/utils/imports.js'
 import type { ModelSetting } from 'src/utils/model/model.js'
 import type { ModelStrings } from 'src/utils/model/modelStrings.js'
 import type { SettingSource } from 'src/utils/settings/constants.js'
@@ -248,12 +247,8 @@ function getInitialState(): State {
   // Resolve symlinks in cwd to match behavior of shell.ts setCwd
   // This ensures consistency with how paths are sanitized for session storage
   let resolvedCwd = ''
-  if (
-    typeof process !== 'undefined' &&
-    typeof process.cwd === 'function' &&
-    typeof realpathSync === 'function'
-  ) {
-    const rawCwd = cwd()
+  if (typeof realpathSync === 'function') {
+    const rawCwd = processCwd()
     try {
       resolvedCwd = realpathSync(rawCwd).normalize('NFC')
     } catch {

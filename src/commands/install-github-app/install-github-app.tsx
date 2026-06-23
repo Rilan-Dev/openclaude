@@ -61,7 +61,8 @@ function InstallGitHubApp(props: {
     const warnings: Warning[] = [];
 
     // Check if gh is installed
-    const ghVersionResult = await execa('gh --version', {
+    const ghVersionResult = await getExeca()(
+      'gh --version', {
       shell: true,
       reject: false
     });
@@ -74,7 +75,8 @@ function InstallGitHubApp(props: {
     }
 
     // Check auth status
-    const authResult = await execa('gh auth status -a', {
+    const authResult = await getExeca()(
+      'gh auth status -a', {
       shell: true,
       reject: false
     });

@@ -4,6 +4,7 @@ import capitalize from 'lodash-es/capitalize.js'
 import memoize from 'lodash-es/memoize.js'
 import {
   basename,
+  getExeca,
   homedir,
   join,
   resolve,

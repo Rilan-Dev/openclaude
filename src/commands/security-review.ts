@@ -1,7 +1,8 @@
 import { parseFrontmatter } from '../utils/frontmatterParser.js'
-import { parseSlashCommandToolsFromFrontmatter } from '../utils/markdownConfigLoader.js'
+import { isBrowserRuntime } from '../utils/imports.js'
 import { executeShellCommandsInPrompt } from '../utils/promptShellExecution.js'
 import { createMovedToPluginCommand } from './createMovedToPluginCommand.js'
+import { SECURITY_REVIEW_ALLOWED_TOOLS } from './sharedPromptCommandTools.js'
 
 const SECURITY_REVIEW_MARKDOWN = `---
 allowed-tools: Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(git show:*), Bash(git remote show:*), Read, Glob, Grep, LS, Task
@@ -202,14 +203,18 @@ export default createMovedToPluginCommand({
   progressMessage: 'analyzing code changes for security risks',
   pluginName: 'security-review',
   pluginCommand: 'security-review',
+  allowedTools: SECURITY_REVIEW_ALLOWED_TOOLS,
   async getPromptWhileMarketplaceIsPrivate(_args, context) {
     // Parse frontmatter from the markdown
     const parsed = parseFrontmatter(SECURITY_REVIEW_MARKDOWN)
-
-    // Parse allowed tools from frontmatter
-    const allowedTools = parseSlashCommandToolsFromFrontmatter(
-      parsed.frontmatter['allowed-tools'],
-    )
+    if (isBrowserRuntime()) {
+      return [
+        {
+          type: 'text',
+          text: parsed.content,
+        },
+      ]
+    }
 
     // Execute bash commands in the prompt
     const processedContent = await executeShellCommandsInPrompt(
@@ -224,7 +229,7 @@ export default createMovedToPluginCommand({
               ...appState.toolPermissionContext,
               alwaysAllowRules: {
                 ...appState.toolPermissionContext.alwaysAllowRules,
-                command: allowedTools,
+                command: SECURITY_REVIEW_ALLOWED_TOOLS,
               },
             },
           }

@@ -14,7 +14,9 @@ let performance: typeof PerformanceType | null = null
 
 export function getPerformance(): typeof PerformanceType {
   if (!performance) {
-    performance = runtimeRequire('perf_hooks').performance
+    performance = runtimeRequire<typeof import('perf_hooks')>(
+      'perf_hooks',
+    ).performance
   }
   return performance!
 }

@@ -22,7 +22,6 @@ import {
   getCanonicalName,
   getMarketingNameForModel,
 } from '../utils/model/model.js'
-import { getSkillToolCommands } from 'src/commands.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { getOutputStyleConfig } from './outputStyles.js'
 import type {
@@ -60,7 +59,13 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { getAntModelOverrideConfig } from '../utils/model/antModels.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import { release as osRelease, type as osType, version as osVersion } from '../utils/imports.js'
+import {
+  isBrowserRuntime,
+  release as osRelease,
+  runtimeImport,
+  type as osType,
+  version as osVersion,
+} from '../utils/imports.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -450,8 +455,17 @@ export async function getSystemPrompt(
   }
 
   const cwd = getCwd()
+  const skillToolCommandsPromise = isBrowserRuntime()
+    ? Promise.resolve([] as Command[])
+    : (async () => {
+        const { getSkillToolCommands } = await runtimeImport<
+          typeof import('../commands.js')
+        >('../commands.js')
+        return getSkillToolCommands(cwd)
+      })()
+
   const [skillToolCommands, outputStyleConfig, envInfo] = await Promise.all([
-    getSkillToolCommands(cwd),
+    skillToolCommandsPromise,
     getOutputStyleConfig(),
     computeSimpleEnvInfo(model, additionalWorkingDirectories),
   ])

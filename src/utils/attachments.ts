@@ -79,8 +79,8 @@ import {
   getDefaultOpusModel,
 } from './model/model.js'
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
-import { getSkillToolCommands, getMcpSkillCommands } from '../commands.js'
 import type { Command } from '../types/command.js'
+import { isBrowserRuntime, runtimeImport } from './imports.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import {
@@ -2693,10 +2693,20 @@ async function getSkillListingAttachments(
   }
 
   const cwd = getProjectRoot()
-  const localCommands = await getSkillToolCommands(cwd)
-  const mcpSkills = getMcpSkillCommands(
-    toolUseContext.getAppState().mcp.commands,
-  )
+  const localCommands = isBrowserRuntime()
+    ? []
+    : await (async () => {
+        const { getSkillToolCommands } = await runtimeImport<typeof import('../commands.js')>('../commands.js')
+        return getSkillToolCommands(cwd)
+      })()
+  const mcpSkills = isBrowserRuntime()
+    ? []
+    : toolUseContext.getAppState().mcp.commands.filter(
+        cmd =>
+          cmd.type === 'prompt' &&
+          cmd.loadedFrom === 'mcp' &&
+          !cmd.disableModelInvocation,
+      )
   let allCommands =
     mcpSkills.length > 0
       ? uniqBy([...localCommands, ...mcpSkills], 'name')

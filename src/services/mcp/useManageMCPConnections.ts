@@ -18,6 +18,22 @@ import type {
   ServerResource,
 } from './types.js'
 
+type ChannelMessageNotification = {
+  method: 'notifications/claude/channel'
+  params: {
+    content: string
+    meta?: Record<string, string>
+  }
+}
+
+type ChannelPermissionNotification = {
+  method: 'notifications/claude/channel/permission'
+  params: {
+    request_id: string
+    behavior: 'allow' | 'deny'
+  }
+}
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 const fetchMcpSkillsForClient = feature('MCP_SKILLS')
   ? (
@@ -505,8 +521,8 @@ export function useManageMCPConnections(
               case 'register':
                 logMCPDebug(client.name, 'Channel notifications registered')
                 client.client.setNotificationHandler(
-                  ChannelMessageNotificationSchema(),
-                  async notification => {
+                  ChannelMessageNotificationSchema() as any,
+                  async (notification: ChannelMessageNotification) => {
                     const { content, meta } = notification.params
                     logMCPDebug(
                       client.name,
@@ -542,8 +558,8 @@ export function useManageMCPConnections(
                   ] !== undefined
                 ) {
                   client.client.setNotificationHandler(
-                    ChannelPermissionNotificationSchema(),
-                    async notification => {
+                    ChannelPermissionNotificationSchema() as any,
+                    async (notification: ChannelPermissionNotification) => {
                       const { request_id, behavior } = notification.params
                       const resolved =
                         channelPermCallbacksRef.current?.resolve(

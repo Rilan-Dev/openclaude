@@ -1,20 +1,49 @@
-import {
-  buildComputerUseTools,
-  createComputerUseMcpServer,
-} from '@ant/computer-use-mcp'
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { homedir } from 'os'
 
 import { shutdownDatadog } from '../../services/analytics/datadog.js'
 import { initializeAnalyticsSink } from '../../services/analytics/sink.js'
 import { enableConfigs } from '../config.js'
 import { logForDebugging } from '../debug.js'
-import { createStdioServerTransport } from '../imports.js'
+import { createStdioServerTransport, runtimeImport } from '../imports.js'
 import { filterAppsForDescription } from './appNames.js'
 import { getChicagoCoordinateMode } from './gates.js'
 import { getComputerUseHostAdapter } from './hostAdapter.js'
 
 const APP_ENUM_TIMEOUT_MS = 1000
+
+const COMPUTER_USE_MCP_PACKAGE = ['@ant', 'computer-use-mcp'].join('/')
+
+type ComputerUseMcpServer = {
+  setRequestHandler: (
+    schema: typeof ListToolsRequestSchema,
+    handler: () => Promise<{ tools: unknown[] }> | { tools: unknown[] },
+  ) => void
+  connect: (transport: Transport) => Promise<void>
+}
+
+type ComputerUseMcpModule = {
+  buildComputerUseTools: (
+    capabilities: unknown,
+    coordinateMode: ReturnType<typeof getChicagoCoordinateMode>,
+    installedAppNames?: string[],
+  ) => unknown[]
+  createComputerUseMcpServer: (
+    adapter: ReturnType<typeof getComputerUseHostAdapter>,
+    coordinateMode: ReturnType<typeof getChicagoCoordinateMode>,
+  ) => ComputerUseMcpServer
+}
+
+async function loadComputerUseMcpModule(): Promise<ComputerUseMcpModule> {
+  try {
+    return await runtimeImport<ComputerUseMcpModule>(COMPUTER_USE_MCP_PACKAGE)
+  } catch {
+    throw new Error(
+      'Computer Use MCP support requires @ant/computer-use-mcp, which is not installed in this build.',
+    )
+  }
+}
 
 /**
  * Enumerate installed apps, timed. Fails soft — if Spotlight is slow or
@@ -62,8 +91,10 @@ async function tryGetInstalledAppNames(): Promise<string[] | undefined> {
  * server exists only to answer ListTools.
  */
 export async function createComputerUseMcpServerForCli(): Promise<
-  ReturnType<typeof createComputerUseMcpServer>
+  ComputerUseMcpServer
 > {
+  const { buildComputerUseTools, createComputerUseMcpServer } = await loadComputerUseMcpModule()
+
   const adapter = getComputerUseHostAdapter()
   const coordinateMode = getChicagoCoordinateMode()
   const server = createComputerUseMcpServer(adapter, coordinateMode)
@@ -91,7 +122,7 @@ export async function runComputerUseMcpServer(): Promise<void> {
   initializeAnalyticsSink()
 
   const server = await createComputerUseMcpServerForCli()
-  const transport = await createStdioServerTransport()
+  const transport = await createStdioServerTransport<Transport>()
 
   let exiting = false
   const shutdownAndExit = async (): Promise<void> => {

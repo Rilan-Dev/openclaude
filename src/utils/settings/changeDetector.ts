@@ -7,13 +7,13 @@ import {
   getChokidar,
   isBrowserRuntime,
   normalize,
+  runtimeImport,
   sep,
   stat,
 } from '../imports.js'
-import {
-  type ConfigChangeSource,
-  executeConfigChangeHooks,
-  hasBlockingResult,
+import type {
+  ConfigChangeSource,
+  HookOutsideReplResult,
 } from '../hooks.js'
 import { createSignal } from '../signal.js'
 import { jsonStringify } from '../slowOperations.js'
@@ -75,6 +75,7 @@ const SETTINGS_DEBOUNCE_MS = 500
 
 type ChokidarModule = typeof import('chokidar')
 type FSWatcher = import('chokidar').FSWatcher
+type HooksModule = typeof import('../hooks.js')
 
 let watcher: FSWatcher | null = null
 let mdmPollTimer: ReturnType<typeof setInterval> | null = null
@@ -86,6 +87,7 @@ let settingsDebounceTimer: ReturnType<typeof setTimeout> | null = null
 const pendingSettingsSources = new Map<SettingSource, number>()
 const settingsSourceGenerations = new Map<SettingSource, number>()
 const settingsChanged = createSignal<[source: SettingSource]>()
+let hooksModulePromise: Promise<HooksModule> | null = null
 
 // Test overrides for timing constants
 let testOverrides: {
@@ -96,23 +98,87 @@ let testOverrides: {
   settingsDebounce?: number
 } | null = null
 
-const defaultDependencies = {
-  clearInternalWrites,
-  consumeInternalWrite,
-  executeConfigChangeHooks,
-  getManagedSettingsDropInDir,
-  getSettingsFilePathForSource,
-  hasBlockingResult,
-  resetSettingsCache,
-  stat,
-  watch: ((...args: Parameters<ChokidarModule['watch']>) =>
-    getChokidar().watch(...args)) as ChokidarModule['watch'],
+function createDefaultDependencies(): SettingsChangeDetectorDependencies {
+  if (isBrowserRuntime()) {
+    return createBrowserDependencies()
+  }
+  return {
+    clearInternalWrites,
+    consumeInternalWrite,
+    getManagedSettingsDropInDir,
+    getSettingsFilePathForSource,
+    resetSettingsCache,
+    stat,
+    watch: ((...args: Parameters<ChokidarModule['watch']>) =>
+      getChokidar().watch(...args)) as ChokidarModule['watch'],
+    executeConfigChangeHooks: executeConfigChangeHooksLazy,
+    hasBlockingResult: hasBlockingResultLazy,
+  }
 }
-type SettingsChangeDetectorDependencies = typeof defaultDependencies
-let dependencies: SettingsChangeDetectorDependencies = defaultDependencies
+
+function createBrowserDependencies(): SettingsChangeDetectorDependencies {
+  return {
+    clearInternalWrites: () => {},
+    consumeInternalWrite: () => false,
+    getManagedSettingsDropInDir: () => '',
+    getSettingsFilePathForSource: () => undefined,
+    resetSettingsCache: () => {},
+    stat: async () => {
+      throw new Error('Settings watcher is unavailable in browser runtime')
+    },
+    watch: (() => {
+      throw new Error('Settings watcher is unavailable in browser runtime')
+    }) as ChokidarModule['watch'],
+    executeConfigChangeHooks: async () => [],
+    hasBlockingResult: () => false,
+  }
+}
+
+type SettingsChangeDetectorDependencies = {
+  clearInternalWrites: typeof clearInternalWrites
+  consumeInternalWrite: typeof consumeInternalWrite
+  getManagedSettingsDropInDir: typeof getManagedSettingsDropInDir
+  getSettingsFilePathForSource: typeof getSettingsFilePathForSource
+  resetSettingsCache: typeof resetSettingsCache
+  stat: typeof stat
+  watch: ChokidarModule['watch']
+  executeConfigChangeHooks: (
+    ...args: Parameters<HooksModule['executeConfigChangeHooks']>
+  ) => Promise<HookOutsideReplResult[]>
+  hasBlockingResult: (results: HookOutsideReplResult[]) => boolean
+}
+
+let dependencies: SettingsChangeDetectorDependencies | null = null
 
 function getDependencies(): SettingsChangeDetectorDependencies {
-  return dependencies ?? defaultDependencies
+  if (isBrowserRuntime()) {
+    return createBrowserDependencies()
+  }
+  if (!dependencies) {
+    dependencies = createDefaultDependencies()
+  }
+  return dependencies
+}
+
+async function getHooksModule(): Promise<HooksModule> {
+  if (!hooksModulePromise) {
+    hooksModulePromise = runtimeImport<HooksModule>('../hooks.js')
+  }
+  return hooksModulePromise
+}
+
+async function executeConfigChangeHooksLazy(
+  ...args: Parameters<HooksModule['executeConfigChangeHooks']>
+): Promise<HookOutsideReplResult[]> {
+  if (isBrowserRuntime()) {
+    return []
+  }
+  const { executeConfigChangeHooks } = await getHooksModule()
+  return executeConfigChangeHooks(...args)
+}
+
+function hasBlockingResultLazy(results: HookOutsideReplResult[]): boolean {
+  return results.some(result => result.blocked)
 }
 
 /**
@@ -199,7 +265,8 @@ export function dispose(): Promise<void> {
   clearSettingsDebounce()
   settingsSourceGenerations.clear()
   lastMdmSnapshot = null
-  getDependencies().clearInternalWrites()
+  const deps = getDependencies()
+  deps.clearInternalWrites()
   settingsChanged.clear()
   const w = watcher
   watcher = null
@@ -225,6 +292,8 @@ async function getWatchTargets(): Promise<{
     return { dirs: [], settingsFiles: new Set<string>(), dropInDir: null }
   }
 
+  const deps = getDependencies()
+
   // Map from directory to all potential settings files in that directory
   const dirToSettingsFiles = new Map<string, Set<string>>()
   const dirsWithExistingFiles = new Set<string>()
@@ -237,7 +306,7 @@ async function getWatchTargets(): Promise<{
     if (source === 'flagSettings') {
       continue
     }
-    const path = getDependencies().getSettingsFilePathForSource(source)
+    const path = deps.getSettingsFilePathForSource(source)
     if (!path) {
       continue
     }
@@ -252,7 +321,7 @@ async function getWatchTargets(): Promise<{
 
     // Check if file exists - only watch directories that have at least one existing file
     try {
-      const stats = await getDependencies().stat(path)
+      const stats = await deps.stat(path)
       if (stats.isFile()) {
         dirsWithExistingFiles.add(dir)
       }
@@ -278,9 +347,9 @@ async function getWatchTargets(): Promise<{
   // its immediate children (the .json files). Any .json file inside it maps
   // to the 'policySettings' source.
   let dropInDir: string | null = null
-  const managedDropIn = getDependencies().getManagedSettingsDropInDir()
+  const managedDropIn = deps.getManagedSettingsDropInDir()
   try {
-    const stats = await getDependencies().stat(managedDropIn)
+    const stats = await deps.stat(managedDropIn)
     if (stats.isDirectory()) {
       dirsWithExistingFiles.add(managedDropIn)
       dropInDir = managedDropIn
@@ -310,6 +379,7 @@ function settingSourceToConfigChangeSource(
 
 function handleChange(path: string): void {
   if (isBrowserRuntime() || disposed) return
+  const deps = getDependencies()
   const source = getSourceForPath(path)
   if (!source) return
 
@@ -325,7 +395,7 @@ function handleChange(path: string): void {
   }
 
   // Check if this was an internal write
-  if (getDependencies().consumeInternalWrite(path, INTERNAL_WRITE_WINDOW_MS)) {
+  if (deps.consumeInternalWrite(path, INTERNAL_WRITE_WINDOW_MS)) {
     return
   }
 
@@ -334,11 +404,11 @@ function handleChange(path: string): void {
   // Fire ConfigChange hook first — if blocked (exit code 2 or decision: 'block'),
   // skip applying the change to the session
   const generation = nextSettingsSourceGeneration(source)
-  void getDependencies().executeConfigChangeHooks(
+  void deps.executeConfigChangeHooks(
     settingSourceToConfigChangeSource(source),
     path,
   ).then(results => {
-    if (getDependencies().hasBlockingResult(results)) {
+    if (deps.hasBlockingResult(results)) {
       logForDebugging(`ConfigChange hook blocked change to ${path}`)
       return
     }
@@ -376,6 +446,7 @@ function handleAdd(path: string): void {
  */
 function handleDelete(path: string): void {
   if (isBrowserRuntime() || disposed) return
+  const deps = getDependencies()
   const source = getSourceForPath(path)
   if (!source) return
 
@@ -391,11 +462,11 @@ function handleDelete(path: string): void {
       pendingDeletions.delete(p)
 
       // Fire ConfigChange hook first — if blocked, skip applying the deletion
-      void getDependencies().executeConfigChangeHooks(
+      void deps.executeConfigChangeHooks(
         settingSourceToConfigChangeSource(src),
         p,
       ).then(results => {
-        if (getDependencies().hasBlockingResult(results)) {
+        if (deps.hasBlockingResult(results)) {
           logForDebugging(`ConfigChange hook blocked deletion of ${p}`)
           return
         }
@@ -416,9 +487,8 @@ function getSourceForPath(path: string): SettingSource | undefined {
   const normalizedPath = normalize(path)
 
   // Check if the path is inside the managed-settings.d/ drop-in directory
-  const dropInDir = normalize(
-    getDependencies().getManagedSettingsDropInDir(),
-  )
+  const deps = getDependencies()
+  const dropInDir = normalize(deps.getManagedSettingsDropInDir())
   if (normalizedPath.startsWith(dropInDir + sep)) {
     return 'policySettings'
   }
@@ -426,7 +496,7 @@ function getSourceForPath(path: string): SettingSource | undefined {
   return SETTING_SOURCES.find(
     source =>
       normalize(
-        getDependencies().getSettingsFilePathForSource(source) ?? '',
+        deps.getSettingsFilePathForSource(source) ?? '',
       ) === normalizedPath,
   )
 }
@@ -492,7 +562,8 @@ function startMdmPoll(): void {
  * repopulates; all subsequent listeners hit the cache.
  */
 function fanOut(source: SettingSource): void {
-  getDependencies().resetSettingsCache()
+  const deps = getDependencies()
+  deps.resetSettingsCache()
   settingsChanged.emit(source)
 }
 
@@ -533,7 +604,8 @@ function scheduleFanOut(source: SettingSource, generation: number): void {
 
     if (sources.length === 0) return
 
-    getDependencies().resetSettingsCache()
+    const deps = getDependencies()
+    deps.resetSettingsCache()
     for (const src of sources) {
       settingsChanged.emit(src)
     }
@@ -589,7 +661,7 @@ export const _handleDeleteForTesting = handleDelete
 export function _setDependenciesForTesting(
   overrides: Partial<SettingsChangeDetectorDependencies> = {},
 ): void {
-  dependencies = { ...defaultDependencies, ...overrides }
+  dependencies = { ...createDefaultDependencies(), ...overrides }
 }
 
 export const settingsChangeDetector = {

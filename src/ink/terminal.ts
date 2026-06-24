@@ -8,6 +8,18 @@ import { cursorMove, cursorTo, eraseLines } from './termio/csi.js'
 import { BSU, ESU, HIDE_CURSOR, SHOW_CURSOR } from './termio/dec.js'
 import { link } from './termio/osc.js'
 
+type ProcessLike = {
+  env: Record<string, string | undefined>
+  platform: string
+  stdout?: { isTTY?: boolean }
+}
+
+const process = (globalThis.process ?? {
+  env: {},
+  platform: 'browser',
+  stdout: undefined,
+}) as ProcessLike
+
 export type Progress = {
   state: 'running' | 'completed' | 'error' | 'indeterminate'
   percentage?: number
@@ -24,7 +36,7 @@ export type Progress = {
  */
 export function isProgressReportingAvailable(): boolean {
   // Only available if we have a TTY (not piped)
-  if (!process.stdout.isTTY) {
+  if (!process.stdout?.isTTY) {
     return false
   }
 

@@ -1,9 +1,5 @@
 import { getAdditionalDirectoriesForClaudeMd } from '../../bootstrap/state.js'
 import {
-  clearCommandMemoizationCaches,
-  clearCommandsCache,
-} from '../../commands.js'
-import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../services/analytics/index.js'
@@ -16,7 +12,14 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
-import { getChokidar, isBrowserRuntime, join, resolve, sep } from '../imports.js'
+import {
+  getChokidar,
+  isBrowserRuntime,
+  join,
+  resolve,
+  runtimeImport,
+  sep,
+} from '../imports.js'
 import { createSignal } from '../signal.js'
 
 /**
@@ -89,20 +92,63 @@ let testOverrides: {
   chokidarInterval?: number
 } | null = null
 
-const defaultDependencies = {
-  clearCommandMemoizationCaches,
-  clearCommandsCache,
-  executeConfigChangeHooks,
-  getFsImplementation,
-  getSkillsPath,
-  hasBlockingResult,
-  onDynamicSkillsLoaded,
-  resetSentSkillNames,
-  watch: ((...args: Parameters<ChokidarModule['watch']>) =>
-    getChokidar().watch(...args)) as ChokidarModule['watch'],
+type SkillChangeDetectorDependencies = {
+  clearCommandMemoizationCaches: () => void
+  clearCommandsCache: () => void
+  executeConfigChangeHooks: typeof executeConfigChangeHooks
+  getFsImplementation: typeof getFsImplementation
+  getSkillsPath: typeof getSkillsPath
+  hasBlockingResult: typeof hasBlockingResult
+  onDynamicSkillsLoaded: typeof onDynamicSkillsLoaded
+  resetSentSkillNames: typeof resetSentSkillNames
+  watch: ChokidarModule['watch']
 }
-type SkillChangeDetectorDependencies = typeof defaultDependencies
-let dependencies: SkillChangeDetectorDependencies = defaultDependencies
+
+function createBrowserDependencies(): SkillChangeDetectorDependencies {
+  return {
+    clearCommandMemoizationCaches: () => {},
+    clearCommandsCache: () => {},
+    executeConfigChangeHooks,
+    getFsImplementation,
+    getSkillsPath,
+    hasBlockingResult,
+    onDynamicSkillsLoaded,
+    resetSentSkillNames,
+    watch: ((...args: Parameters<ChokidarModule['watch']>) =>
+      getChokidar().watch(...args)) as ChokidarModule['watch'],
+  }
+}
+
+async function createNodeDependencies(): Promise<SkillChangeDetectorDependencies> {
+  const {
+    clearCommandMemoizationCaches,
+    clearCommandsCache,
+  } = await runtimeImport<typeof import('../../commands.js')>('../../commands.js')
+
+  return {
+    clearCommandMemoizationCaches,
+    clearCommandsCache,
+    executeConfigChangeHooks,
+    getFsImplementation,
+    getSkillsPath,
+    hasBlockingResult,
+    onDynamicSkillsLoaded,
+    resetSentSkillNames,
+    watch: ((...args: Parameters<ChokidarModule['watch']>) =>
+      getChokidar().watch(...args)) as ChokidarModule['watch'],
+  }
+}
+
+let dependencies: SkillChangeDetectorDependencies | null = isBrowserRuntime()
+  ? createBrowserDependencies()
+  : null
+
+function getDependencies(): SkillChangeDetectorDependencies {
+  if (!dependencies) {
+    throw new Error('Skill change detector dependencies are not initialized')
+  }
+  return dependencies
+}
 
 /**
  * Initialize file watching for skill directories
@@ -111,6 +157,10 @@ export async function initialize(): Promise<void> {
   if (isBrowserRuntime()) return
   if (initialized || disposed) return
   initialized = true
+  if (!dependencies) {
+    dependencies = await createNodeDependencies()
+  }
+  const deps = getDependencies()
 
   // Register cleanup before the first await so dispose() can win races during
   // async path discovery.
@@ -121,13 +171,13 @@ export async function initialize(): Promise<void> {
   // Register callback for when dynamic skills are loaded (only once)
   if (!dynamicSkillsCallbackRegistered) {
     dynamicSkillsCallbackRegistered = true
-    unregisterDynamicSkillsCallback = dependencies.onDynamicSkillsLoaded(() => {
+    unregisterDynamicSkillsCallback = deps.onDynamicSkillsLoaded(() => {
       if (disposed) return
       // Clear memoization caches so new skills are picked up
       // Note: we use clearCommandMemoizationCaches (not clearCommandsCache)
       // because clearCommandsCache would call clearSkillCaches which
       // wipes out the dynamic skills we just loaded
-      dependencies.clearCommandMemoizationCaches()
+      deps.clearCommandMemoizationCaches()
       // Notify listeners that skills changed
       skillsChanged.emit()
     })
@@ -141,7 +191,7 @@ export async function initialize(): Promise<void> {
     `Watching for changes in skill/command directories: ${paths.join(', ')}...`,
   )
 
-  watcher = dependencies.watch(paths, {
+  watcher = deps.watch(paths, {
     persistent: true,
     ignoreInitial: true,
     depth: 2, // Skills use skill-name/SKILL.md format
@@ -205,11 +255,12 @@ export function dispose(): Promise<void> {
 export const subscribe = skillsChanged.subscribe
 
 async function getWatchablePaths(): Promise<string[]> {
-  const fs = dependencies.getFsImplementation()
+  const deps = getDependencies()
+  const fs = deps.getFsImplementation()
   const paths: string[] = []
 
   // User skills directory (~/.openclaude/skills)
-  const userSkillsPath = dependencies.getSkillsPath('userSettings', 'skills')
+  const userSkillsPath = deps.getSkillsPath('userSettings', 'skills')
   if (userSkillsPath) {
     try {
       await fs.stat(userSkillsPath)
@@ -220,7 +271,7 @@ async function getWatchablePaths(): Promise<string[]> {
   }
 
   // User commands directory (~/.openclaude/commands)
-  const userCommandsPath = dependencies.getSkillsPath(
+  const userCommandsPath = deps.getSkillsPath(
     'userSettings',
     'commands',
   )
@@ -234,7 +285,7 @@ async function getWatchablePaths(): Promise<string[]> {
   }
 
   // Project skills directory (.claude/skills)
-  const projectSkillsPath = dependencies.getSkillsPath(
+  const projectSkillsPath = deps.getSkillsPath(
     'projectSettings',
     'skills',
   )
@@ -250,7 +301,7 @@ async function getWatchablePaths(): Promise<string[]> {
   }
 
   // Project commands directory (.claude/commands)
-  const projectCommandsPath = dependencies.getSkillsPath(
+  const projectCommandsPath = deps.getSkillsPath(
     'projectSettings',
     'commands',
   )
@@ -325,11 +376,12 @@ function scheduleReloadTimer(): void {
       // operation) just spams the hook matcher with identical queries. Pass the
       // first path as a representative; hooks can inspect all paths via the
       // skills directory if they need the full set.
-      const results = await dependencies.executeConfigChangeHooks(
+      const deps = getDependencies()
+      const results = await deps.executeConfigChangeHooks(
         'skills',
         paths[0]!,
       )
-      if (dependencies.hasBlockingResult(results)) {
+      if (deps.hasBlockingResult(results)) {
         logForDebugging(
           `ConfigChange hook blocked skill reload (${paths.length} paths)`,
         )
@@ -342,8 +394,8 @@ function scheduleReloadTimer(): void {
         )
         return
       }
-      dependencies.clearCommandsCache()
-      dependencies.resetSentSkillNames()
+      deps.clearCommandsCache()
+      deps.resetSentSkillNames()
       lastReloadTime = Date.now()
       skillsChanged.emit()
     } finally {
@@ -397,7 +449,7 @@ export const _scheduleReloadForTesting = scheduleReload
 export function _setDependenciesForTesting(
   overrides: Partial<SkillChangeDetectorDependencies> = {},
 ): void {
-  dependencies = { ...defaultDependencies, ...overrides }
+  dependencies = { ...createBrowserDependencies(), ...overrides }
 }
 
 export const skillChangeDetector = {

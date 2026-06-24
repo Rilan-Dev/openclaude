@@ -29,6 +29,28 @@
 
   <body>
     <div id="root"></div>
+    <script type="module">
+      import processShim from './shims/process.js'
+      import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
+
+      const existingProcess = globalThis.process ?? {}
+      globalThis.process = {
+        ...processShim,
+        ...existingProcess,
+        env: {
+          ...(processShim.env ?? {}),
+          ...(existingProcess.env ?? {}),
+        },
+      }
+
+      if (!globalThis.Buffer) {
+        globalThis.Buffer = BrowserBuffer
+      }
+
+      if (!('global' in globalThis)) {
+        globalThis.global = globalThis
+      }
+    </script>
     <script type="module" src="./main.tsx"></script>
   </body>
 </html>

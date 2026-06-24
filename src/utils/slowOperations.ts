@@ -11,6 +11,12 @@ import lodashCloneDeep from 'lodash-es/cloneDeep.js'
 import { addSlowOperation } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 
+type ProcessLike = {
+  env: Record<string, string | undefined>
+}
+
+const processLike = (globalThis.process ?? { env: {} }) as ProcessLike
+
 // Extended WriteFileOptions to include 'flush' which is available in Node.js 20.1.0+
 // but not yet in @types/node
 type WriteFileOptionsWithFlush =
@@ -27,17 +33,17 @@ type WriteFileOptionsWithFlush =
  * - Ants: 300ms (enabled for all internal users)
  */
 const SLOW_OPERATION_THRESHOLD_MS = (() => {
-  const envValue = process.env.CLAUDE_CODE_SLOW_OPERATION_THRESHOLD_MS
+  const envValue = processLike.env.CLAUDE_CODE_SLOW_OPERATION_THRESHOLD_MS
   if (envValue !== undefined) {
     const parsed = Number(envValue)
     if (!Number.isNaN(parsed) && parsed >= 0) {
       return parsed
     }
   }
-  if (process.env.NODE_ENV === 'development') {
+  if (processLike.env.NODE_ENV === 'development') {
     return 20
   }
-  if (process.env.USER_TYPE === 'ant') {
+  if (processLike.env.USER_TYPE === 'ant') {
     return 300
   }
   return Infinity

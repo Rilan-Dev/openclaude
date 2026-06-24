@@ -13,20 +13,9 @@
  * Only runs on macOS - no-op on other platforms.
  */
 import { registerCleanup } from '../utils/cleanupRegistry.js'
-import { runtimeRequire } from '../utils/imports.js'
+import { ChildProcessLike, spawnProcess } from '../utils/imports.js'
 import { logForDebugging } from '../utils/debug.js'
 
-type ChildProcessLike = {
-  kill: (signal?: string) => void
-  on: (event: 'error' | 'exit', listener: (error?: Error) => void) => void
-  unref: () => void
-}
-
-function spawnProcess(command: string, args: string[], options: {
-  stdio: 'ignore'
-}): ChildProcessLike {
-  return runtimeRequire('child_process').spawn(command, args, options)
-}
 
 // Caffeinate timeout in seconds. Process auto-exits after this duration.
 // We restart it before expiry to maintain continuous sleep prevention.

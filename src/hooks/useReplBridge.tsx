@@ -6,12 +6,11 @@ import { buildBridgeConnectUrl } from '../bridge/bridgeStatusUtil.js';
 import { extractInboundMessageFields } from '../bridge/inboundMessages.js';
 import type { BridgeState, ReplBridgeHandle } from '../bridge/replBridge.js';
 import { setReplBridgeHandle } from '../bridge/replBridgeHandle.js';
-import type { Command } from '../commands.js';
-import { getSlashCommandToolSkills, isBridgeSafeCommand } from '../commands.js';
 import { getRemoteSessionUrl } from '../constants/product.js';
 import { useNotifications } from '../context/notifications.js';
 import type { PermissionMode, SDKMessage } from '../entrypoints/agentSdkTypes.js';
 import { EXTERNAL_PERMISSION_MODES } from '../types/permissions.js';
+import { type Command, isBridgeSafeCommand } from '../types/command.js';
 import type { SDKControlResponse } from '../entrypoints/sdk/controlTypes.js';
 import { Text } from '../ink.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js';
@@ -25,6 +24,7 @@ import { buildSystemInitMessage } from '../utils/messages/systemInit.js';
 import { createBridgeStatusMessage, createSystemMessage } from '../utils/messages.js';
 import { requestPermissionModeChange } from '../utils/permissions/permissionModeChange.js';
 import { applyPermissionModeChange } from '../utils/permissions/permissionSetup.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js';
 
 /** How long after a failure before replBridgeEnabled is auto-cleared (stops retries). */
@@ -55,6 +55,12 @@ const MAX_CONSECUTIVE_INIT_FAILURES = 3;
 export function useReplBridge(messages: Message[], setMessages: (action: React.SetStateAction<Message[]>) => void, abortControllerRef: React.RefObject<AbortController | null>, commands: readonly Command[], mainLoopModel: string): {
   sendBridgeResult: () => void;
 } {
+  if (isBrowserRuntime()) {
+    return {
+      sendBridgeResult: () => {},
+    };
+  }
+
   const handleRef = useRef<ReplBridgeHandle | null>(null);
   const teardownPromiseRef = useRef<Promise<void> | undefined>(undefined);
   const lastWrittenIndexRef = useRef(0);
@@ -293,6 +299,7 @@ export function useReplBridge(messages: Message[], setMessages: (action: React.S
                   if (getFeatureValue_CACHED_MAY_BE_STALE('tengu_bridge_system_init', false)) {
                     void (async () => {
                       try {
+                        const { getSlashCommandToolSkills } = await import('../commands.js');
                         const skills = await getSlashCommandToolSkills(getCwd());
                         if (cancelled) return;
                         const state_0 = store.getState();

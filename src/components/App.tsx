@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement, type ComponentType, type ReactNode } from 'react';
 import type { StatsStore } from '../context/stats.js';
 import type { AppState } from '../state/AppStateStore.js';
 import type { FpsMetrics } from '../utils/fpsTracker.js';
@@ -6,19 +6,17 @@ type Props = {
   getFpsMetrics: () => FpsMetrics | undefined;
   stats?: StatsStore;
   initialState?: AppState;
-  children: ReactNode;
+  children?: ReactNode;
   renderMode?: 'terminal' | 'web';
 };
 
-type RuntimeComponent<P> = (props: P) => ReactNode;
+type RuntimeComponent<P> = ComponentType<P & { children?: ReactNode }>;
 type TerminalProviders = {
   FpsMetricsProvider: RuntimeComponent<{
     getFpsMetrics: () => FpsMetrics | undefined;
-    children: ReactNode;
   }>;
   StatsProvider: RuntimeComponent<{
     store?: StatsStore;
-    children: ReactNode;
   }>;
   AppStateProvider: RuntimeComponent<{
     initialState?: AppState;
@@ -26,7 +24,6 @@ type TerminalProviders = {
       newState: AppState;
       oldState: AppState;
     }) => void;
-    children: ReactNode;
   }>;
   onChangeAppState: (args: {
     newState: AppState;

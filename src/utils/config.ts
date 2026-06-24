@@ -32,6 +32,7 @@ import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import type { ThemeSetting } from './theme.js'
 import { PRIMARY_PROJECT_INSTRUCTION_FILE } from './projectInstructions.js'
+import { isBrowserRuntime } from './imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemPaths = feature('TEAMMEM')
@@ -938,14 +939,14 @@ function wouldLoseAuthState(fresh: {
 export function saveGlobalConfig(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
-  if (process.env.NODE_ENV === 'test') {
-    const current = getTestGlobalConfigForTesting()
+  if (isBrowserRuntime()) {
+    const current = globalConfigCache.config ?? createDefaultGlobalConfig()
     const config = updater(current)
     // Skip if no changes (same reference returned)
-    if (config === current) {
-      return
+    if (config !== current) {
+      writeThroughGlobalConfigCache(config)
     }
-    Object.assign(current, config)
+
     return
   }
 
@@ -1199,8 +1200,8 @@ function writeThroughGlobalConfigCache(config: GlobalConfig): void {
 }
 
 export function getGlobalConfig(): GlobalConfig {
-  if (process.env.NODE_ENV === 'test') {
-    return getTestGlobalConfigForTesting()
+  if (isBrowserRuntime()) {
+    return DEFAULT_GLOBAL_CONFIG
   }
 
   // Fast path: pure memory read. After startup, this always hits — our own
@@ -1782,6 +1783,25 @@ export function getCurrentProjectConfig(): ProjectConfig {
 export function saveCurrentProjectConfig(
   updater: (currentConfig: ProjectConfig) => ProjectConfig,
 ): void {
+  if (isBrowserRuntime()) {
+    const currentGlobal = globalConfigCache.config ?? createDefaultGlobalConfig()
+    const projectPath = 'web'
+    const currentProject =
+      currentGlobal.projects?.[projectPath] ?? DEFAULT_PROJECT_CONFIG
+    const nextProject = updater(currentProject)
+
+    if (nextProject !== currentProject) {
+      writeThroughGlobalConfigCache({
+        ...currentGlobal,
+        projects: {
+          ...currentGlobal.projects,
+          [projectPath]: nextProject,
+        },
+      })
+    }
+
+    return
+  }
   if (process.env.NODE_ENV === 'test') {
     const current = getTestProjectConfigForTesting()
     const config = updater(current)

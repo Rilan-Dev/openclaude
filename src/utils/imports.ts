@@ -2,7 +2,7 @@
 import * as browserBuiltins from '../../webui/shims/nodeBuiltins.js'
 import processShim from '../../webui/shims/process.js'
 
-export type UUID = string
+export type UUID = `${string}-${string}-${string}-${string}-${string}`
 
 export type HttpIncomingMessage = {
   headers: Record<string, string | string[] | undefined>
@@ -20,8 +20,14 @@ export type HttpServerResponse = {
   writeHead(statusCode: number, headers?: Record<string, string>): void
 }
 
+export type HttpServerAddress = {
+  address: string
+  family: string
+  port: number
+}
+
 export type HttpServer = {
-  address(): unknown
+  address(): HttpServerAddress | string | null
   close(callback?: () => void): void
   listen(
     port?: number,
@@ -162,9 +168,9 @@ export function stripVTControlCharacters(value: string): string {
 
 export function randomUUID(): UUID {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID()
+    return globalThis.crypto.randomUUID() as UUID
   }
-  return runtimeRequire<{ randomUUID: () => string }>('crypto').randomUUID()
+  return runtimeRequire<{ randomUUID: () => string }>('crypto').randomUUID() as UUID
 }
 
 export function randomInt(max: number): number {
@@ -206,8 +212,8 @@ export function dirname(path: string): string {
   return getPathModule().dirname(path)
 }
 
-export function basename(path: string, p0: string): string {
-  return getPathModule().basename(path)
+export function basename(path: string, suffix?: string): string {
+  return getPathModule().basename(path, suffix)
 }
 
 export function join(...parts: string[]): string {
@@ -275,11 +281,16 @@ export function release(): string {
   return getOsModule().release()
 }
 
-export async function readFile(
+export function readFile(
   path: string,
-  options?: { encoding?: BufferEncoding },
+  options: { encoding: BufferEncoding } | BufferEncoding,
+): Promise<string>
+export function readFile(path: string): Promise<Buffer>
+export function readFile(
+  path: string,
+  options?: { encoding?: BufferEncoding } | BufferEncoding,
 ): Promise<string | Buffer> {
-  return getFsPromisesModule().readFile(path, options)
+  return getFsPromisesModule().readFile(path, options as any)
 }
 
 export async function stat(path: string): Promise<import('fs').Stats> {
@@ -299,8 +310,18 @@ export async function copyFile(path: string, destination: string): Promise<void>
   await getFsPromisesModule().copyFile(path, destination)
 }
 
-export async function writeFile(path: string, data: string): Promise<void> {
-  await getFsPromisesModule().writeFile(path, data)
+export async function writeFile(
+  path: string,
+  data: string | Uint8Array,
+  options?:
+    | BufferEncoding
+    | {
+        encoding?: BufferEncoding | null
+        mode?: number | string
+        flag?: string
+      },
+): Promise<void> {
+  await getFsPromisesModule().writeFile(path, data, options as any)
 }
 
 export function realpathSync(path: string): string {
@@ -309,9 +330,33 @@ export function realpathSync(path: string): string {
 
 export function readFileSync(
   path: string,
+  options: BufferEncoding | { encoding: BufferEncoding },
+): string
+export function readFileSync(path: string): Buffer
+export function readFileSync(
+  path: string,
   options?: BufferEncoding | { encoding?: BufferEncoding | null },
 ): string | Buffer {
   return getFsModule().readFileSync(path, options as any)
+}
+
+export type ChildProcessLike = {
+  kill: (signal?: string) => void
+  on(event: 'error', listener: (error: Error) => void): void
+  on(event: 'exit', listener: () => void): void
+  unref: () => void
+}
+
+export function spawnProcess(
+  command: string,
+  args: string[],
+  options: {
+    stdio: 'ignore'
+  },
+): ChildProcessLike {
+  return runtimeRequire<typeof import('child_process')>(
+    'child_process',
+  ).spawn(command, args, options) as ChildProcessLike
 }
 
 export function spawnSync(
@@ -330,18 +375,70 @@ export function spawnSync(
   stdout?: string
   stderr?: string
 } {
-  return getChildProcessModule().spawnSync(command, args, options)
+  const result = getChildProcessModule().spawnSync(command, args, {
+    encoding: 'utf8',
+    ...options,
+  })
+
+  return {
+    error: result.error,
+    status: result.status,
+    stdout: result.stdout ?? undefined,
+    stderr: result.stderr ?? undefined,
+  }
 }
+
+export function exec(
+  command: string,
+  callback: (
+    error: import('child_process').ExecException | null,
+    stdout: string,
+    stderr: string,
+  ) => void,
+): import('child_process').ChildProcess
 
 export function exec(
   command: string,
   options: {
     timeout?: number
+    cwd?: string
+    env?: NodeJS.ProcessEnv
+    encoding?: BufferEncoding
+    maxBuffer?: number
   },
-): {
-  on: (event: 'exit', listener: (code: number | null) => void) => void
-} {
-  return getChildProcessModule().exec(command, options)
+  callback?: (
+    error: import('child_process').ExecException | null,
+    stdout: string,
+    stderr: string,
+  ) => void,
+): import('child_process').ChildProcess
+
+export function exec(
+  command: string,
+  optionsOrCallback:
+    | {
+        timeout?: number
+        cwd?: string
+        env?: NodeJS.ProcessEnv
+        encoding?: BufferEncoding
+        maxBuffer?: number
+      }
+    | ((
+        error: import('child_process').ExecException | null,
+        stdout: string,
+        stderr: string,
+      ) => void),
+  callback?: (
+    error: import('child_process').ExecException | null,
+    stdout: string,
+    stderr: string,
+  ) => void,
+): import('child_process').ChildProcess {
+  if (typeof optionsOrCallback === 'function') {
+    return getChildProcessModule().exec(command, optionsOrCallback)
+  }
+
+  return getChildProcessModule().exec(command, optionsOrCallback, callback)
 }
 
 export function getExeca(): typeof import('execa').execa {

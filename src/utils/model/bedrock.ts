@@ -23,10 +23,11 @@ const SMITHY_CORE_PACKAGE = optionalPackage('@smithy', 'core')
 export const getBedrockInferenceProfiles = memoize(async function (): Promise<
   string[]
 > {
-  const [client, { ListInferenceProfilesCommand }] = await Promise.all([
-    createBedrockClient(),
-    import(AWS_BEDROCK_CLIENT_PACKAGE),
-  ])
+  const client = await createBedrockClient()
+  const { ListInferenceProfilesCommand } = (await import(
+    AWS_BEDROCK_CLIENT_PACKAGE
+  )) as typeof import('@aws-sdk/client-bedrock')
+
   const allProfiles: Array<{ inferenceProfileId?: string }> = []
   let nextToken: string | undefined
 
@@ -36,6 +37,7 @@ export const getBedrockInferenceProfiles = memoize(async function (): Promise<
         ...(nextToken && { nextToken }),
         typeEquals: 'SYSTEM_DEFINED',
       })
+
       const response = await client.send(command)
 
       if (response.inferenceProfileSummaries) {
@@ -45,7 +47,6 @@ export const getBedrockInferenceProfiles = memoize(async function (): Promise<
       nextToken = response.nextToken
     } while (nextToken)
 
-    // Filter for Anthropic models (SYSTEM_DEFINED filtering handled in query)
     return allProfiles
       .filter(profile => profile.inferenceProfileId?.includes('anthropic'))
       .map(profile => profile.inferenceProfileId)
@@ -64,7 +65,9 @@ export function findFirstMatch(
 }
 
 async function createBedrockClient() {
-  const { BedrockClient } = await import(AWS_BEDROCK_CLIENT_PACKAGE)
+  const { BedrockClient } = (await import(
+    AWS_BEDROCK_CLIENT_PACKAGE
+  )) as typeof import('@aws-sdk/client-bedrock')
   // Match the Anthropic Bedrock SDK's region behavior exactly:
   // - Reads AWS_REGION or AWS_DEFAULT_REGION env vars (not AWS config files)
   // - Falls back to 'us-east-1' if neither is set
@@ -110,9 +113,9 @@ async function createBedrockClient() {
 }
 
 export async function createBedrockRuntimeClient() {
-  const { BedrockRuntimeClient } = await import(
+  const { BedrockRuntimeClient } = (await import(
     AWS_BEDROCK_RUNTIME_PACKAGE
-  )
+  )) as typeof import('@aws-sdk/client-bedrock-runtime')
   const region = getAWSRegion()
   const skipAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)
 
@@ -158,29 +161,26 @@ export const getInferenceProfileBackingModel = memoize(async function (
   profileId: string,
 ): Promise<string | null> {
   try {
-    const [client, { GetInferenceProfileCommand }] = await Promise.all([
-      createBedrockClient(),
-      import(AWS_BEDROCK_CLIENT_PACKAGE),
-    ])
+    const client = await createBedrockClient()
+    const { GetInferenceProfileCommand } = (await import(
+      AWS_BEDROCK_CLIENT_PACKAGE
+    )) as typeof import('@aws-sdk/client-bedrock')
+
     const command = new GetInferenceProfileCommand({
       inferenceProfileIdentifier: profileId,
     })
+
     const response = await client.send(command)
 
     if (!response.models || response.models.length === 0) {
       return null
     }
 
-    // Use the first model as the primary backing model for cost calculation
-    // In practice, application inference profiles typically load balance between
-    // similar models with the same cost structure
     const primaryModel = response.models[0]
     if (!primaryModel?.modelArn) {
       return null
     }
 
-    // Extract model name from ARN
-    // ARN format: arn:aws:bedrock:region:account:foundation-model/model-name
     const lastSlashIndex = primaryModel.modelArn.lastIndexOf('/')
     return lastSlashIndex >= 0
       ? primaryModel.modelArn.substring(lastSlashIndex + 1)

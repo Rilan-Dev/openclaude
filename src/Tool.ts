@@ -813,9 +813,11 @@ export function buildTool<D extends AnyToolDef>(def: D): BuiltTool<D> {
   // The runtime spread is straightforward; the `as` bridges the gap between
   // the structural-any constraint and the precise BuiltTool<D> return. The
   // type semantics are proven by the 0-error typecheck across all 60+ tools.
-  return {
+  const tool = {
     ...TOOL_DEFAULTS,
     userFacingName: () => def.name,
-    ...def,
   } as BuiltTool<D>
+
+  Object.defineProperties(tool, Object.getOwnPropertyDescriptors(def))
+  return tool
 }

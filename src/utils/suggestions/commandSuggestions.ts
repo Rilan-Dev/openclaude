@@ -4,7 +4,7 @@ import {
   formatDescriptionWithSource,
   getCommand,
   getCommandName,
-} from '../../commands.js'
+} from '../../types/command.js'
 import type { SuggestionItem } from '../../components/PromptInput/PromptInputFooterSuggestions.js'
 import { logForDebugging } from '../debug.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'

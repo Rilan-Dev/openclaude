@@ -213,7 +213,7 @@ export async function startXaiOAuthCallback(params: {
       server.removeListener('error', reject)
       const address = server.address()
       if (address && typeof address === 'object') {
-        boundPort = address.port
+        boundPort = address?.port
       }
       resolve()
     })

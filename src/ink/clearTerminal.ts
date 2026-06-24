@@ -10,6 +10,16 @@ import {
   ERASE_SCROLLBACK,
 } from './termio/csi.js'
 
+type ProcessLike = {
+  env: Record<string, string | undefined>
+  platform: string
+}
+
+const process = (globalThis.process ?? {
+  env: {},
+  platform: 'browser',
+}) as ProcessLike
+
 // HVP (Horizontal Vertical Position) - legacy Windows cursor home
 const CURSOR_HOME_WINDOWS = csi(0, 'f')
 

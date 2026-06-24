@@ -281,6 +281,7 @@ import { dirname, join } from 'path'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
+import { createComputerUseMcpServerForCli } from '../../utils/computerUse/mcpServer.js'
 
 const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min
 
@@ -644,6 +645,14 @@ export function getServerCacheKey(
   return `${name}-${jsonStringify(serverRef)}`
 }
 
+function asMcpNotificationSchema<
+  TClient extends {
+    setNotificationHandler: (...args: any[]) => unknown
+  },
+>(client: TClient, schema: unknown): Parameters<TClient['setNotificationHandler']>[0] {
+  return schema as Parameters<TClient['setNotificationHandler']>[0]
+}
+
 /**
  * TODO (ollie): The memoization here increases complexity by a lot, and im not sure it really improves performance
  * Attempts to connect to a single MCP server
@@ -974,12 +983,12 @@ export const connectToServer = memoize(
         const { createLinkedTransportPair } = await import(
           './InProcessTransport.js'
         )
-        const context = createChromeContext(serverRef.env)
-        inProcessServer = createClaudeForChromeMcpServer(context)
+        const computerUseServer = await createComputerUseMcpServerForCli()
+        inProcessServer = computerUseServer
+
         const [clientTransport, serverTransport] = createLinkedTransportPair()
-        await inProcessServer.connect(serverTransport)
+        await computerUseServer.connect(serverTransport)
         transport = clientTransport
-        logMCPDebug(name, `In-process Chrome MCP server started`)
       } else if (
         feature('CHICAGO_MCP') &&
         (serverRef.type === 'stdio' || !serverRef.type) &&
@@ -1119,10 +1128,14 @@ export const connectToServer = memoize(
             name,
             `Connection timeout triggered after ${elapsed}ms (limit: ${getConnectionTimeoutMs()}ms)`,
           )
-          if (inProcessServer) {
-            inProcessServer.close().catch(() => { })
+
+          const serverToClose = inProcessServer
+          if (serverToClose) {
+            serverToClose.close().catch(() => {})
           }
-          transport.close().catch(() => { })
+
+          transport.close().catch(() => {})
+
           reject(
             new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
               `MCP server "${name}" connection timed out after ${getConnectionTimeoutMs()}ms`,

@@ -1,24 +1,52 @@
-import { constants as fsConstants } from 'fs'
-import {
-  type FileHandle,
-  mkdir,
-  open,
-  stat,
-  symlink,
-  unlink,
-} from 'fs/promises'
-import { join } from 'path'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getErrnoCode } from '../errors.js'
-import { readFileRange, tailFile } from '../fsOperations.js'
+import {
+  isBrowserRuntime,
+  join,
+  platform,
+  runtimeRequire,
+} from '../imports.js'
 import { logError } from '../log.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 
-// SECURITY: O_NOFOLLOW prevents following symlinks when opening task output files.
-// Without this, an attacker in the sandbox could create symlinks in the tasks directory
-// pointing to arbitrary files, causing Claude Code on the host to write to those files.
-// O_NOFOLLOW is not available on Windows, but the sandbox attack vector is Unix-only.
-const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0
+type FsModule = typeof import('fs')
+type FsPromisesModule = typeof import('fs/promises')
+
+function getFsModule(): FsModule {
+  return runtimeRequire<FsModule>('fs')
+}
+
+function getFsPromisesModule(): FsPromisesModule {
+  return runtimeRequire<FsPromisesModule>('fs/promises')
+}
+
+function getOpenFlagsForTaskOutput(fsModule: FsModule): string | number {
+  // SECURITY: O_NOFOLLOW prevents following symlinks when opening task output files.
+  // Without this, an attacker in the sandbox could create symlinks in the tasks directory
+  // pointing to arbitrary files, causing Claude Code on the host to write to those files.
+  // O_NOFOLLOW is not available on Windows, but the sandbox attack vector is Unix-only.
+  const noFollow = fsModule.constants.O_NOFOLLOW ?? 0
+  return platform() === 'win32'
+    ? 'a'
+    : fsModule.constants.O_WRONLY |
+        fsModule.constants.O_APPEND |
+        fsModule.constants.O_CREAT |
+        noFollow
+}
+
+function getCreateFlagsForTaskOutput(fsModule: FsModule): string | number {
+  const noFollow = fsModule.constants.O_NOFOLLOW ?? 0
+  return platform() === 'win32'
+    ? 'wx'
+    : fsModule.constants.O_WRONLY |
+        fsModule.constants.O_CREAT |
+        fsModule.constants.O_EXCL |
+        noFollow
+}
+
+function getBrowserTaskOutputDir(): string {
+  return join('/tmp', 'openclaude', getSessionId(), 'tasks')
+}
 
 const DEFAULT_MAX_READ_BYTES = 8 * 1024 * 1024 // 8MB
 
@@ -49,7 +77,9 @@ export const MAX_TASK_OUTPUT_BYTES_DISPLAY = '5GB'
 let _taskOutputDir: string | undefined
 export function getTaskOutputDir(): string {
   if (_taskOutputDir === undefined) {
-    _taskOutputDir = join(getProjectTempDir(), getSessionId(), 'tasks')
+    _taskOutputDir = isBrowserRuntime()
+      ? getBrowserTaskOutputDir()
+      : join(getProjectTempDir(), getSessionId(), 'tasks')
   }
   return _taskOutputDir
 }
@@ -63,6 +93,10 @@ export function _resetTaskOutputDirForTest(): void {
  * Ensure the task output directory exists
  */
 async function ensureOutputDir(): Promise<void> {
+  if (isBrowserRuntime()) {
+    return
+  }
+  const { mkdir } = getFsPromisesModule()
   await mkdir(getTaskOutputDir(), { recursive: true })
 }
 
@@ -96,7 +130,7 @@ function track<T>(p: Promise<T>): Promise<T> {
  */
 export class DiskTaskOutput {
   #path: string
-  #fileHandle: FileHandle | null = null
+  #fileHandle: import('fs/promises').FileHandle | null = null
   #queue: string[] = []
   #bytesWritten = 0
   #capped = false
@@ -139,18 +173,19 @@ export class DiskTaskOutput {
   }
 
   async #drainAllChunks(): Promise<void> {
+    if (isBrowserRuntime()) {
+      this.#queue.length = 0
+      return
+    }
+    const { open } = getFsPromisesModule()
+    const fsModule = getFsModule()
     while (true) {
       try {
         if (!this.#fileHandle) {
           await ensureOutputDir()
           this.#fileHandle = await open(
             this.#path,
-            process.platform === 'win32'
-              ? 'a'
-              : fsConstants.O_WRONLY |
-                  fsConstants.O_APPEND |
-                  fsConstants.O_CREAT |
-                  O_NOFOLLOW,
+            getOpenFlagsForTaskOutput(fsModule),
           )
         }
         while (true) {
@@ -232,6 +267,82 @@ export class DiskTaskOutput {
 
 const outputs = new Map<string, DiskTaskOutput>()
 
+async function readFileRange(
+  path: string,
+  offset: number,
+  maxBytes: number,
+): Promise<{ content: string; bytesRead: number; bytesTotal: number } | null> {
+  if (isBrowserRuntime()) {
+    return null
+  }
+  const { open } = getFsPromisesModule()
+  await using fh = await open(path, 'r')
+  const size = (await fh.stat()).size
+  if (size <= offset) {
+    return null
+  }
+  const bytesToRead = Math.min(size - offset, maxBytes)
+  const buffer = Buffer.allocUnsafe(bytesToRead)
+
+  let totalRead = 0
+  while (totalRead < bytesToRead) {
+    const { bytesRead } = await fh.read(
+      buffer,
+      totalRead,
+      bytesToRead - totalRead,
+      offset + totalRead,
+    )
+    if (bytesRead === 0) {
+      break
+    }
+    totalRead += bytesRead
+  }
+
+  return {
+    content: buffer.toString('utf8', 0, totalRead),
+    bytesRead: totalRead,
+    bytesTotal: size,
+  }
+}
+
+async function tailFile(
+  path: string,
+  maxBytes: number,
+): Promise<{ content: string; bytesRead: number; bytesTotal: number }> {
+  if (isBrowserRuntime()) {
+    return { content: '', bytesRead: 0, bytesTotal: 0 }
+  }
+  const { open } = getFsPromisesModule()
+  await using fh = await open(path, 'r')
+  const size = (await fh.stat()).size
+  if (size === 0) {
+    return { content: '', bytesRead: 0, bytesTotal: 0 }
+  }
+  const offset = Math.max(0, size - maxBytes)
+  const bytesToRead = size - offset
+  const buffer = Buffer.allocUnsafe(bytesToRead)
+
+  let totalRead = 0
+  while (totalRead < bytesToRead) {
+    const { bytesRead } = await fh.read(
+      buffer,
+      totalRead,
+      bytesToRead - totalRead,
+      offset + totalRead,
+    )
+    if (bytesRead === 0) {
+      break
+    }
+    totalRead += bytesRead
+  }
+
+  return {
+    content: buffer.toString('utf8', 0, totalRead),
+    bytesRead: totalRead,
+    bytesTotal: size,
+  }
+}
+
 /**
  * Test helper — cancel pending writes, await in-flight ops, clear the map.
  * backgroundShells.test.ts and other task tests spawn real shells that
@@ -306,6 +417,9 @@ export async function getTaskOutputDelta(
   fromOffset: number,
   maxBytes: number = DEFAULT_MAX_READ_BYTES,
 ): Promise<{ content: string; newOffset: number }> {
+  if (isBrowserRuntime()) {
+    return { content: '', newOffset: fromOffset }
+  }
   try {
     const result = await readFileRange(
       getTaskOutputPath(taskId),
@@ -337,6 +451,9 @@ export async function getTaskOutput(
   taskId: string,
   maxBytes: number = DEFAULT_MAX_READ_BYTES,
 ): Promise<string> {
+  if (isBrowserRuntime()) {
+    return ''
+  }
   try {
     const { content, bytesTotal, bytesRead } = await tailFile(
       getTaskOutputPath(taskId),
@@ -360,7 +477,11 @@ export async function getTaskOutput(
  * Get the current size (offset) of a task's output file.
  */
 export async function getTaskOutputSize(taskId: string): Promise<number> {
+  if (isBrowserRuntime()) {
+    return 0
+  }
   try {
+    const { stat } = getFsPromisesModule()
     return (await stat(getTaskOutputPath(taskId))).size
   } catch (e) {
     const code = getErrnoCode(e)
@@ -383,6 +504,10 @@ export async function cleanupTaskOutput(taskId: string): Promise<void> {
   }
 
   try {
+    if (isBrowserRuntime()) {
+      return
+    }
+    const { unlink } = getFsPromisesModule()
     await unlink(getTaskOutputPath(taskId))
   } catch (e) {
     const code = getErrnoCode(e)
@@ -398,6 +523,9 @@ export async function cleanupTaskOutput(taskId: string): Promise<void> {
  * Creates an empty file to ensure the path exists.
  */
 export function initTaskOutput(taskId: string): Promise<string> {
+  if (isBrowserRuntime()) {
+    return Promise.resolve(getTaskOutputPath(taskId))
+  }
   return track(
     (async () => {
       await ensureOutputDir()
@@ -405,14 +533,10 @@ export function initTaskOutput(taskId: string): Promise<string> {
       // SECURITY: O_NOFOLLOW prevents symlink-following attacks from the sandbox.
       // O_EXCL ensures we create a new file and fail if something already exists at this path.
       // On Windows, use string flags — numeric O_EXCL can produce EINVAL through libuv.
+      const { open } = getFsPromisesModule()
       const fh = await open(
         outputPath,
-        process.platform === 'win32'
-          ? 'wx'
-          : fsConstants.O_WRONLY |
-              fsConstants.O_CREAT |
-              fsConstants.O_EXCL |
-              O_NOFOLLOW,
+        getCreateFlagsForTaskOutput(getFsModule()),
       )
       await fh.close()
       return outputPath
@@ -428,12 +552,16 @@ export function initTaskOutputAsSymlink(
   taskId: string,
   targetPath: string,
 ): Promise<string> {
+  if (isBrowserRuntime()) {
+    return Promise.resolve(getTaskOutputPath(taskId))
+  }
   return track(
     (async () => {
       try {
         await ensureOutputDir()
         const outputPath = getTaskOutputPath(taskId)
 
+        const { symlink, unlink } = getFsPromisesModule()
         try {
           await symlink(targetPath, outputPath)
         } catch {

@@ -18,6 +18,12 @@ import type { PluginHookMatcher } from 'src/utils/settings/types.js'
 import { createSignal } from 'src/utils/signal.js'
 import { createAsyncContextStorage } from 'src/utils/imports.js'
 
+type ProcessLike = {
+  env: Record<string, string | undefined>
+}
+
+const processLike = (globalThis.process ?? { env: {} }) as ProcessLike
+
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
 
@@ -355,7 +361,7 @@ function getInitialState(): State {
     mainThreadAgentType: undefined,
     // Remote mode
     isRemoteMode: false,
-    ...(process.env.USER_TYPE === 'ant'
+    ...(processLike.env.USER_TYPE === 'ant'
       ? {
           replBridgeActive: false,
         }
@@ -958,7 +964,7 @@ export function setCostStateForRestore({
 
 // Only used in tests
 export function resetStateForTests(): void {
-  if (process.env.NODE_ENV !== 'test') {
+  if (processLike.env.NODE_ENV !== 'test') {
     throw new Error('resetStateForTests can only be called in tests')
   }
   Object.entries(getInitialState()).forEach(([key, value]) => {

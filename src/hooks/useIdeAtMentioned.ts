@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { logError } from 'src/utils/log.js'
-import { z } from 'zod/v4'
+import { z } from 'zod/v3'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
@@ -26,6 +26,11 @@ const AtMentionedSchema = lazySchema(() =>
   }),
 )
 
+type AtMentionedNotification = {
+  method: typeof NOTIFICATION_METHOD
+  params: IDEAtMentioned
+}
+
 /**
  * A hook that tracks IDE at-mention notifications by directly registering
  * with MCP client notification handlers,
@@ -47,8 +52,8 @@ export function useIdeAtMentioned(
     // If we found a connected IDE client, register our handler
     if (ideClient) {
       ideClient.client.setNotificationHandler(
-        AtMentionedSchema(),
-        notification => {
+        AtMentionedSchema as any,
+        (notification: AtMentionedNotification) => {
           if (ideClientRef.current !== ideClient) {
             return
           }

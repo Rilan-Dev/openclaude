@@ -21,9 +21,11 @@ export async function validateManifest(
   if (!parseResult.success) {
     const errors = parseResult.error.flatten()
     const errorMessages = [
-      ...Object.entries(errors.fieldErrors).map(
-        ([field, errs]) => `${field}: ${errs?.join(', ')}`,
-      ),
+    ...Object.entries(errors.fieldErrors).flatMap(([field, errs]) =>
+      Array.isArray(errs) && errs.length > 0
+        ? [`${field}: ${errs.join(', ')}`]
+        : [],
+    ),
       ...(errors.formErrors || []),
     ]
       .filter(Boolean)

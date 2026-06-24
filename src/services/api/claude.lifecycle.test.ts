@@ -87,6 +87,7 @@ function makeBetaMessage(): BetaMessage {
     stop_details: null,
     stop_reason: 'end_turn',
     stop_sequence: null,
+    diagnostics: null,
     usage: {
       ...EMPTY_USAGE,
       input_tokens: 1,

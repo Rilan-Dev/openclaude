@@ -21,6 +21,7 @@ import {
 } from './cleanup.js'
 import { cleanupOldVersions } from './nativeInstaller/index.js'
 import { autoUpdateMarketplacesAndPluginsInBackground } from './plugins/pluginAutoupdate.js'
+import { isBrowserRuntime } from './imports.js'
 
 // 24 hours in milliseconds
 const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -28,7 +29,15 @@ const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 // 10 minutes after start.
 const DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION = 10 * 60 * 1000
 
+function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
+  ;(timer as ReturnType<typeof setTimeout> & { unref?: () => void }).unref?.()
+}
+
 export function startBackgroundHousekeeping(): void {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   void initMagicDocs()
   void initSkillImprovement()
   if (feature('EXTRACT_MEMORIES')) {
@@ -42,15 +51,15 @@ export function startBackgroundHousekeeping(): void {
 
   let needsCleanup = true
   async function runVerySlowOps(): Promise<void> {
-    // If the user did something in the last minute, don't make them wait for these slow operations to run.
     if (
       getIsInteractive() &&
       getLastInteractionTime() > Date.now() - 1000 * 60
     ) {
-      setTimeout(
+      const timer = setTimeout(
         runVerySlowOps,
         DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION,
-      ).unref()
+      )
+      unrefTimer(timer)
       return
     }
 
@@ -59,36 +68,33 @@ export function startBackgroundHousekeeping(): void {
       await cleanupOldMessageFilesInBackground()
     }
 
-    // If the user did something in the last minute, don't make them wait for these slow operations to run.
     if (
       getIsInteractive() &&
       getLastInteractionTime() > Date.now() - 1000 * 60
     ) {
-      setTimeout(
+      const timer = setTimeout(
         runVerySlowOps,
         DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION,
-      ).unref()
+      )
+      unrefTimer(timer)
       return
     }
 
     await cleanupOldVersions()
   }
 
-  setTimeout(
+  const timer = setTimeout(
     runVerySlowOps,
     DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION,
-  ).unref()
+  )
+  unrefTimer(timer)
 
-  // For long-running sessions, schedule recurring cleanup every 24 hours.
-  // Both cleanup functions use marker files and locks to throttle to once per day
-  // and skip immediately if another process holds the lock.
   if (process.env.USER_TYPE === 'ant') {
     const interval = setInterval(() => {
       void cleanupNpmCacheForAnthropicPackages()
       void cleanupOldVersionsThrottled()
     }, RECURRING_CLEANUP_INTERVAL_MS)
 
-    // Don't let this interval keep the process alive
-    interval.unref()
+    unrefTimer(interval)
   }
 }

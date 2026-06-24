@@ -1,29 +1,25 @@
 [{
-	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
 	"owner": "typescript",
 	"code": "2345",
 	"severity": 8,
-	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.\n  Type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is missing the following properties from type 'ZodObject<any, any, any, { [x: string]: any; }, { [x: string]: any; }>': _cached, _getCached, _parse, nonstrict, and 13 more.",
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
 	"source": "ts",
 	"startLineNumber": 4761,
 	"startColumn": 5,
 	"endLineNumber": 4761,
-	"endColumn": 39,
-	"modelVersionId": 1,
-	"origin": "extHost1"
+	"endColumn": 5
 },{
-	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/cli/print.ts",
 	"owner": "typescript",
 	"code": "2345",
 	"severity": 8,
-	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.\n  Type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is missing the following properties from type 'ZodObject<any, any, any, { [x: string]: any; }, { [x: string]: any; }>': _cached, _getCached, _parse, nonstrict, and 13 more.",
+	"message": "Argument of type 'ZodObject<{ method: ZodLiteral<\"notifications/claude/channel\">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>>; }, $strip>; }, $strip>' is not assignable to parameter of type 'AnyObjectSchema'.",
 	"source": "ts",
 	"startLineNumber": 4837,
 	"startColumn": 5,
 	"endLineNumber": 4837,
-	"endColumn": 39,
-	"modelVersionId": 1,
-	"origin": "extHost1"
+	"endColumn": 5
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/exit/exit.tsx",
 	"owner": "typescript",
@@ -34,9 +30,73 @@
 	"startLineNumber": 14,
 	"startColumn": 3,
 	"endLineNumber": 14,
-	"endColumn": 34,
-	"modelVersionId": 1,
-	"origin": "extHost1"
+	"endColumn": 3
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string | Buffer<ArrayBufferLike>' is not assignable to type 'string'.",
+	"source": "ts",
+	"startLineNumber": 223,
+	"startColumn": 7,
+	"endLineNumber": 223,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 3.",
+	"source": "ts",
+	"startLineNumber": 263,
+	"startColumn": 54,
+	"endLineNumber": 263,
+	"endColumn": 54
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string | Buffer<ArrayBufferLike>' is not assignable to type 'string'.",
+	"source": "ts",
+	"startLineNumber": 406,
+	"startColumn": 7,
+	"endLineNumber": 406,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 3.",
+	"source": "ts",
+	"startLineNumber": 455,
+	"startColumn": 49,
+	"endLineNumber": 455,
+	"endColumn": 49
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string | Buffer<ArrayBufferLike>' is not assignable to type 'string'.",
+	"source": "ts",
+	"startLineNumber": 478,
+	"startColumn": 7,
+	"endLineNumber": 478,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/commands/terminalSetup/terminalSetup.tsx",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 3.",
+	"source": "ts",
+	"startLineNumber": 524,
+	"startColumn": 72,
+	"endLineNumber": 524,
+	"endColumn": 72
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/components/App.tsx",
 	"owner": "typescript",
@@ -81,6 +141,28 @@
 	"startColumn": 5,
 	"endLineNumber": 458,
 	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/mcp.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'errors' does not exist on type 'ZodError<unknown>'.",
+	"source": "ts",
+	"startLineNumber": 237,
+	"startColumn": 64,
+	"endLineNumber": 237,
+	"endColumn": 64
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/mcp.ts",
+	"owner": "typescript",
+	"code": "2345",
+	"severity": 8,
+	"message": "Argument of type 'unknown' is not assignable to parameter of type 'Transport'.",
+	"source": "ts",
+	"startLineNumber": 262,
+	"startColumn": 26,
+	"endLineNumber": 262,
+	"endColumn": 26
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/hooks/useIdeAtMentioned.ts",
 	"owner": "typescript",
@@ -135,19 +217,29 @@
 	"startLineNumber": 79,
 	"startColumn": 3,
 	"endLineNumber": 79,
-	"endColumn": 9,
-	"relatedInformation": [
-		{
-			"startLineNumber": 1446,
-			"startColumn": 5,
-			"endLineNumber": 1446,
-			"endColumn": 16,
-			"message": "'diagnostics' is declared here.",
-			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/node_modules/@anthropic-ai/sdk/resources/beta/messages/messages.d.mts"
-		}
-	],
-	"modelVersionId": 3,
-	"origin": "extHost1"
+	"endColumn": 3
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/claude.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'output_tokens_details' is missing in type '{ inference_geo: string; iterations: BetaIterationsUsage; speed: NonNullable<\"standard\" | \"fast\" | null>; cache_deleted_input_tokens?: number | undefined; ... 6 more ...; cache_creation: { ...; }; }' but required in type 'NonNullableUsage'.",
+	"source": "ts",
+	"startLineNumber": 3019,
+	"startColumn": 3,
+	"endLineNumber": 3019,
+	"endColumn": 3
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/claude.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'output_tokens_details' is missing in type '{ inference_geo: string; iterations: BetaIterationsUsage; speed: NonNullable<\"standard\" | \"fast\" | null>; cache_deleted_input_tokens?: number | undefined; ... 6 more ...; cache_creation: { ...; }; }' but required in type 'NonNullableUsage'.",
+	"source": "ts",
+	"startLineNumber": 3085,
+	"startColumn": 3,
+	"endLineNumber": 3085,
+	"endColumn": 3
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/emptyUsage.ts",
 	"owner": "typescript",
@@ -159,6 +251,17 @@
 	"startColumn": 14,
 	"endLineNumber": 8,
 	"endColumn": 14
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/api/xaiOAuthCallback.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'port' does not exist on type 'object'.",
+	"source": "ts",
+	"startLineNumber": 216,
+	"startColumn": 29,
+	"endLineNumber": 216,
+	"endColumn": 29
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/lsp/passiveFeedback.ts",
 	"owner": "typescript",
@@ -215,6 +318,28 @@
 	"endLineNumber": 72,
 	"endColumn": 7
 },{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/preventSleep.ts",
+	"owner": "typescript",
+	"code": "2571",
+	"severity": 8,
+	"message": "Object is of type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 28,
+	"startColumn": 10,
+	"endLineNumber": 28,
+	"endColumn": 10
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/preventSleep.ts",
+	"owner": "typescript",
+	"code": "18048",
+	"severity": 8,
+	"message": "'err' is possibly 'undefined'.",
+	"source": "ts",
+	"startLineNumber": 150,
+	"startColumn": 50,
+	"endLineNumber": 150,
+	"endColumn": 50
+},{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/AgentTool/UI.tsx",
 	"owner": "typescript",
 	"code": "2741",
@@ -225,6 +350,54 @@
 	"startColumn": 5,
 	"endLineNumber": 281,
 	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/FileReadTool/FileReadTool.ts",
+	"owner": "typescript",
+	"code": "2554",
+	"severity": 8,
+	"message": "Expected 2 arguments, but got 1.",
+	"source": "ts",
+	"startLineNumber": 154,
+	"startColumn": 20,
+	"endLineNumber": 154,
+	"endColumn": 20
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/SkillTool/prompt.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'getSkillToolCommands' does not exist on type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 229,
+	"startColumn": 13,
+	"endLineNumber": 229,
+	"endColumn": 33,
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/SkillTool/prompt.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'getSlashCommandToolSkills' does not exist on type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 250,
+	"startColumn": 13,
+	"endLineNumber": 250,
+	"endColumn": 38,
+	"modelVersionId": 1,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/tools/SkillTool/SkillTool.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'source' does not exist on type 'Command'.",
+	"source": "ts",
+	"startLineNumber": 666,
+	"startColumn": 32,
+	"endLineNumber": 666,
+	"endColumn": 32
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/upstreamproxy/relay.ts",
 	"owner": "typescript",
@@ -259,6 +432,17 @@
 	"endLineNumber": 449,
 	"endColumn": 13
 },{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/attachments.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'getSkillToolCommands' does not exist on type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 2699,
+	"startColumn": 17,
+	"endLineNumber": 2699,
+	"endColumn": 17
+},{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
 	"code": "2339",
@@ -268,9 +452,7 @@
 	"startLineNumber": 679,
 	"startColumn": 17,
 	"endLineNumber": 679,
-	"endColumn": 23,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 17
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
@@ -281,9 +463,7 @@
 	"startLineNumber": 689,
 	"startColumn": 17,
 	"endLineNumber": 689,
-	"endColumn": 23,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 17
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
@@ -294,9 +474,7 @@
 	"startLineNumber": 697,
 	"startColumn": 20,
 	"endLineNumber": 697,
-	"endColumn": 27,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 20
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
@@ -307,9 +485,7 @@
 	"startLineNumber": 947,
 	"startColumn": 17,
 	"endLineNumber": 947,
-	"endColumn": 23,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 17
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
@@ -320,9 +496,7 @@
 	"startLineNumber": 957,
 	"startColumn": 17,
 	"endLineNumber": 957,
-	"endColumn": 23,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 17
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/auth.ts",
 	"owner": "typescript",
@@ -333,9 +507,7 @@
 	"startLineNumber": 965,
 	"startColumn": 20,
 	"endLineNumber": 965,
-	"endColumn": 27,
-	"modelVersionId": 6,
-	"origin": "extHost1"
+	"endColumn": 20
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/dxt/helpers.ts",
 	"owner": "typescript",
@@ -357,21 +529,9 @@
 	"startLineNumber": 1868,
 	"startColumn": 22,
 	"endLineNumber": 1868,
-	"endColumn": 30,
-	"relatedInformation": [
-		{
-			"startLineNumber": 209,
-			"startColumn": 40,
-			"endLineNumber": 209,
-			"endColumn": 50,
-			"message": "An argument for 'p0' was not provided.",
-			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts"
-		}
-	],
-	"modelVersionId": 1,
-	"origin": "extHost1"
+	"endColumn": 22
 },{
-	"resource": "/C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ide.ts",
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ide.ts",
 	"owner": "typescript",
 	"code": "2554",
 	"severity": 8,
@@ -380,30 +540,367 @@
 	"startLineNumber": 1257,
 	"startColumn": 33,
 	"endLineNumber": 1257,
-	"endColumn": 41,
-	"relatedInformation": [
-		{
-			"startLineNumber": 209,
-			"startColumn": 40,
-			"endLineNumber": 209,
-			"endColumn": 50,
-			"message": "An argument for 'p0' was not provided.",
-			"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts"
-		}
-	],
-	"modelVersionId": 2,
-	"origin": "extHost1"
+	"endColumn": 33
 },{
 	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/imports.ts",
 	"owner": "typescript",
 	"code": "2322",
 	"severity": 8,
-	"message": "Type 'SpawnSyncReturns<string | NonSharedBuffer>' is not assignable to type '{ error?: Error | undefined; status: number | null; stdout?: string | undefined; stderr?: string | undefined; }'.\n  Types of property 'stdout' are incompatible.\n    Type 'string | NonSharedBuffer' is not assignable to type 'string | undefined'.\n      Type 'NonSharedBuffer' is not assignable to type 'string'.",
+	"message": "Type 'SpawnSyncReturns<string | NonSharedBuffer>' is not assignable to type '{ error?: Error | undefined; status: number | null; stdout?: string | undefined; stderr?: string | undefined; }'.",
 	"source": "ts",
 	"startLineNumber": 333,
 	"startColumn": 3,
 	"endLineNumber": 333,
-	"endColumn": 9,
-	"modelVersionId": 2,
+	"endColumn": 3
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'output_tokens_details' is missing in type '{ input_tokens: number; output_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; server_tool_use: { web_search_requests: number; web_fetch_requests: number; }; ... 4 more ...; speed: null; }' but required in type 'BetaUsage'.",
+	"source": "ts",
+	"startLineNumber": 367,
+	"startColumn": 3,
+	"endLineNumber": 367,
+	"endColumn": 3
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 393,
+	"startColumn": 5,
+	"endLineNumber": 393,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 526,
+	"startColumn": 5,
+	"endLineNumber": 526,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string | undefined' is not assignable to type '`${string}-${string}-${string}-${string}-${string}` | undefined'.",
+	"source": "ts",
+	"startLineNumber": 531,
+	"startColumn": 5,
+	"endLineNumber": 531,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 630,
+	"startColumn": 5,
+	"endLineNumber": 630,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4529,
+	"startColumn": 5,
+	"endLineNumber": 4529,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4547,
+	"startColumn": 5,
+	"endLineNumber": 4547,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4563,
+	"startColumn": 5,
+	"endLineNumber": 4563,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4576,
+	"startColumn": 5,
+	"endLineNumber": 4576,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4603,
+	"startColumn": 5,
+	"endLineNumber": 4603,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4624,
+	"startColumn": 5,
+	"endLineNumber": 4624,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4637,
+	"startColumn": 5,
+	"endLineNumber": 4637,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4650,
+	"startColumn": 5,
+	"endLineNumber": 4650,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4660,
+	"startColumn": 5,
+	"endLineNumber": 4660,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4693,
+	"startColumn": 5,
+	"endLineNumber": 4693,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4707,
+	"startColumn": 5,
+	"endLineNumber": 4707,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4725,
+	"startColumn": 5,
+	"endLineNumber": 4725,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4755,
+	"startColumn": 5,
+	"endLineNumber": 4755,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 4783,
+	"startColumn": 5,
+	"endLineNumber": 4783,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/messages.ts",
+	"owner": "typescript",
+	"code": "2322",
+	"severity": 8,
+	"message": "Type 'string' is not assignable to type '`${string}-${string}-${string}-${string}-${string}`'.",
+	"source": "ts",
+	"startLineNumber": 5295,
+	"startColumn": 5,
+	"endLineNumber": 5295,
+	"endColumn": 5
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts",
+	"owner": "typescript",
+	"code": "18046",
+	"severity": 8,
+	"message": "'clientConfig' is of type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 101,
+	"startColumn": 7,
+	"endLineNumber": 101,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts",
+	"owner": "typescript",
+	"code": "18046",
+	"severity": 8,
+	"message": "'clientConfig' is of type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 146,
+	"startColumn": 7,
+	"endLineNumber": 146,
+	"endColumn": 7
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/profilerBase.ts",
+	"owner": "typescript",
+	"code": "2571",
+	"severity": 8,
+	"message": "Object is of type 'unknown'.",
+	"source": "ts",
+	"startLineNumber": 17,
+	"startColumn": 19,
+	"endLineNumber": 17,
+	"endColumn": 19
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ripgrep.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'cmd' is missing in type 'Error' but required in type 'ExecException'.",
+	"source": "ts",
+	"startLineNumber": 284,
+	"startColumn": 15,
+	"endLineNumber": 284,
+	"endColumn": 15
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ripgrep.ts",
+	"owner": "typescript",
+	"code": "2741",
+	"severity": 8,
+	"message": "Property 'cmd' is missing in type 'ErrnoException' but required in type 'ExecException'.",
+	"source": "ts",
+	"startLineNumber": 298,
+	"startColumn": 13,
+	"endLineNumber": 298,
+	"endColumn": 13
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/sandbox/sandbox-adapter.ts",
+	"owner": "typescript",
+	"code": "2749",
+	"severity": 8,
+	"message": "'SandboxViolationStore' refers to a value, but is being used as a type here. Did you mean 'typeof SandboxViolationStore'?",
+	"source": "ts",
+	"startLineNumber": 1022,
+	"startColumn": 31,
+	"endLineNumber": 1022,
+	"endColumn": 31
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/settings/changeDetector.ts",
+	"owner": "typescript",
+	"code": "2577",
+	"severity": 8,
+	"message": "Return type annotation circularly references itself.",
+	"source": "ts",
+	"startLineNumber": 101,
+	"startColumn": 39,
+	"endLineNumber": 101,
+	"endColumn": 73,
+	"modelVersionId": 3,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/settings/changeDetector.ts",
+	"owner": "typescript",
+	"code": "2456",
+	"severity": 8,
+	"message": "Type alias 'SettingsChangeDetectorDependencies' circularly references itself.",
+	"source": "ts",
+	"startLineNumber": 136,
+	"startColumn": 6,
+	"endLineNumber": 136,
+	"endColumn": 40,
+	"modelVersionId": 3,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/settings/changeDetector.ts",
+	"owner": "typescript",
+	"code": "18047",
+	"severity": 8,
+	"message": "'watcher' is possibly 'null'.",
+	"source": "ts",
+	"startLineNumber": 234,
+	"startColumn": 3,
+	"endLineNumber": 234,
+	"endColumn": 10,
+	"modelVersionId": 3,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/settings/changeDetector.ts",
+	"owner": "typescript",
+	"code": "18047",
+	"severity": 8,
+	"message": "'watcher' is possibly 'null'.",
+	"source": "ts",
+	"startLineNumber": 235,
+	"startColumn": 3,
+	"endLineNumber": 235,
+	"endColumn": 10,
+	"modelVersionId": 3,
+	"origin": "extHost1"
+},{
+	"resource": "/c:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/settings/changeDetector.ts",
+	"owner": "typescript",
+	"code": "18047",
+	"severity": 8,
+	"message": "'watcher' is possibly 'null'.",
+	"source": "ts",
+	"startLineNumber": 236,
+	"startColumn": 3,
+	"endLineNumber": 236,
+	"endColumn": 10,
+	"modelVersionId": 3,
 	"origin": "extHost1"
 }]

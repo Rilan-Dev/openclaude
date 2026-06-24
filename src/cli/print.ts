@@ -354,6 +354,8 @@ import { initializeGrowthBook } from '../services/analytics/growthbook.js'
 import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
+import { Client } from '@modelcontextprotocol/sdk/client'
+import { ZodObject, ZodLiteral, ZodString, ZodOptional, ZodRecord, ZodTypeAny } from 'zod/v3'
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -4758,7 +4760,7 @@ function handleChannelEnable(
   // channel messages queue at priority 'next' and are seen by the model on
   // the turn after they arrive.
   connection.client.setNotificationHandler(
-    ChannelMessageNotificationSchema(),
+    asMcpNotificationSchema(connection.client, ChannelMessageNotificationSchema()),
     async notification => {
       const { content, meta } = notification.params
       logMCPDebug(
@@ -4834,7 +4836,7 @@ function reregisterChannelHandlerAfterReconnect(
     'Channel notifications re-registered after reconnect',
   )
   connection.client.setNotificationHandler(
-    ChannelMessageNotificationSchema(),
+    asMcpNotificationSchema(connection.client, ChannelMessageNotificationSchema()),
     async notification => {
       const { content, meta } = notification.params
       logMCPDebug(
@@ -5647,3 +5649,7 @@ export async function reconcileMcpServers(
     newState,
   }
 }
+function asMcpNotificationSchema(client: Client<{ method: string; params?: { [x: string]: unknown; _meta?: { [x: string]: unknown; progressToken?: string | number | undefined; "io.modelcontextprotocol/related-task"?: { taskId: string } | undefined } | undefined } | undefined }, { method: string; params?: { [x: string]: unknown; _meta?: { [x: string]: unknown; progressToken?: string | number | undefined; "io.modelcontextprotocol/related-task"?: { taskId: string } | undefined } | undefined } | undefined }, { [x: string]: unknown; _meta?: { [x: string]: unknown; progressToken?: string | number | undefined; "io.modelcontextprotocol/related-task"?: { taskId: string } | undefined } | undefined }>, arg1: ZodObject<{ method: ZodLiteral<"notifications/claude/channel">; params: ZodObject<{ content: ZodString; meta: ZodOptional<ZodRecord<ZodString, ZodString>> }, "strip", ZodTypeAny, { content: string; meta?: Record<string, string> | undefined }, { content: string; meta?: Record<string, string> | undefined }> }, "strip", ZodTypeAny, { params: { content: string; meta?: Record<string, string> | undefined }; method: "notifications/claude/channel" }, { params: { content: string; meta?: Record<string, string> | undefined }; method: "notifications/claude/channel" }>): any {
+  throw new Error('Function not implemented.')
+}
+

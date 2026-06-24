@@ -51,7 +51,7 @@ import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, type 
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
-import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
+import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../types/command.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { MessageSelector } from '../components/MessageSelector.js';
 import { selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../utils/messageFilters.js';
@@ -274,7 +274,6 @@ import { isBuddyEnabled } from '../buddy/feature.js';
 import { fireCompanionObserver } from '../buddy/observer.js';
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
-import { REMOTE_SAFE_COMMANDS } from '../commands.js';
 import type { RemoteMessageContent } from '../utils/teleport/api.js';
 import { FullscreenLayout, useUnseenDivider, computeUnseenDivider } from '../components/FullscreenLayout.js';
 import { isFullscreenEnvEnabled, maybeGetTmuxMouseHint, isMouseTrackingEnabled } from '../utils/fullscreen.js';
@@ -290,6 +289,33 @@ import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/a
 // creating a new [] literal on every render in remote mode, which would
 // cause useEffect dependency changes and infinite re-render loops.
 const EMPTY_MCP_CLIENTS: MCPServerConnection[] = [];
+
+const REMOTE_SAFE_COMMAND_NAMES = new Set([
+  'session',
+  'exit',
+  'clear',
+  'help',
+  'theme',
+  'logo',
+  'color',
+  'vim',
+  'cost',
+  'ctx_viz',
+  'usage',
+  'copy',
+  'btw',
+  'feedback',
+  'goal',
+  'plan',
+  'keybindings',
+  'statusline',
+  'stickers',
+  'mobile',
+])
+
+function isRemoteSafeCommand(command: Pick<Command, 'name'>): boolean {
+  return REMOTE_SAFE_COMMAND_NAMES.has(command.name)
+}
 
 // Stable stub for useAssistantHistory's non-KAIROS branch — avoids a new
 // function identity each render, which would break composedOnScroll's memo.
@@ -1857,7 +1883,7 @@ export function REPL({
   const handleRemoteInit = useCallback((remoteSlashCommands: string[]) => {
     const remoteCommandSet = new Set(remoteSlashCommands);
     // Keep commands that CCR lists OR that are in the local-safe set
-    setLocalCommands(prev => prev.filter(cmd => remoteCommandSet.has(cmd.name) || REMOTE_SAFE_COMMANDS.has(cmd)));
+    setLocalCommands(prev => prev.filter(cmd => remoteCommandSet.has(cmd.name) || isRemoteSafeCommand(cmd)));
   }, [setLocalCommands]);
   const [inProgressToolUseIDs, setInProgressToolUseIDs] = useState<Set<string>>(new Set());
   const hasInterruptibleToolInProgressRef = useRef(false);

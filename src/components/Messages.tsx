@@ -1,7 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import { feature } from 'bun:bundle';
 import chalk from 'chalk';
-import type { UUID } from 'crypto';
+import type { UUID } from '../utils/imports.js';
 import type { RefObject } from 'react';
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -455,7 +455,10 @@ const MessagesImpl = ({
     // Same class of bug fixed in normalizeMessages (commit 383326e613):
     // fresh randomUUID → unstable React keys → component remounts →
     // Ink rendering corruption (overlapping text from stale DOM nodes).
-    msg_1.uuid = deriveUUID(streamingToolUse.contentBlock.id as UUID, 0);
+    msg_1.uuid = deriveUUID(
+      streamingToolUse.contentBlock.id as UUID,
+      0,
+    ) as typeof msg_1.uuid
     return normalizeMessages([msg_1]);
   }), [streamingToolUsesWithoutInProgress]);
   const isTranscriptMode = screen === 'transcript';

@@ -130,6 +130,10 @@ const {
   SandboxViolationStore,
 } = loadSandboxRuntime()
 
+type SandboxViolationStoreInstance = ReturnType<
+  typeof BaseSandboxManager.getSandboxViolationStore
+>
+
 // ============================================================================
 // Settings Converter
 // ============================================================================
@@ -1019,7 +1023,7 @@ export interface ISandboxManager {
     abortSignal?: AbortSignal,
   ): Promise<string>
   cleanupAfterCommand(): void
-  getSandboxViolationStore(): SandboxViolationStore
+  getSandboxViolationStore(): SandboxViolationStoreInstance
   annotateStderrWithSandboxFailures(command: string, stderr: string): string
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void

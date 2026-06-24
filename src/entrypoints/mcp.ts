@@ -7,6 +7,7 @@ process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { ZodError } from 'zod'
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import {
   CallToolRequestSchema,
   type CallToolResult,
@@ -234,7 +235,9 @@ export async function startMCPServer(
             content: [
               {
                 type: 'text',
-                text: `Tool ${name} input is invalid:\n${error.errors.map(e => `- ${e.path.join('.')}: ${e.message}`).join('\n')}`,
+                text: `Tool ${name} input is invalid:\n${error.issues
+                  .map(e => `- ${e.path.join('.')}: ${e.message}`)
+                  .join('\n')}`,
               },
             ],
           }
@@ -258,7 +261,7 @@ export async function startMCPServer(
   )
 
   async function runServer() {
-    const transport = await createStdioServerTransport()
+    const transport = await createStdioServerTransport<Transport>()
     await server.connect(transport)
   }
 

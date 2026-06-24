@@ -26,6 +26,8 @@ import {
   readFile,
   writeFile,
 } from '../../utils/imports.js';
+import { exec } from '../../utils/imports.js'
+
 const EOL = '\n';
 
 // Terminals that natively support CSI u / Kitty keyboard protocol

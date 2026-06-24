@@ -16,7 +16,7 @@ import {
   writeFile,
 } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
-import { basename, dirname, join } from './imports.js'
+import { basename, dirname, isBrowserRuntime, join } from './imports.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -656,18 +656,33 @@ class Project {
     }, this.FLUSH_INTERVAL_MS)
   }
 
-  private async appendToFile(filePath: string, data: string): Promise<void> {
-    try {
-      await fsAppendFile(filePath, data, { mode: 0o600 })
-    } catch {
-      // Directory may not exist — some NFS-like filesystems return
-      // unexpected error codes, so don't discriminate on code.
-      await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
-      await fsAppendFile(filePath, data, { mode: 0o600 })
-    }
+private async appendToFile(filePath: string, data: string): Promise<void> {
+  if (isBrowserRuntime()) {
+    return
   }
 
+  try {
+    await fsAppendFile(filePath, data, { mode: 0o600 })
+  } catch {
+    // Directory may not exist — some NFS-like filesystems return
+    // unexpected error codes, so don't discriminate on code.
+    await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
+    await fsAppendFile(filePath, data, { mode: 0o600 })
+  }
+}
+
   private async drainWriteQueue(): Promise<void> {
+    if (isBrowserRuntime()) {
+      for (const [, queue] of this.writeQueues) {
+        const batch = queue.splice(0)
+        for (const { resolve } of batch) {
+          resolve()
+        }
+      }
+      this.writeQueues.clear()
+      return
+    }
+
     for (const [filePath, queue] of this.writeQueues) {
       if (queue.length === 0) {
         continue

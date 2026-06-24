@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
-import { getCommand, getSkillToolCommands, hasCommand } from '../../commands.js'
 import {
   DEFAULT_AGENT_PROMPT,
   enhanceSystemPromptWithEnvDetails,
@@ -27,7 +26,6 @@ import type {
 } from '../../services/mcp/types.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
-import type { Command } from '../../types/command.js'
 import type { AgentId } from '../../types/ids.js'
 import type {
   AssistantMessage,
@@ -52,6 +50,7 @@ import {
   type CacheSafeParams,
   createSubagentContext,
 } from '../../utils/forkedAgent.js'
+import { isBrowserRuntime, runtimeImport } from '../../utils/imports.js'
 import { registerFrontmatterHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { clearSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { executeSubagentStartHooks } from '../../utils/hooks.js'
@@ -78,6 +77,7 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { resolveAgentTools } from './agentToolUtils.js'
 import { type AgentDefinition, isBuiltInAgent } from './loadAgentsDir.js'
+import { getCommand, hasCommand, type Command } from '../../types/command.js'
 
 /**
  * Initialize agent-specific MCP servers
@@ -614,7 +614,14 @@ export async function* runAgent({
   // Preload skills from agent frontmatter
   const skillsToPreload = agentDefinition.skills ?? []
   if (skillsToPreload.length > 0) {
-    const allSkills = await getSkillToolCommands(getProjectRoot())
+    const allSkills = isBrowserRuntime()
+      ? []
+      : await (async () => {
+          const { getSkillToolCommands } = await runtimeImport<
+            typeof import('../../commands.js')
+          >('../../commands.js')
+          return getSkillToolCommands(getProjectRoot())
+        })()
 
     // Filter valid skills and warn about missing ones
     const validSkills: Array<{

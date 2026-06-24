@@ -250,3 +250,90 @@ export function getCommandName(cmd: CommandBase): string {
 export function isCommandEnabled(cmd: CommandBase | null | undefined): boolean {
   return cmd?.isEnabled?.() ?? true
 }
+
+/** Finds a command by name or alias from a list of commands. */
+export function findCommand(
+  commandName: string,
+  commands: Command[],
+): Command | undefined {
+  return commands.find(
+    cmd =>
+      cmd.name === commandName ||
+      getCommandName(cmd) === commandName ||
+      cmd.aliases?.includes(commandName) === true,
+  )
+}
+
+/** Checks whether a command exists in a list of commands. */
+export function hasCommand(
+  commandName: string,
+  commands: Command[],
+): boolean {
+  return findCommand(commandName, commands) !== undefined
+}
+
+/** Returns a command by name or alias, throwing if it is missing. */
+export function getCommand(commandName: string, commands: Command[]): Command {
+  const command = findCommand(commandName, commands)
+  if (!command) {
+    throw ReferenceError(
+      `Command ${commandName} not found. Available commands: ${commands
+        .map(cmd => {
+          const name = getCommandName(cmd)
+          return cmd.aliases
+            ? `${name} (aliases: ${cmd.aliases.join(', ')})`
+            : name
+        })
+        .sort((a, b) => a.localeCompare(b))
+        .join(', ')}`,
+    )
+  }
+
+  return command
+}
+
+const BRIDGE_SAFE_LOCAL_COMMAND_NAMES = new Set([
+  'compact',
+  'clear',
+  'cost',
+  'ctx_viz',
+  'summary',
+  'release-notes',
+  'files',
+  'goal',
+])
+
+/** Returns true when a command can be invoked safely from remote control. */
+export function isBridgeSafeCommand(cmd: Command): boolean {
+  if (cmd.type === 'local-jsx') return false
+  if (cmd.type === 'prompt') return true
+  return BRIDGE_SAFE_LOCAL_COMMAND_NAMES.has(cmd.name)
+}
+
+/** Formats a description for menus and help text. */
+export function formatDescriptionWithSource(cmd: Command): string {
+  const desc = cmd.description ?? ''
+
+  if (cmd.type !== 'prompt') {
+    return desc
+  }
+
+  if (cmd.kind === 'workflow') {
+    return `${desc} (workflow)`
+  }
+
+  if (cmd.source === 'plugin') {
+    const pluginName = cmd.pluginInfo?.pluginManifest.name
+    return pluginName ? `(${pluginName}) ${desc}` : desc
+  }
+
+  if (cmd.source === 'bundled') {
+    return `${desc} (bundled)`
+  }
+
+  if (cmd.source === 'builtin') {
+    return desc
+  }
+
+  return `${desc} (${cmd.source})`
+}

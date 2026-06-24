@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { logError } from 'src/utils/log.js'
-import { z } from 'zod/v4'
+import { z } from 'zod/v3'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
@@ -51,6 +51,11 @@ const SelectionChangedSchema = lazySchema(() =>
     }),
   }),
 )
+
+type SelectionChangedNotification = {
+  method: 'selection_changed'
+  params: SelectionData
+}
 
 /**
  * A hook that tracks IDE text selection information by directly registering
@@ -110,8 +115,8 @@ export function useIdeSelection(
 
     // Register notification handler for selection_changed events
     ideClient.client.setNotificationHandler(
-      SelectionChangedSchema(),
-      notification => {
+      SelectionChangedSchema as any,
+      (notification: SelectionChangedNotification) => {
         if (currentIDERef.current !== ideClient) {
           return
         }

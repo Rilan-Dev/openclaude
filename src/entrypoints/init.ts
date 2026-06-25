@@ -146,8 +146,8 @@ export const init = memoize(async (): Promise<void> => {
       try {
         const upstreamproxyModuleId = ['../upstreamproxy', '/upstreamproxy.js'].join('')
         const subprocessEnvModuleId = ['../utils', '/subprocessEnv.js'].join('')
-        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(upstreamproxyModuleId)
-        const { registerUpstreamProxyEnvFn } = await import(subprocessEnvModuleId)
+        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(/* @vite-ignore */ upstreamproxyModuleId)
+        const { registerUpstreamProxyEnvFn } = await import(/* @vite-ignore */ subprocessEnvModuleId)
         registerUpstreamProxyEnvFn(getUpstreamProxyEnv)
         await initUpstreamProxy()
       } catch (err) {

@@ -35,7 +35,7 @@ export async function loadFigSpec(
   if (command.startsWith('-') && command !== '-') return null
 
   try {
-    const module = await import(`@withfig/autocomplete/build/${command}.js`)
+    const module = await import(/* @vite-ignore */ `@withfig/autocomplete/build/${command}.js`)
     return module.default || module
   } catch {
     return null

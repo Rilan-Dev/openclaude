@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { ClockContext } from '../components/ClockContext.js'
+import { isBrowserInkRuntime } from '../browser-dom.js'
 import type { DOMElement } from '../dom.js'
 import { useTerminalViewport } from './use-terminal-viewport.js'
 
@@ -37,6 +38,14 @@ export function useAnimationFrame(
   const active = isVisible && intervalMs !== null
 
   useEffect(() => {
+    if (!clock && isBrowserInkRuntime() && active) {
+      const start = performance.now()
+      const timer = setInterval(() => {
+        setTime(performance.now() - start)
+      }, intervalMs ?? 16)
+      return () => clearInterval(timer)
+    }
+
     if (!clock || !active) return
 
     let lastUpdate = clock.now()

@@ -1,0 +1,2 @@
+preload = ["./webui/bun-web-plugin.ts"]
+

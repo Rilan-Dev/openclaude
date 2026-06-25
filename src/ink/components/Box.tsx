@@ -6,6 +6,13 @@ import type { DOMElement } from '../dom.js';
 import type { ClickEvent } from '../events/click-event.js';
 import type { FocusEvent } from '../events/focus-event.js';
 import type { KeyboardEvent } from '../events/keyboard-event.js';
+import {
+  browserBoxStyle,
+  browserClickEvent,
+  browserFocusEvent,
+  browserKeyboardEvent,
+  isBrowserInkRuntime,
+} from '../browser-dom.js';
 import type { Styles } from '../styles.js';
 import * as warn from '../warn.js';
 export type Props = Except<Styles, 'textWrap'> & {
@@ -180,6 +187,28 @@ function BoxInner(t0, ref: React.ForwardedRef<DOMElement>) {
     $[26] = t3;
   } else {
     t3 = $[26];
+  }
+  if (isBrowserInkRuntime()) {
+    const browserStyle = browserBoxStyle(t3);
+    browserStyle.cursor = onClick ? 'pointer' : browserStyle.cursor;
+    const browserTabIndex = tabIndex ?? (onClick || autoFocus ? 0 : undefined);
+    return <div
+      ref={ref as React.ForwardedRef<HTMLDivElement>}
+      tabIndex={browserTabIndex}
+      autoFocus={autoFocus}
+      onClick={onClick ? event => onClick(browserClickEvent(event)) : undefined}
+      onFocus={onFocus ? event => onFocus(browserFocusEvent(event, 'focus')) : undefined}
+      onFocusCapture={onFocusCapture ? event => onFocusCapture(browserFocusEvent(event, 'focus')) : undefined}
+      onBlur={onBlur ? event => onBlur(browserFocusEvent(event, 'blur')) : undefined}
+      onBlurCapture={onBlurCapture ? event => onBlurCapture(browserFocusEvent(event, 'blur')) : undefined}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onKeyDown={onKeyDown ? event => onKeyDown(browserKeyboardEvent(event)) : undefined}
+      onKeyDownCapture={onKeyDownCapture ? event => onKeyDownCapture(browserKeyboardEvent(event)) : undefined}
+      style={browserStyle}
+    >
+      {children}
+    </div>;
   }
   let t4;
   if ($[27] !== autoFocus || $[28] !== children || $[29] !== onBlur || $[30] !== onBlurCapture || $[31] !== onClick || $[32] !== onFocus || $[33] !== onFocusCapture || $[34] !== onKeyDown || $[35] !== onKeyDownCapture || $[36] !== onMouseEnter || $[37] !== onMouseLeave || $[38] !== ref || $[39] !== t3 || $[40] !== tabIndex) {

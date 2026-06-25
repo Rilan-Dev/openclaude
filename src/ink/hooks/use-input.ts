@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { useEventCallback } from 'usehooks-ts'
 import type { InputEvent, Key } from '../events/input-event.js'
 import useStdin from './use-stdin.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 
 type Handler = (input: string, key: Key, event: InputEvent) => void
 
@@ -40,6 +41,10 @@ type Options = {
  * ```
  */
 const useInput = (inputHandler: Handler, options: Options = {}) => {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   const { setRawMode, internal_exitOnCtrlC, internal_eventEmitter } = useStdin()
 
   // Timer handle for the deferred raw-mode reset. Persists across renders

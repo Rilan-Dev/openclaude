@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo } from 'react'
+import { isBrowserRuntime } from '../utils/imports.js'
 import { isProgressReportingAvailable, type Progress } from './terminal.js'
 import { BEL } from './termio/ansi.js'
 import { ITERM2, OSC, osc, PROGRESS, wrapForMultiplexer } from './termio/osc.js'
@@ -23,6 +24,17 @@ export type TerminalNotification = {
 }
 
 export function useTerminalNotification(): TerminalNotification {
+  if (isBrowserRuntime()) {
+    const noop = () => {}
+    return {
+      notifyITerm2: noop,
+      notifyKitty: noop,
+      notifyGhostty: noop,
+      notifyBell: noop,
+      progress: noop,
+    }
+  }
+
   const writeRaw = useContext(TerminalWriteContext)
   if (!writeRaw) {
     throw new Error(

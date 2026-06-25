@@ -12,6 +12,20 @@ export function djb2Hash(str: string): number {
   return hash
 }
 
+function browserStableHash64(content: string): string {
+  // FNV-1a 64-bit, encoded as fixed-width hex for browser-safe sync hashing.
+  let hash = 0xcbf29ce484222325n
+  const prime = 0x100000001b3n
+  const mask = 0xffffffffffffffffn
+
+  for (let i = 0; i < content.length; i += 1) {
+    hash ^= BigInt(content.charCodeAt(i))
+    hash = (hash * prime) & mask
+  }
+
+  return hash.toString(16).padStart(16, '0')
+}
+
 /**
  * Hash arbitrary content for change detection. Bun.hash is ~100x faster than
  * sha256 and collision-resistant enough for diff detection (not crypto-safe).
@@ -19,6 +33,9 @@ export function djb2Hash(str: string): number {
 export function hashContent(content: string): string {
   if (typeof Bun !== 'undefined') {
     return Bun.hash(content).toString()
+  }
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    return browserStableHash64(content)
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require('crypto') as typeof import('crypto')
@@ -34,6 +51,9 @@ export function hashContent(content: string): string {
 export function hashPair(a: string, b: string): string {
   if (typeof Bun !== 'undefined') {
     return Bun.hash(b, Bun.hash(a)).toString()
+  }
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    return browserStableHash64(`${a}\0${b}`)
   }
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require('crypto') as typeof import('crypto')

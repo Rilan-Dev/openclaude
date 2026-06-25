@@ -142,6 +142,9 @@ result = await Bun.build({
     'MACRO.PACKAGE_URL': JSON.stringify('@gitlawb/openclaude'),
     'MACRO.NATIVE_PACKAGE_URL': 'undefined',
     'MACRO.VERSION_CHANGELOG': 'undefined',
+    'process.env.OPENCLAUDE_RENDER_MODE': JSON.stringify(
+      process.env.OPENCLAUDE_RENDER_MODE ?? 'terminal',
+    ),
   },
   plugins: [
     noTelemetryPlugin,

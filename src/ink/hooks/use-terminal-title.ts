@@ -1,5 +1,6 @@
 import { useContext, useEffect } from 'react'
 import { stripVTControlCharacters as stripAnsi } from '../../utils/stripVTControlCharacters.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 import { OSC, osc } from '../termio/osc.js'
 import { TerminalWriteContext } from '../useTerminalNotification.js'
 
@@ -15,6 +16,10 @@ import { TerminalWriteContext } from '../useTerminalNotification.js'
  * Elsewhere, writes OSC 0 (set title+icon) via Ink's stdout.
  */
 export function useTerminalTitle(title: string | null): void {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   const writeRaw = useContext(TerminalWriteContext)
 
   useEffect(() => {

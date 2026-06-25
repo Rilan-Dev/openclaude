@@ -1,6 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import type { ReactNode } from 'react';
 import React from 'react';
+import { browserTextStyle, isBrowserInkRuntime } from '../browser-dom.js';
 import type { Color, Styles, TextStyles } from '../styles.js';
 type BaseProps = {
   /**
@@ -132,6 +133,19 @@ export default function Text(t0) {
   const wrap = t5 === undefined ? "wrap" : t5;
   if (children === undefined || children === null) {
     return null;
+  }
+  if (isBrowserInkRuntime()) {
+    return <span style={browserTextStyle({
+      color,
+      backgroundColor,
+      dim: dim || undefined,
+      bold: bold || undefined,
+      italic,
+      underline,
+      strikethrough,
+      inverse,
+      wrap
+    })}>{children}</span>;
   }
   let t6;
   if ($[0] !== color) {

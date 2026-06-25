@@ -1,11 +1,16 @@
 import { useEffect } from 'react'
 import { formatTotalCost, saveCurrentSessionCosts } from './cost-tracker.js'
 import { hasConsoleBillingAccess } from './utils/billing.js'
+import { isBrowserRuntime } from './utils/imports.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 
 export function useCostSummary(
   getFpsMetrics?: () => FpsMetrics | undefined,
 ): void {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   useEffect(() => {
     const f = () => {
       if (hasConsoleBillingAccess()) {

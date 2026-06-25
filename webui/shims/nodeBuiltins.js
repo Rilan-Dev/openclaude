@@ -4,6 +4,10 @@ const unavailable = name => {
   throw new Error(`${name} is not available in the browser web UI`)
 }
 
+export function c(size) {
+  return new Array(size).fill(Symbol.for('react.memo_cache_sentinel'))
+}
+
 const enoent = path => {
   const error = new Error(`ENOENT: no such file or directory, open '${path}'`)
   error.code = 'ENOENT'
@@ -943,4 +947,3 @@ export default {
   writeSync,
   constants,
 }
-

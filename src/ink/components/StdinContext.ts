@@ -1,5 +1,6 @@
 import { createContext } from 'react'
 import { EventEmitter } from '../events/emitter.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 import type { TerminalQuerier } from '../terminal-querier.js'
 
 export type Props = {
@@ -33,7 +34,13 @@ export type Props = {
  */
 
 const StdinContext = createContext<Props>({
-  stdin: process.stdin,
+  stdin: isBrowserRuntime()
+    ? ({
+        isTTY: false,
+        isRaw: false,
+        setRawMode() {},
+      } as unknown as NodeJS.ReadStream)
+    : process.stdin,
 
   internal_eventEmitter: new EventEmitter(),
   setRawMode() {},

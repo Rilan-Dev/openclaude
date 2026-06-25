@@ -14,18 +14,6 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@openclaude" />
-  <script type="importmap">
-      {
-        "imports": {
-          "@aws-sdk/credential-provider-ini": "./shims/optionalPackages.js",
-          "@aws-sdk/credential-provider-login": "./shims/optionalPackages.js",
-          "path": "./shims/nodeBuiltins.js",
-          "node:path": "./shims/nodeBuiltins.js",
-          "path/win32": "./shims/nodeBuiltins.js",
-          "node:path/win32": "./shims/nodeBuiltins.js"
-        }
-      }
-    </script>
 </head>
 
 <body>
@@ -42,29 +30,6 @@
       PACKAGE_URL: '',
       VERSION_CHANGELOG: '',
     })
-  </script>
-
-  <script type="module">
-    import processShim from './shims/process.js'
-    import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
-
-    const existingProcess = globalThis.process ?? {}
-    globalThis.process = {
-      ...processShim,
-      ...existingProcess,
-      env: {
-        ...(processShim.env ?? {}),
-        ...(existingProcess.env ?? {}),
-      },
-    }
-
-    if (!globalThis.Buffer) {
-      globalThis.Buffer = BrowserBuffer
-    }
-
-    if (!('global' in globalThis)) {
-      globalThis.global = globalThis
-    }
   </script>
 
   <script type="module" src="./main.tsx"></script>

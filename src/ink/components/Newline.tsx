@@ -1,5 +1,6 @@
 import { c as _c } from "react-compiler-runtime";
 import React from 'react';
+import Text from './Text.js';
 export type Props = {
   /**
    * Number of newlines to insert.
@@ -28,7 +29,7 @@ export default function Newline(t0) {
   }
   let t3;
   if ($[2] !== t2) {
-    t3 = <ink-text>{t2}</ink-text>;
+    t3 = <Text>{t2}</Text>;
     $[2] = t2;
     $[3] = t3;
   } else {

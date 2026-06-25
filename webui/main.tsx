@@ -4,7 +4,7 @@ import './styles.css'
 import processShim from './shims/process.js'
 import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
 import type { Props as REPLPropsType } from '../src/screens/REPL.js'
-import { TerminalWriteProvider } from '../src/ink/useTerminalNotification.js'
+import { getRuntimeRenderMode, isBrowserRuntime } from '../src/utils/imports.js'
 
 const existingProcess = globalThis.process as
   | (typeof processShim & { env?: Record<string, string> })
@@ -32,13 +32,11 @@ const replProps: REPLPropsType = {
   commands: [],
   debug: false,
   initialTools: [],
-  renderMode: 'web',
+  renderMode: getRuntimeRenderMode('web'),
   thinkingConfig: {
     type: 'adaptive'
   }
 }
-
-const noopWriteRaw = () => {}
 
 async function main() {
   const [{ App }, { AppStateProvider }, { REPL }] = await Promise.all([
@@ -47,18 +45,29 @@ async function main() {
     import('../src/screens/REPL.js')
   ])
 
-  ReactDOM.createRoot(document.getElementById('root')!).render(
-    <TerminalWriteProvider value={noopWriteRaw}>
+  const root = ReactDOM.createRoot(document.getElementById('root')!)
+  root.render(
+    <React.StrictMode>
       <AppStateProvider>
-        <App
-          getFpsMetrics={() => undefined}
-          renderMode="web"
-        >
+        <App getFpsMetrics={() => undefined} renderMode={replProps.renderMode}>
           <REPL {...replProps} />
         </App>
       </AppStateProvider>
-    </TerminalWriteProvider>
+    </React.StrictMode>
   )
+
+  if (isBrowserRuntime()) {
+    // Keep the mounted app reachable from the browser window for inspection and lifecycle hooks.
+    ;(globalThis as typeof globalThis & {
+      __OPENCLAUDE_APP__?: {
+        renderMode: REPLPropsType['renderMode']
+        root: typeof root
+      }
+    }).__OPENCLAUDE_APP__ = {
+      renderMode: replProps.renderMode,
+      root,
+    }
+  }
 }
 
 main()

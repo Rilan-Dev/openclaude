@@ -167,7 +167,7 @@ export const getInferenceProfileBackingModel = memoize(async function (
   try {
     const client = await createBedrockClient()
     const { GetInferenceProfileCommand } = (await import(
-      AWS_BEDROCK_CLIENT_PACKAGE
+      /* @vite-ignore */ AWS_BEDROCK_CLIENT_PACKAGE
     )) as typeof import('@aws-sdk/client-bedrock')
 
     const command = new GetInferenceProfileCommand({

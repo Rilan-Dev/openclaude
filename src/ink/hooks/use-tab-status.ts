@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef } from 'react'
+import { isBrowserRuntime } from '../../utils/imports.js'
 import {
   CLEAR_TAB_STATUS,
   supportsTabStatus,
@@ -51,6 +52,10 @@ const TAB_STATUS_PRESETS: Record<
  * a stale dot. Process-exit cleanup is handled by ink.tsx's unmount path.
  */
 export function useTabStatus(kind: TabStatusKind | null): void {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   const writeRaw = useContext(TerminalWriteContext)
   const prevKindRef = useRef<TabStatusKind | null>(null)
 

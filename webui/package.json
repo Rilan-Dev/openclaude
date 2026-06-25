@@ -3,6 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "browser": {
+    "react-compiler-runtime": "./shims/nodeBuiltins.js",
+    "react/compiler-runtime": "./shims/nodeBuiltins.js"
+  },
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/typescript/bin/tsc && node ./node_modules/vite/bin/vite.js build",
@@ -15,8 +19,8 @@
     "framer-motion": "^11.14.2",
     "lucide-react": "^0.468.0",
     "lucide-react-real": "npm:lucide-react@^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-hook-form": "^7.54.0",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.28.0",

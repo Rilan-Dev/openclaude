@@ -57,6 +57,18 @@ export function isBrowserRuntime(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
+export type RuntimeRenderMode = 'terminal' | 'web'
+
+export function getRuntimeRenderMode(
+  fallback: RuntimeRenderMode = isBrowserRuntime() ? 'web' : 'terminal',
+): RuntimeRenderMode {
+  const value = process.env.OPENCLAUDE_RENDER_MODE?.trim().toLowerCase()
+  if (value === 'terminal' || value === 'web') {
+    return value
+  }
+  return fallback
+}
+
 function getRuntimeRequire(): RuntimeRequireFn {
   return (0, eval)('require') as RuntimeRequireFn
 }

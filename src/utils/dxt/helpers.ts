@@ -15,7 +15,7 @@ const MCPB_PACKAGE = '@anthropic-ai/mcpb'
 export async function validateManifest(
   manifestJson: unknown,
 ): Promise<McpbManifest> {
-  const { McpbManifestSchema } = await import(MCPB_PACKAGE)
+  const { McpbManifestSchema } = await import(/* @vite-ignore */ MCPB_PACKAGE)
   const parseResult = McpbManifestSchema.safeParse(manifestJson)
 
   if (!parseResult.success) {

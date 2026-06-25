@@ -1,5 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import React from 'react';
+import { Ansi } from '../Ansi.js';
+import { isBrowserInkRuntime } from '../browser-dom.js';
 type Props = {
   /**
    * Pre-rendered ANSI lines. Each element must be exactly one terminal row
@@ -41,6 +43,9 @@ export function RawAnsi(t0) {
     $[1] = t1;
   } else {
     t1 = $[1];
+  }
+  if (isBrowserInkRuntime()) {
+    return <Ansi>{t1}</Ansi>;
   }
   let t2;
   if ($[2] !== lines.length || $[3] !== t1 || $[4] !== width) {

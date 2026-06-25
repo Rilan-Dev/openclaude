@@ -42,6 +42,9 @@ export default defineConfig({
     'MACRO.VERSION': JSON.stringify('99.0.0'),
     'MACRO.DISPLAY_VERSION': JSON.stringify('0.19.0'),
     'MACRO.BUILD_TIME': JSON.stringify(new Date().toISOString()),
+    'process.env.OPENCLAUDE_RENDER_MODE': JSON.stringify(
+      process.env.OPENCLAUDE_RENDER_MODE ?? 'web',
+    ),
     'MACRO.ISSUES_EXPLAINER': JSON.stringify(
       'report the issue at https://github.com/Gitlawb/openclaude/issues',
     ),

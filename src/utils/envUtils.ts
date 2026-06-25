@@ -1,14 +1,16 @@
 import memoize from 'lodash-es/memoize.js'
 import {
-  copyFileSync,
   lstatSync,
   mkdirSync,
-  readlinkSync,
   readdirSync,
   statSync,
-  symlinkSync,
 } from 'fs'
+
 import { homedir } from 'os'
+import { copyFileSync } from 'fs'
+import { symlinkSync } from 'fs'
+import { readlinkSync } from 'fs'
+
 import { dirname, join } from 'path'
 
 const LEGACY_GLOBAL_CONFIG_FILE_RE =

@@ -12,9 +12,59 @@ const enoent = path => {
   return error
 }
 
+export function openSync(path) {
+  throw enoent(path)
+}
+
+export function closeSync() {}
+
+export function fsyncSync() {}
+
+export function readSync() {
+  return 0
+}
+
+export function rmdirSync() {}
+
+export function linkSync() {}
+
+export async function readlink(path) {
+  throw enoent(path)
+}
+
+export function readlinkSync(path) {
+  throw enoent(path)
+}
+
+export let defaultMaxListeners = 10
+
+export function setMaxListeners(_n, ..._eventTargets) {}
+
+export function getMaxListeners(_eventTarget) {
+  return defaultMaxListeners
+}
+
+export async function cp() {}
+
+export async function rmdir() {}
+
+export async function open(path) {
+  throw enoent(path)
+}
+
 export class EventEmitter {
   constructor() {
     this._listeners = new Map()
+    this._maxListeners = defaultMaxListeners
+  }
+
+  setMaxListeners(n) {
+    this._maxListeners = n
+    return this
+  }
+
+  getMaxListeners() {
+    return this._maxListeners
   }
 
   on(event, listener) {
@@ -361,6 +411,10 @@ export function userInfo() {
   return { username: 'browser', homedir: '/', shell: null }
 }
 
+export function hostname() {
+  return 'localhost'
+}
+
 export const EOL = '\n'
 
 export async function readFile(path) {
@@ -372,6 +426,7 @@ export async function appendFile() {}
 export async function mkdir() {}
 export async function chmod() {}
 export async function copyFile() {}
+export async function link() {}
 export async function symlink() {}
 export async function rename() {}
 export async function rm() {}
@@ -437,6 +492,38 @@ export function createReadStream() {
 export function createWriteStream() {
   return new Writable()
 }
+export function watchFile(_filename, _options, _listener) {}
+export function unwatchFile(_filename, _listener) {}
+export function watch(_filename, _options, _listener) {
+  return new EventEmitter()
+}
+export function accessSync() {}
+export function fstatSync() {
+  return fileStat
+}
+export function fstat(fd, callback) {
+  if (typeof callback === 'function') queueMicrotask(() => callback(null, fileStat))
+}
+export function mkdtempSync(prefix = '/tmp/openclaude-') {
+  return `${prefix}${Math.random().toString(16).slice(2)}`
+}
+export function writeSync(fd, stringOrBuffer, ...args) {
+  return typeof stringOrBuffer === 'string' ? Buffer.byteLength(stringOrBuffer) : stringOrBuffer.byteLength ?? stringOrBuffer.length ?? 0
+}
+export const constants = {
+  F_OK: 0,
+  R_OK: 4,
+  W_OK: 2,
+  X_OK: 1,
+  O_RDONLY: 0,
+  O_WRONLY: 1,
+  O_RDWR: 2,
+  O_CREAT: 512,
+  O_EXCL: 2048,
+  O_NOFOLLOW: 256,
+  O_NONBLOCK: 4,
+  O_APPEND: 8,
+}
 
 export const promises = {
   readFile,
@@ -445,17 +532,22 @@ export const promises = {
   mkdir,
   chmod,
   copyFile,
+  cp,
   symlink,
+  link,
   rename,
+  rmdir,
   rm,
   unlink,
   utimes,
   readdir,
+  readlink,
   mkdtemp,
   stat,
   lstat,
   realpath,
   access,
+  open,
 }
 
 const createProcessResult = () => ({
@@ -818,4 +910,37 @@ export default {
   verify,
   writeFile,
   writeFileSync,
+  readFile,
+  readFileSync,
+  readlink,
+  readlinkSync,
+  readdir,
+  readdirSync,
+  defaultMaxListeners,
+  getMaxListeners,
+  setMaxListeners,
+  copyFile,
+  copyFileSync,
+  cp,
+  mkdir,
+  open,
+  rmdir,
+  rm,
+  closeSync,
+  linkSync,
+  openSync,
+  readSync,
+  rmdirSync,
+  fsyncSync,
+  watch,
+  watchFile,
+  unwatchFile,
+  accessSync,
+  link,
+  fstatSync,
+  fstat,
+  mkdtempSync,
+  writeSync,
+  constants,
 }
+

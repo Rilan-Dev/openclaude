@@ -8,6 +8,18 @@ export type ComputerUseDisplayGeometry = {
 }
 
 export type ComputerUseAPI = {
+  _drainMainRunLoop(): void
+  dispatchMainRunOnce(timeoutMs: number): void
+  tcc: {
+    checkAccessibility(): boolean
+    checkScreenRecording(): boolean
+  }
+  hotkey: {
+    register(onEscape: () => void): void
+    registerEscape(onEscape: () => void): boolean
+    unregister(): void
+    notifyExpectedEscape(): void
+  }
   apps: {
     prepareDisplay: (
       allowlistBundleIds: string[],

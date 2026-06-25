@@ -409,8 +409,8 @@ export async function getAWSClientProxyConfig(): Promise<object> {
   }
 
   const [{ NodeHttpHandler }, { defaultProvider }] = await Promise.all([
-    import(SMITHY_NODE_HTTP_HANDLER_PACKAGE),
-    import(AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE),
+    import(/* @vite-ignore */ SMITHY_NODE_HTTP_HANDLER_PACKAGE),
+    import(/* @vite-ignore */ AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE),
   ])
 
   const agent = createHttpsProxyAgent(proxyUrl)

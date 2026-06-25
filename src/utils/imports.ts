@@ -102,7 +102,11 @@ export function runtimeRequire<T>(id: string): T {
 }
 
 export async function runtimeImport<T>(id: string): Promise<T> {
-  return (await import(id)) as T
+  if (isBrowserRuntime()) {
+    throw new Error(`Cannot dynamically import ${id} in browser`)
+  }
+
+  return runtimeRequire<T>(id)
 }
 
 export function createAsyncContextStorage<T>(): AsyncContextStorage<T> {

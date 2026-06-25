@@ -1,22 +1,22 @@
 import type { BetaMessageStreamParams } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import sumBy from 'lodash-es/sumBy.js'
-import type { HookEvent, ModelUsage } from 'src/entrypoints/agentSdkTypes.js'
-import type { AgentColorName } from 'src/tools/AgentTool/agentColorManager.js'
-import type { HookCallbackMatcher } from 'src/types/hooks.js'
+import type { HookEvent, ModelUsage } from '../entrypoints/agentSdkTypes.js'
+import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
+import type { HookCallbackMatcher } from '../types/hooks.js'
 // Indirection for browser-sdk build (package.json "browser" field swaps
 // crypto.ts for crypto.browser.ts). Pure leaf re-export of node:crypto —
 // zero circular-dep risk. Path-alias import bypasses bootstrap-isolation
 // (rule only checks ./ and / prefixes); explicit disable documents intent.
 // eslint-disable-next-line custom-rules/bootstrap-isolation
-import { randomUUID } from 'src/utils/crypto.js'
-import { cwd as processCwd, realpathSync } from 'src/utils/imports.js'
-import type { ModelSetting } from 'src/utils/model/model.js'
-import type { ModelStrings } from 'src/utils/model/modelStrings.js'
-import type { SettingSource } from 'src/utils/settings/constants.js'
-import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
-import type { PluginHookMatcher } from 'src/utils/settings/types.js'
-import { createSignal } from 'src/utils/signal.js'
-import { createAsyncContextStorage } from 'src/utils/imports.js'
+import { randomUUID } from '../utils/imports'
+import { cwd as processCwd, realpathSync } from '../utils/imports.js'
+import type { ModelSetting } from '../utils/model/model.js'
+import type { ModelStrings } from '../utils/model/modelStrings.js'
+import type { SettingSource } from '../utils/settings/constants.js'
+import { resetSettingsCache } from '../utils/settings/settingsCache.js'
+import type { PluginHookMatcher } from '../utils/settings/types.js'
+import { createSignal } from '../utils/signal.js'
+import { createAsyncContextStorage } from '../utils/imports.js'
 
 type ProcessLike = {
   env: Record<string, string | undefined>
@@ -27,8 +27,8 @@ const processLike = (globalThis.process ?? { env: {} }) as ProcessLike
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
 
-import type { SessionId } from 'src/types/ids.js'
-import type { ReplayIndexBuilder } from 'src/utils/replayIndexBuilder.js'
+import type { SessionId } from '../types/ids.js'
+import type { ReplayIndexBuilder } from '../utils/replayIndexBuilder.js'
 
 type ReplayIndexBuilderEntry = {
   builder: ReplayIndexBuilder
@@ -1692,7 +1692,7 @@ export function getReplayIndexBuilder(): ReplayIndexBuilder {
   if (!entry) {
     // Lazy import to avoid circular dependencies
     const { ReplayIndexBuilder } =
-      require('src/utils/replayIndexBuilder.js') as typeof import('src/utils/replayIndexBuilder.js')
+      require('../utils/replayIndexBuilder.js') as typeof import('../utils/replayIndexBuilder.js')
     entry = {
       builder: new ReplayIndexBuilder(),
       projectDir: getSessionProjectDir(),

@@ -4246,6 +4246,10 @@ export function REPL({
   // old REPL scopes can be GC'd — saves ~35MB over a 1000-turn session.
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
+  if (renderMode === 'web') {
+    const webPlaceholderText = userInputOnProcessing && messages.length <= userInputBaselineRef.current ? userInputOnProcessing : undefined;
+    return <WebREPLSurface messages={messages} streamingText={isLoading ? visibleStreamingText : null} placeholderText={webPlaceholderText} inputValue={inputValue} setInputValue={setInputValue} onSubmit={onSubmit} isLoading={isLoading} disabled={disabled} streamMode={streamMode} model={mainLoopModel} toolCount={tools.length} />;
+  }
   const handleOpenRateLimitOptions = useCallback(() => {
     void onSubmitRef.current('/rate-limit-options', {
       setCursorOffset: () => { },
@@ -4983,10 +4987,6 @@ export function REPL({
   });
   // Auto-exit viewing mode when teammate completes or errors
   useTeammateViewAutoExit();
-  if (renderMode === 'web') {
-    const webPlaceholderText = userInputOnProcessing && messages.length <= userInputBaselineRef.current ? userInputOnProcessing : undefined;
-    return <WebREPLSurface messages={messages} streamingText={isLoading ? visibleStreamingText : null} placeholderText={webPlaceholderText} inputValue={inputValue} setInputValue={setInputValue} onSubmit={onSubmit} isLoading={isLoading} disabled={disabled} streamMode={streamMode} model={mainLoopModel} toolCount={tools.length} />;
-  }
   if (screen === 'transcript') {
     // Virtual scroll replaces the 30-message cap: everything is scrollable
     // and memory is bounded by the viewport. Without it, wrapping transcript

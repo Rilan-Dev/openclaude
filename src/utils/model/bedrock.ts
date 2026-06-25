@@ -25,7 +25,7 @@ export const getBedrockInferenceProfiles = memoize(async function (): Promise<
 > {
   const client = await createBedrockClient()
   const { ListInferenceProfilesCommand } = (await import(
-    AWS_BEDROCK_CLIENT_PACKAGE
+    /* @vite-ignore */ AWS_BEDROCK_CLIENT_PACKAGE
   )) as typeof import('@aws-sdk/client-bedrock')
 
   const allProfiles: Array<{ inferenceProfileId?: string }> = []
@@ -66,7 +66,7 @@ export function findFirstMatch(
 
 async function createBedrockClient() {
   const { BedrockClient } = (await import(
-    AWS_BEDROCK_CLIENT_PACKAGE
+    /* @vite-ignore */ AWS_BEDROCK_CLIENT_PACKAGE
   )) as typeof import('@aws-sdk/client-bedrock')
   // Match the Anthropic Bedrock SDK's region behavior exactly:
   // - Reads AWS_REGION or AWS_DEFAULT_REGION env vars (not AWS config files)
@@ -84,13 +84,15 @@ async function createBedrockClient() {
     ...(await getAWSClientProxyConfig()),
     ...(skipAuth && {
       requestHandler: new (
-        await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)
+        await import(/* @vite-ignore */ SMITHY_NODE_HTTP_HANDLER_PACKAGE)
       ).NodeHttpHandler(),
       httpAuthSchemes: [
         {
           schemeId: 'smithy.api#noAuth',
           identityProvider: () => async () => ({}),
-          signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner(),
+          signer: new (
+            await import(/* @vite-ignore */ SMITHY_CORE_PACKAGE)
+          ).NoAuthSigner(),
         },
       ],
       httpAuthSchemeProvider: () => [{ schemeId: 'smithy.api#noAuth' }],
@@ -114,7 +116,7 @@ async function createBedrockClient() {
 
 export async function createBedrockRuntimeClient() {
   const { BedrockRuntimeClient } = (await import(
-    AWS_BEDROCK_RUNTIME_PACKAGE
+    /* @vite-ignore */ AWS_BEDROCK_RUNTIME_PACKAGE
   )) as typeof import('@aws-sdk/client-bedrock-runtime')
   const region = getAWSRegion()
   const skipAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)
@@ -129,13 +131,15 @@ export async function createBedrockRuntimeClient() {
       // BedrockRuntimeClient defaults to HTTP/2 without fallback
       // proxy servers may not support this, so we explicitly force HTTP/1.1
       requestHandler: new (
-        await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)
+        await import(/* @vite-ignore */ SMITHY_NODE_HTTP_HANDLER_PACKAGE)
       ).NodeHttpHandler(),
       httpAuthSchemes: [
         {
           schemeId: 'smithy.api#noAuth',
           identityProvider: () => async () => ({}),
-          signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner(),
+          signer: new (
+            await import(/* @vite-ignore */ SMITHY_CORE_PACKAGE)
+          ).NoAuthSigner(),
         },
       ],
       httpAuthSchemeProvider: () => [{ schemeId: 'smithy.api#noAuth' }],

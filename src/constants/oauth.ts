@@ -1,4 +1,4 @@
-import { isEnvTruthy } from 'src/utils/envUtils.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 
 type ProcessLike = {
   env: Record<string, string | undefined>

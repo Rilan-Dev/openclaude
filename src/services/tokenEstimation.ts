@@ -698,7 +698,7 @@ async function countTokensWithBedrock({
     }
 
     const { CountTokensCommand } = (await import(
-      AWS_BEDROCK_RUNTIME_PACKAGE
+      /* @vite-ignore */ AWS_BEDROCK_RUNTIME_PACKAGE
     )) as typeof import('@aws-sdk/client-bedrock-runtime')
     const input: CountTokensCommandInput = {
       modelId,

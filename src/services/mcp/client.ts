@@ -163,7 +163,7 @@ async function createStdioClientTransport(options: {
   stderr?: 'pipe' | 'inherit'
 }): Promise<StdioClientTransportLike> {
   const { StdioClientTransport } = await import(
-    MCP_STDIO_CLIENT_TRANSPORT_PACKAGE
+    /* @vite-ignore */ MCP_STDIO_CLIENT_TRANSPORT_PACKAGE
   )
   return new StdioClientTransport(options) as StdioClientTransportLike
 }
@@ -978,7 +978,7 @@ export const connectToServer = memoize(
         )
         const chromeMcpPackage = '@ant/claude-for-chrome-mcp'
         const { createClaudeForChromeMcpServer } = await import(
-          chromeMcpPackage
+          /* @vite-ignore */ chromeMcpPackage
         )
         const { createLinkedTransportPair } = await import(
           './InProcessTransport.js'

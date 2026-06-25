@@ -48,18 +48,16 @@ async function main() {
   ])
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <TerminalWriteProvider value={noopWriteRaw}>
-        <AppStateProvider>
-          <App
-            getFpsMetrics={() => undefined}
-            renderMode="web"
-          >
-            <REPL {...replProps} />
-          </App>
-        </AppStateProvider>
-      </TerminalWriteProvider>
-    </React.StrictMode>
+    <TerminalWriteProvider value={noopWriteRaw}>
+      <AppStateProvider>
+        <App
+          getFpsMetrics={() => undefined}
+          renderMode="web"
+        >
+          <REPL {...replProps} />
+        </App>
+      </AppStateProvider>
+    </TerminalWriteProvider>
   )
 }
 

@@ -21,6 +21,7 @@ type ComputerUseMcpServer = {
     handler: () => Promise<{ tools: unknown[] }> | { tools: unknown[] },
   ) => void
   connect: (transport: Transport) => Promise<void>
+  close: () => Promise<void>
 }
 
 type ComputerUseMcpModule = {

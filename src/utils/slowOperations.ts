@@ -1,4 +1,4 @@
-import { feature } from 'bun:bundle'
+const feature = (_name: string): boolean => false
 import type { WriteFileOptions } from 'fs'
 import {
   closeSync,

@@ -1,19 +1,20 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenClaude Web UI</title>
-    <meta name="description" content="OpenClaude Chat AI web interface using the existing REPL runtime." />
-    <meta name="author" content="OpenClaude" />
 
-    <meta property="og:title" content="OpenClaude Web UI" />
-    <meta property="og:description" content="OpenClaude Chat AI web interface." />
-    <meta property="og:type" content="website" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaude Web UI</title>
+  <meta name="description" content="OpenClaude Chat AI web interface using the existing REPL runtime." />
+  <meta name="author" content="OpenClaude" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@openclaude" />
-    <script type="importmap">
+  <meta property="og:title" content="OpenClaude Web UI" />
+  <meta property="og:description" content="OpenClaude Chat AI web interface." />
+  <meta property="og:type" content="website" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@openclaude" />
+  <script type="importmap">
       {
         "imports": {
           "@aws-sdk/credential-provider-ini": "./shims/optionalPackages.js",
@@ -25,32 +26,48 @@
         }
       }
     </script>
-  </head>
+</head>
 
-  <body>
-    <div id="root"></div>
-    <script type="module">
-      import processShim from './shims/process.js'
-      import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
+<body>
+  <div id="root"></div>
 
-      const existingProcess = globalThis.process ?? {}
-      globalThis.process = {
-        ...processShim,
-        ...existingProcess,
-        env: {
-          ...(processShim.env ?? {}),
-          ...(existingProcess.env ?? {}),
-        },
-      }
+  <script>
+    var MACRO = (globalThis.MACRO = {
+      VERSION: 'web-dev',
+      DISPLAY_VERSION: 'web-dev',
+      BUILD_TIME: new Date().toISOString(),
+      FEEDBACK_CHANNEL: 'github',
+      ISSUES_EXPLAINER: '',
+      NATIVE_PACKAGE_URL: '',
+      PACKAGE_URL: '',
+      VERSION_CHANGELOG: '',
+    })
+  </script>
 
-      if (!globalThis.Buffer) {
-        globalThis.Buffer = BrowserBuffer
-      }
+  <script type="module">
+    import processShim from './shims/process.js'
+    import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
 
-      if (!('global' in globalThis)) {
-        globalThis.global = globalThis
-      }
-    </script>
-    <script type="module" src="./main.tsx"></script>
-  </body>
+    const existingProcess = globalThis.process ?? {}
+    globalThis.process = {
+      ...processShim,
+      ...existingProcess,
+      env: {
+        ...(processShim.env ?? {}),
+        ...(existingProcess.env ?? {}),
+      },
+    }
+
+    if (!globalThis.Buffer) {
+      globalThis.Buffer = BrowserBuffer
+    }
+
+    if (!('global' in globalThis)) {
+      globalThis.global = globalThis
+    }
+  </script>
+
+  <script type="module" src="./main.tsx"></script>
+</body>
+
 </html>

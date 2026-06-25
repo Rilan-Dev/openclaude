@@ -20,7 +20,7 @@
     "baseUrl": ".",
     "types": ["bun", "node"],
     "paths": {
-      "src/*": ["./src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

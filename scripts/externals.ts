@@ -25,6 +25,7 @@ export const COMMON_EXTERNALS: string[] = [
   // Orama search engine
   '@orama/orama',
   '@orama/plugin-data-persistence',
+  'react-dom'
 ]
 
 // Additional packages external only in the SDK bundle (TUI + heavy deps)
@@ -33,6 +34,7 @@ export const SDK_ONLY_EXTERNALS: string[] = [
   'react-reconciler',
   '@anthropic-ai/sdk',
   '@modelcontextprotocol/sdk',
+  'react-dom'
 ]
 
 // Packages kept external but NOT listed in package.json dependencies.

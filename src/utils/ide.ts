@@ -66,7 +66,7 @@ async function createNetConnection(options: {
   if (typeof window !== 'undefined') {
     throw new Error('IDE socket checks are not available in the browser web UI')
   }
-  const { createConnection } = await import(NET_PACKAGE)
+  const { createConnection } = await import(/* @vite-ignore */ NET_PACKAGE)
   return createConnection(options) as NetSocketLike
 }
 

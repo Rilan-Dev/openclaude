@@ -391,6 +391,7 @@ function baseCreateAssistantMessage({
   isVirtual?: true
   usage?: Usage
 }): AssistantMessage {
+  console.log('baseCreateAssistantMessage Passed')
   return {
     type: 'assistant',
     uuid: randomUUID(),

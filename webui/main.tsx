@@ -1,61 +1,15 @@
 import * as React from 'react'
-import * as ReactDOMClient from 'react-dom/client'
-import codexAuth from '../.openai-codex-auth.json'
+import * as ReactDOMClient from 'react-dom-client-browser'
 import './styles.css'
 import processShim from './shims/process.js'
 import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
 import type { Props as REPLPropsType } from '../src/screens/REPL.js'
 import { getRuntimeRenderMode, isBrowserRuntime } from '../src/utils/imports.js'
 
-type CodexAuthJson = {
-  access_token?: string
-  account_id?: string
-  tokens?: {
-    access_token?: string
-    account_id?: string
-  }
-}
-
 const ultraplanPromptText = 'This is a planning prompt stub.'
+const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 
-// The browser UI talks to the same real provider through a transparent local
-// bridge so CORS does not block the existing provider logic.
-const webApiProxyBaseUrl = 'http://127.0.0.1:31337'
-
-const codexAuthJson = codexAuth as CodexAuthJson | undefined
-const codexAccessToken =
-  codexAuthJson?.access_token ?? codexAuthJson?.tokens?.access_token
-const codexAccountId =
-  codexAuthJson?.account_id ?? codexAuthJson?.tokens?.account_id
-
-const existingProcess = globalThis.process as
-  | (typeof processShim & { env?: Record<string, string> })
-  | undefined
-
-const codexEnv =
-  codexAccessToken && codexAccountId
-    ? {
-        CLAUDE_CODE_USE_OPENAI: '1',
-        CLAUDE_CODE_OAUTH_TOKEN: codexAccessToken,
-        CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED: '1',
-        CHATGPT_ACCOUNT_ID: codexAccountId,
-        CODEX_API_KEY: codexAccessToken,
-        CODEX_CREDENTIAL_SOURCE: 'oauth',
-        OPENAI_API_KEY: codexAccessToken,
-        OPENAI_BASE_URL: webApiProxyBaseUrl,
-        OPENAI_MODEL: 'gpt-5.5',
-      }
-    : {}
-
-globalThis.process = {
-  ...processShim,
-  ...(existingProcess ?? {}),
-  env: {
-    ...(processShim.env ?? {}),
-    ...codexEnv,
-    ...(existingProcess?.env ?? {}),
-  },
-}
+globalThis.process = processShim
 
 if (!globalThis.Buffer) {
   globalThis.Buffer = BrowserBuffer
@@ -65,6 +19,73 @@ if (!('global' in globalThis)) {
   ;(globalThis as typeof globalThis & { global: typeof globalThis }).global =
     globalThis
 }
+
+function isDefaultOpenAIBaseUrl(raw: string | undefined): boolean {
+  if (!raw) return true
+  try {
+    const parsed = new URL(raw)
+    return (
+      parsed.origin === 'https://api.openai.com' &&
+      parsed.pathname.replace(/\/+$/, '') === '/v1'
+    )
+  } catch {
+    return false
+  }
+}
+
+function isCodexBackendBaseUrl(raw: string | undefined): boolean {
+  if (!raw) return false
+  return raw.includes('chatgpt.com/backend-api/codex')
+}
+
+function applyBrowserCodexEnv(): void {
+  if (!isBrowserRuntime()) return
+
+  const env = processShim.env as Record<string, string | undefined>
+  const hasCodexCredentials = Boolean(
+    env.CODEX_API_KEY?.trim() ||
+      env.CLAUDE_CODE_OAUTH_TOKEN?.trim() ||
+      env.CHATGPT_ACCOUNT_ID?.trim() ||
+      env.CODEX_ACCOUNT_ID?.trim(),
+  )
+  if (!hasCodexCredentials) return
+
+  const currentBaseUrl = env.OPENAI_BASE_URL?.trim()
+  if (
+    !isDefaultOpenAIBaseUrl(currentBaseUrl) &&
+    !isCodexBackendBaseUrl(currentBaseUrl)
+  ) {
+    return
+  }
+
+  const browserEnv: Record<string, string> = {
+    CLAUDE_CODE_USE_OPENAI: env.CLAUDE_CODE_USE_OPENAI?.trim() || '1',
+    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED:
+      env.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED?.trim() || '1',
+    CODEX_CREDENTIAL_SOURCE: env.CODEX_CREDENTIAL_SOURCE?.trim() || 'oauth',
+    OPENAI_API_FORMAT: env.OPENAI_API_FORMAT?.trim() || 'responses',
+    OPENAI_BASE_URL: currentBaseUrl || DEFAULT_CODEX_BASE_URL,
+    OPENAI_MODEL: env.OPENAI_MODEL?.trim() || 'codexplan',
+  }
+
+  const accessToken =
+    env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || env.CODEX_API_KEY?.trim()
+  if (accessToken) {
+    browserEnv.CLAUDE_CODE_OAUTH_TOKEN = accessToken
+    browserEnv.CODEX_API_KEY = env.CODEX_API_KEY?.trim() || accessToken
+    browserEnv.OPENAI_API_KEY = env.OPENAI_API_KEY?.trim() || accessToken
+  }
+
+  const accountId = env.CHATGPT_ACCOUNT_ID?.trim() || env.CODEX_ACCOUNT_ID?.trim()
+  if (accountId) {
+    browserEnv.CHATGPT_ACCOUNT_ID = accountId
+    browserEnv.CODEX_ACCOUNT_ID = accountId
+  }
+
+  processShim.updateEnv(browserEnv)
+}
+
+applyBrowserCodexEnv()
 
 type BrowserRequireStub = Record<string, unknown> & {
   [key: string]: unknown
@@ -410,6 +431,31 @@ const replProps: REPLPropsType = {
   }
 }
 
+type BrowserRuntimeModules = {
+  App: typeof import('../src/components/App.js').App
+  AppStateProvider: typeof import('../src/state/AppState.js').AppStateProvider
+  REPL: typeof import('../src/screens/REPL.js').REPL
+}
+
+function BrowserRuntimeShell({
+  App,
+  AppStateProvider,
+  REPL,
+}: BrowserRuntimeModules) {
+  return React.createElement(
+    AppStateProvider,
+    null,
+    React.createElement(
+      App,
+      {
+        getFpsMetrics: () => undefined,
+        renderMode: replProps.renderMode,
+      },
+      React.createElement(REPL, replProps),
+    ),
+  )
+}
+
 async function main() {
   console.debug('[openclaude:web] bootstrap start')
   const rootEl = document.getElementById('root')
@@ -417,13 +463,14 @@ async function main() {
     throw new Error('root element not found')
   }
 
-  const loadingRoot =
-    ReactDOMClient.createRoot?.(rootEl) ??
-    ReactDOMClient.default?.createRoot?.(rootEl)
-
-  if (!loadingRoot) {
+  const ReactDOMClientImpl =
+    (ReactDOMClient as Record<string, any>).default ?? ReactDOMClient
+  const createRoot = (ReactDOMClientImpl as Record<string, any>).createRoot
+  if (typeof createRoot !== 'function') {
     throw new Error('react-dom/client did not expose createRoot')
   }
+
+  const loadingRoot = createRoot(rootEl)
 
   const loadingScreen = React.createElement(
     'div',
@@ -488,18 +535,11 @@ async function main() {
     React.createElement(
       React.StrictMode,
       null,
-      React.createElement(
+      React.createElement(BrowserRuntimeShell, {
+        App,
         AppStateProvider,
-        null,
-        React.createElement(
-          App,
-          {
-            getFpsMetrics: () => undefined,
-            renderMode: replProps.renderMode,
-          },
-          React.createElement(REPL, replProps),
-        ),
-      ),
+        REPL,
+      }),
     ),
   )
 

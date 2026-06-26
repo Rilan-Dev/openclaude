@@ -1,4 +1,53 @@
-export const env = {}
+const runtimeEnv = Object.create(null)
+
+if (typeof __OPENCLAUDE_ENV__ !== 'undefined') {
+  Object.assign(runtimeEnv, __OPENCLAUDE_ENV__)
+}
+
+// Merge compile-time injected env
+if (typeof __OPENCLAUDE_ENV__ !== 'undefined') {
+  Object.assign(runtimeEnv, __OPENCLAUDE_ENV__)
+}
+
+export const env = new Proxy(runtimeEnv, {
+  get(target, prop) {
+    return target[prop]
+  },
+
+  set(target, prop, value) {
+    target[prop] = value
+    return true
+  },
+
+  has(target, prop) {
+    return prop in target
+  },
+
+  ownKeys(target) {
+    return Reflect.ownKeys(target)
+  },
+
+  getOwnPropertyDescriptor() {
+    return {
+      enumerable: true,
+      configurable: true,
+    }
+  },
+})
+
+export function setEnv(values = {}) {
+  Object.keys(runtimeEnv).forEach((k) => delete runtimeEnv[k])
+  Object.assign(runtimeEnv, values)
+}
+
+export function updateEnv(values = {}) {
+  Object.assign(runtimeEnv, values)
+}
+
+export function clearEnv() {
+  Object.keys(runtimeEnv).forEach((k) => delete runtimeEnv[k])
+}
+
 export const argv = []
 export const execArgv = []
 export const version = ''
@@ -18,11 +67,11 @@ export function cwd() {
 export function chdir() {}
 
 export function exit(code = 0) {
-  throw new Error(`process.exit(${code}) is not available in the browser web UI`)
+  throw new Error(`process.exit(${code}) is not available in browser`)
 }
 
-export function nextTick(callback, ...args) {
-  queueMicrotask(() => callback(...args))
+export function nextTick(cb, ...args) {
+  queueMicrotask(() => cb(...args))
 }
 
 export function uptime() {
@@ -64,29 +113,32 @@ export function removeListener() {
 }
 
 export const process = {
-  arch,
-  argv,
-  chdir,
-  cwd,
   env,
+  argv,
   execArgv,
-  exit,
-  memoryUsage,
-  nextTick,
-  off,
-  on,
-  once,
-  pid,
-  platform,
-  removeListener,
-  resourceUsage,
-  stderr,
-  stdin,
-  stdout,
-  title,
-  uptime,
   version,
   versions,
+  platform,
+  arch,
+  pid,
+  title,
+  stdin,
+  stdout,
+  stderr,
+  cwd,
+  chdir,
+  exit,
+  nextTick,
+  uptime,
+  memoryUsage,
+  resourceUsage,
+  on,
+  once,
+  off,
+  removeListener,
+  setEnv,
+  updateEnv,
+  clearEnv,
 }
 
 export default process

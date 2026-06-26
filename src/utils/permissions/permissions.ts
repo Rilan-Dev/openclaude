@@ -61,12 +61,13 @@ import {
 import { isBrowserRuntime } from '../imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const classifierDecisionModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
-  ? (require('./classifierDecision.js') as typeof import('./classifierDecision.js'))
-  : null
-const autoModeStateModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
-  ? (require('./autoModeState.js') as typeof import('./autoModeState.js'))
-  : null
+let classifierDecisionModule: typeof import('./classifierDecision.js') | null = null
+let autoModeStateModule: typeof import('./autoModeState.js') | null = null
+
+if (!isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')) {
+  classifierDecisionModule = require('./classifierDecision.js') as typeof import('./classifierDecision.js')
+  autoModeStateModule = require('./autoModeState.js') as typeof import('./autoModeState.js')
+}
 
 function applyPermissionUpdatesToLiveContext(
   context: ToolPermissionContext,
@@ -75,8 +76,7 @@ function applyPermissionUpdatesToLiveContext(
   if (isBrowserRuntime()) {
     return context
   }
-  const { applyPermissionUpdatesToLiveContext: applyLiveUpdates } =
-    require('./permissionSetup.js') as typeof import('./permissionSetup.js')
+  const { applyPermissionUpdatesToLiveContext: applyLiveUpdates } = require('./permissionSetup.js') as typeof import('./permissionSetup.js')
   return applyLiveUpdates(context, updates)
 }
 

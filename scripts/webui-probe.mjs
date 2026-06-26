@@ -17,6 +17,34 @@ async function waitForJsonList(port) {
   throw new Error('Timed out waiting for Chrome remote debugging port')
 }
 
+async function waitForExpression(
+  send,
+  expression,
+  {
+    timeoutMs = 45000,
+    intervalMs = 500,
+    returnByValue = true,
+  } = {},
+) {
+  const startedAt = Date.now()
+  let lastResult = null
+
+  while (Date.now() - startedAt < timeoutMs) {
+    lastResult = await send('Runtime.evaluate', {
+      expression,
+      returnByValue,
+    })
+
+    if (lastResult?.result?.value) {
+      return lastResult
+    }
+
+    await delay(intervalMs)
+  }
+
+  return lastResult
+}
+
 function logEvent(type, payload) {
   console.log(`[${type}] ${JSON.stringify(payload)}`)
 }
@@ -125,6 +153,12 @@ console.log(`[page] ${JSON.stringify(evalResult)}`)
 
 const probePrompt = process.env.WEBUI_PROBE_PROMPT || 'hi'
 if (probePrompt) {
+  const mounted = await waitForExpression(
+    send,
+    `(() => Boolean(document.querySelector('textarea') && document.querySelector('form')))()`,
+  )
+  console.log(`[mounted] ${JSON.stringify(mounted)}`)
+
   const setInputResult = await send('Runtime.evaluate', {
     expression: `(() => {
       const textarea = document.querySelector('textarea')
@@ -159,11 +193,20 @@ if (probePrompt) {
   })
   console.log(`[submit] ${JSON.stringify(submitResult)}`)
 
-  await delay(6000)
+  const streamResult = await waitForExpression(
+    send,
+    `(() => {
+      const articles = document.querySelectorAll('article')
+      const bodyText = document.body.textContent || ''
+      return articles.length >= 2 && /assistant/i.test(bodyText)
+    })()`,
+    { timeoutMs: 120000, intervalMs: 1000 },
+  )
+  console.log(`[stream] ${JSON.stringify(streamResult)}`)
 
   const postSubmitState = await send('Runtime.evaluate', {
     expression: `({
-      bodyText: document.body.textContent?.slice(0, 500) ?? '',
+      bodyText: document.body.textContent?.slice(0, 1200) ?? '',
       textareaValue: document.querySelector('textarea')?.value ?? null,
       messageCount: document.querySelectorAll('article').length,
       probeErrors: window.__probeErrors ?? [],

@@ -500,6 +500,52 @@ test('strips store from strict OpenAI-compatible responses providers', async () 
   expect(capturedBody?.store).toBeUndefined()
 })
 
+test('keeps store false for proxied Codex responses requests', async () => {
+  process.env.CLAUDE_CODE_USE_OPENAI = '1'
+  process.env.OPENAI_BASE_URL = 'http://localhost:5175/codex'
+  process.env.OPENAI_API_FORMAT = 'responses'
+  process.env.OPENAI_MODEL = 'codexplan'
+  process.env.OPENAI_API_KEY = 'codex-test-key'
+  let capturedUrl = ''
+  let capturedBody: Record<string, unknown> | undefined
+
+  globalThis.fetch = (async (input, init) => {
+    capturedUrl = String(input)
+    capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+
+    return new Response(
+      JSON.stringify({
+        id: 'resp-codex-proxy',
+        model: 'gpt-5.5',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: 'ok' }],
+          },
+        ],
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+  }) as unknown as FetchType
+
+  const client = createOpenAIShimClient({ defaultHeaders: {} }) as OpenAIShimClient
+
+  await client.beta.messages.create({
+    model: 'codexplan',
+    messages: [{ role: 'user', content: 'hello' }],
+    max_tokens: 64,
+    stream: false,
+  })
+
+  expect(capturedUrl).toBe('http://localhost:5175/codex/responses')
+  expect(capturedBody?.store).toBe(false)
+})
+
 test('strips store when providerOverride routes chat_completions to the Gemini host', async () => {
   let capturedBody: Record<string, unknown> | undefined
 

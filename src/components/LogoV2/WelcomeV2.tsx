@@ -1,9 +1,155 @@
 import { c as _c } from "react-compiler-runtime";
 import React from 'react';
 import { Box, Text, useTheme } from 'src/ink.js';
+import { isBrowserRuntime } from '../../utils/imports.js';
 import { env } from '../../utils/env.js';
+import type { ThemeSetting } from '../../utils/theme.js';
 const WELCOME_V2_WIDTH = 58;
-export function WelcomeV2() {
+type WelcomeV2Props = {
+  themeOverride?: ThemeSetting;
+}
+function BrowserWelcomeV2({
+  themeOverride,
+}: WelcomeV2Props): React.ReactElement {
+  const [themeSetting] = useTheme()
+  const theme = themeOverride ?? themeSetting
+  const isLightTheme = ['light', 'light-daltonized', 'light-ansi'].includes(theme)
+  const surface = isLightTheme
+    ? {
+        background:
+          'radial-gradient(circle at top left, rgba(255, 234, 186, 0.24), transparent 32rem), linear-gradient(135deg, #f6f1e7 0%, #f0e7d8 44%, #dfe6ea 100%)',
+        foreground: '#1d232d',
+        muted: 'rgba(29, 35, 45, 0.68)',
+        accent: '#6a4d11',
+        border: 'rgba(29, 35, 45, 0.12)',
+        panel: 'rgba(255, 255, 255, 0.72)',
+      }
+    : {
+        background:
+          'radial-gradient(circle at top left, rgba(65, 89, 141, 0.22), transparent 34rem), linear-gradient(135deg, #0b1117 0%, #11181f 44%, #16110d 100%)',
+        foreground: '#f3eadc',
+        muted: 'rgba(243, 234, 220, 0.72)',
+        accent: '#efb85a',
+        border: 'rgba(243, 234, 220, 0.12)',
+        panel: 'rgba(255, 255, 255, 0.07)',
+      }
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        padding: '2rem',
+        display: 'grid',
+        placeItems: 'center',
+        color: surface.foreground,
+        background: surface.background,
+        fontFamily: '"IBM Plex Sans", "Aptos", "Segoe UI", sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: 'min(56rem, 100%)',
+          border: `1px solid ${surface.border}`,
+          borderRadius: '1.5rem',
+          padding: '1.5rem',
+          background: surface.panel,
+          boxShadow: '0 1.5rem 4rem rgba(0, 0, 0, 0.28)',
+          backdropFilter: 'blur(18px)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'start',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ maxWidth: '34rem' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                border: `1px solid ${surface.border}`,
+                borderRadius: '999px',
+                padding: '0.35rem 0.7rem',
+                color: surface.accent,
+                fontSize: '0.78rem',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: '1rem',
+              }}
+            >
+              OpenClaude Web
+            </div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 'clamp(2rem, 4vw, 4.25rem)',
+                lineHeight: 0.96,
+                letterSpacing: '-0.08em',
+                fontFamily: 'Fraunces, Georgia, serif',
+              }}
+            >
+              Welcome to OpenClaude
+            </h1>
+            <p style={{ margin: '0.9rem 0 0', color: surface.muted, lineHeight: 1.6 }}>
+              The browser shell keeps the same REPL, tool routing, streaming, and
+              state model. Only the render surface changes.
+            </p>
+          </div>
+          <div
+            style={{
+              minWidth: '14rem',
+              border: `1px solid ${surface.border}`,
+              borderRadius: '1rem',
+              padding: '1rem',
+              background: 'rgba(0, 0, 0, 0.12)',
+            }}
+          >
+            <div style={{ color: surface.muted, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Active theme
+            </div>
+            <div style={{ marginTop: '0.4rem', fontSize: '1.25rem', fontWeight: 700 }}>
+              {theme}
+            </div>
+            <div style={{ marginTop: '0.65rem', color: surface.muted, lineHeight: 1.45 }}>
+              Version v{MACRO.DISPLAY_VERSION ?? MACRO.VERSION}
+            </div>
+          </div>
+        </div>
+        <pre
+          style={{
+            margin: '1.5rem 0 0',
+            padding: '1rem',
+            borderRadius: '1rem',
+            border: `1px solid ${surface.border}`,
+            overflowX: 'auto',
+            color: surface.foreground,
+            background: 'rgba(0, 0, 0, 0.18)',
+            fontFamily: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
+            lineHeight: 1.35,
+            whiteSpace: 'pre',
+          }}
+        >{`
+      █████████
+    ░░░   ░░░░░░░░░░░
+   ░░░░░░░░░░░░░░░░░░░
+      ▄█████▄
+   OpenClaude browser
+        `}</pre>
+      </div>
+    </div>
+  )
+}
+export function WelcomeV2({
+  themeOverride,
+}: WelcomeV2Props = {}) {
+  if (isBrowserRuntime()) {
+    return <BrowserWelcomeV2 themeOverride={themeOverride} />
+  }
   const $ = _c(35);
   const [theme] = useTheme();
   if (env.terminal === "Apple_Terminal") {

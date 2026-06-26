@@ -1096,6 +1096,8 @@ export function getAssistantMessageFromError(
       })
     }
 
+    console.log('Active Provider, ', getAPIProvider())
+
     // Check if the API key is from an external source
     const { source } = getAnthropicApiKeyWithSource()
     const isExternalSource =

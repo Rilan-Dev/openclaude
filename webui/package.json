@@ -4,12 +4,6 @@
   "version": "1.0.0",
   "type": "module",
   "browser": {
-    "react": "./shared/react.browser.js",
-    "react/jsx-runtime": "./shared/react-jsx-runtime.browser.js",
-    "react/jsx-dev-runtime": "./shared/react-jsx-dev-runtime.browser.js",
-    "react-dom": "./shared/react-dom.browser.js",
-    "react-dom/client": "./shared/react-dom-client.browser.js",
-    "react-dom/server": "./shared/react-dom-server.browser.js",
     "async_hooks": "./shims/nodeBuiltins.js",
     "buffer": "./shims/nodeBuiltins.js",
     "child_process": "./shims/nodeBuiltins.js",

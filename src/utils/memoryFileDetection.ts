@@ -8,14 +8,14 @@ import {
 } from '../memdir/paths.js'
 import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
-import { WINDOWS_PATH_SEPARATOR } from './imports.js'
+import { WINDOWS_PATH_SEPARATOR, isBrowserRuntime } from './imports.js'
 import {
   posixPathToWindowsPath,
   windowsPathToPosixPath,
 } from './windowsPaths.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = feature('TEAMMEM')
+const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -105,7 +105,7 @@ export type MemoryScope = 'personal' | 'team'
  * hierarchy handles the overlap differently (team writes intentionally fire both).
  */
 export function memoryScopeForPath(filePath: string): MemoryScope | null {
-  if (feature('TEAMMEM') && teamMemPaths!.isTeamMemFile(filePath)) {
+  if (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths?.isTeamMemFile(filePath)) {
     return 'team'
   }
   if (isAutoMemFile(filePath)) {
@@ -135,7 +135,7 @@ export function isAutoManagedMemoryFile(filePath: string): boolean {
   if (isAutoMemFile(filePath)) {
     return true
   }
-  if (feature('TEAMMEM') && teamMemPaths!.isTeamMemFile(filePath)) {
+  if (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths?.isTeamMemFile(filePath)) {
     return true
   }
   if (detectSessionFileType(filePath) !== null) {
@@ -168,9 +168,10 @@ export function isMemoryDirectory(dirPath: string): boolean {
   }
   // Team memory directories live under <autoMemPath>/team/
   if (
+    !isBrowserRuntime() &&
     feature('TEAMMEM') &&
-    teamMemPaths!.isTeamMemoryEnabled() &&
-    teamMemPaths!.isTeamMemPath(normalizedPath)
+    teamMemPaths?.isTeamMemoryEnabled() &&
+    teamMemPaths.isTeamMemPath(normalizedPath)
   ) {
     return true
   }

@@ -20,7 +20,13 @@
     "baseUrl": ".",
     "types": ["bun", "node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "react": ["./webui/shared/react.browser.ts"],
+      "react/jsx-runtime": ["./webui/shared/react-jsx-runtime.browser.ts"],
+      "react/jsx-dev-runtime": ["./webui/shared/react-jsx-dev-runtime.browser.ts"],
+      "react-dom": ["./webui/shared/react-dom.browser.ts"],
+      "react-dom/client": ["./webui/shared/react-dom-client.browser.ts"],
+      "react-dom/server": ["./webui/shared/react-dom-server.browser.ts"]
     }
   },
   "include": ["src/**/*"],

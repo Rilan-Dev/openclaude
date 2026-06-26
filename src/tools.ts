@@ -16,29 +16,31 @@ import { BriefTool } from './tools/BriefTool/BriefTool.js'
 const REPLTool = null
 const SuggestBackgroundPRTool = null
 const SleepTool =
-  feature('PROACTIVE') || feature('KAIROS')
+  !isBrowserRuntime() && (feature('PROACTIVE') || feature('KAIROS'))
     ? require('./tools/SleepTool/SleepTool.js').SleepTool
     : null
-const cronTools = [
-  require('./tools/ScheduleCronTool/CronCreateTool.js').CronCreateTool,
-  require('./tools/ScheduleCronTool/CronDeleteTool.js').CronDeleteTool,
-  require('./tools/ScheduleCronTool/CronListTool.js').CronListTool,
-]
-const RemoteTriggerTool = feature('AGENT_TRIGGERS_REMOTE')
+const cronTools = !isBrowserRuntime()
+  ? [
+      require('./tools/ScheduleCronTool/CronCreateTool.js').CronCreateTool,
+      require('./tools/ScheduleCronTool/CronDeleteTool.js').CronDeleteTool,
+      require('./tools/ScheduleCronTool/CronListTool.js').CronListTool,
+    ]
+  : []
+const RemoteTriggerTool = !isBrowserRuntime() && feature('AGENT_TRIGGERS_REMOTE')
   ? require('./tools/RemoteTriggerTool/RemoteTriggerTool.js').RemoteTriggerTool
   : null
-const MonitorTool = feature('MONITOR_TOOL')
+const MonitorTool = !isBrowserRuntime() && feature('MONITOR_TOOL')
   ? require('./tools/MonitorTool/MonitorTool.js').MonitorTool
   : null
-const SendUserFileTool = feature('KAIROS')
+const SendUserFileTool = !isBrowserRuntime() && feature('KAIROS')
   ? require('./tools/SendUserFileTool/SendUserFileTool.js').SendUserFileTool
   : null
 const PushNotificationTool =
-  feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION')
+  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION'))
     ? require('./tools/PushNotificationTool/PushNotificationTool.js')
         .PushNotificationTool
     : null
-const SubscribePRTool = feature('KAIROS_GITHUB_WEBHOOKS')
+const SubscribePRTool = !isBrowserRuntime() && feature('KAIROS_GITHUB_WEBHOOKS')
   ? require('./tools/SubscribePRTool/SubscribePRTool.js').SubscribePRTool
   : null
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
@@ -75,10 +77,11 @@ import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
 import { isTodoV2Enabled } from './utils/tasks.js'
+import { isBrowserRuntime } from './utils/imports.js'
 // Dead code elimination: conditional import for CLAUDE_CODE_VERIFY_PLAN
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const VerifyPlanExecutionTool =
-  process.env.CLAUDE_CODE_VERIFY_PLAN === 'true'
+  !isBrowserRuntime() && process.env.CLAUDE_CODE_VERIFY_PLAN === 'true'
     ? require('./tools/VerifyPlanExecutionTool/VerifyPlanExecutionTool.js')
         .VerifyPlanExecutionTool
     : null
@@ -93,29 +96,29 @@ export {
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional import for OVERFLOW_TEST_TOOL
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const OverflowTestTool = feature('OVERFLOW_TEST_TOOL')
+const OverflowTestTool = !isBrowserRuntime() && feature('OVERFLOW_TEST_TOOL')
   ? require('./tools/OverflowTestTool/OverflowTestTool.js').OverflowTestTool
   : null
-const CtxInspectTool = feature('CONTEXT_COLLAPSE')
+const CtxInspectTool = !isBrowserRuntime() && feature('CONTEXT_COLLAPSE')
   ? require('./tools/CtxInspectTool/CtxInspectTool.js').CtxInspectTool
   : null
-const TerminalCaptureTool = feature('TERMINAL_PANEL')
+const TerminalCaptureTool = !isBrowserRuntime() && feature('TERMINAL_PANEL')
   ? require('./tools/TerminalCaptureTool/TerminalCaptureTool.js')
       .TerminalCaptureTool
   : null
-const WebBrowserTool = feature('WEB_BROWSER_TOOL')
+const WebBrowserTool = !isBrowserRuntime() && feature('WEB_BROWSER_TOOL')
   ? require('./tools/WebBrowserTool/WebBrowserTool.js').WebBrowserTool
   : null
-const coordinatorModeModule = feature('COORDINATOR_MODE')
+const coordinatorModeModule = !isBrowserRuntime() && feature('COORDINATOR_MODE')
   ? (require('./coordinator/coordinatorMode.js') as typeof import('./coordinator/coordinatorMode.js'))
   : null
-const SnipTool = feature('HISTORY_SNIP')
+const SnipTool = !isBrowserRuntime() && feature('HISTORY_SNIP')
   ? require('./tools/SnipTool/SnipTool.js').SnipTool
   : null
-const ListPeersTool = feature('UDS_INBOX')
+const ListPeersTool = !isBrowserRuntime() && feature('UDS_INBOX')
   ? require('./tools/ListPeersTool/ListPeersTool.js').ListPeersTool
   : null
-const WorkflowTool = feature('WORKFLOW_SCRIPTS')
+const WorkflowTool = !isBrowserRuntime() && feature('WORKFLOW_SCRIPTS')
   ? (() => {
       require('./tools/WorkflowTool/bundled/index.js').initBundledWorkflows()
       return require('./tools/WorkflowTool/WorkflowTool.js').WorkflowTool
@@ -137,7 +140,7 @@ import {
 export { REPL_ONLY_TOOLS }
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getPowerShellTool = () => {
-  if (!isPowerShellToolEnabled()) return null
+  if (isBrowserRuntime() || !isPowerShellToolEnabled()) return null
   return (
     require('./tools/PowerShellTool/PowerShellTool.js') as typeof import('./tools/PowerShellTool/PowerShellTool.js')
   ).PowerShellTool

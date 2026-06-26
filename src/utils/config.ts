@@ -1,9 +1,7 @@
 import { feature } from 'bun:bundle'
-import { randomBytes } from 'crypto'
 import { unwatchFile, watchFile } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import pickBy from 'lodash-es/pickBy.js'
-import { basename, dirname, join, resolve } from 'path'
 import { getOriginalCwd, getSessionTrustAccepted } from '../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../memdir/paths.js'
 import { logEvent } from '../services/analytics/index.js'
@@ -19,6 +17,7 @@ import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getGlobalClaudeFile } from './env.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { ConfigParseError, getErrnoCode } from './errors.js'
+import { basename, dirname, join, randomBytes, resolve } from './imports.js'
 import { writeFileSyncAndFlush_DEPRECATED } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
 import { findCanonicalGitRoot } from './git.js'
@@ -35,10 +34,10 @@ import { PRIMARY_PROJECT_INSTRUCTION_FILE } from './projectInstructions.js'
 import { isBrowserRuntime } from './imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = feature('TEAMMEM')
+const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
-const ccrAutoConnect = feature('CCR_AUTO_CONNECT')
+const ccrAutoConnect = !isBrowserRuntime() && feature('CCR_AUTO_CONNECT')
   ? (require('../bridge/bridgeEnabled.js') as typeof import('../bridge/bridgeEnabled.js'))
   : null
 
@@ -1252,7 +1251,7 @@ export function getGlobalConfig(): GlobalConfig {
 export function getRemoteControlAtStartup(): boolean {
   const explicit = getGlobalConfig().remoteControlAtStartup
   if (explicit !== undefined) return explicit
-  if (feature('CCR_AUTO_CONNECT')) {
+  if (!isBrowserRuntime() && feature('CCR_AUTO_CONNECT')) {
     if (ccrAutoConnect?.getCcrAutoConnectDefault()) return true
   }
   return false
@@ -1964,13 +1963,13 @@ export function getMemoryPath(memoryType: MemoryType): string {
       return join(cwd, 'CLAUDE.local.md')
     case 'Project':
       return join(cwd, PRIMARY_PROJECT_INSTRUCTION_FILE)
-    case 'Managed':
+  case 'Managed':
       return join(getManagedFilePath(), 'CLAUDE.md')
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
   // TeamMem is only a valid MemoryType when feature('TEAMMEM') is true
-  if (feature('TEAMMEM')) {
+  if (!isBrowserRuntime() && feature('TEAMMEM')) {
     return teamMemPaths!.getTeamMemEntrypoint()
   }
   return '' // unreachable in external builds where TeamMem is not in MemoryType

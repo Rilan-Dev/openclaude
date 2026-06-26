@@ -3,7 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 
 const chromePath =
   'C:/Users/moham/AppData/Local/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-win64/chrome-headless-shell.exe'
-const pageUrl = 'http://localhost:3000/'
+const pageUrl = process.env.WEBUI_PROBE_URL || 'http://localhost:5175/'
 const debugPort = 9336
 
 async function waitForJsonList(port) {
@@ -123,7 +123,7 @@ const evalResult = await send('Runtime.evaluate', {
 })
 console.log(`[page] ${JSON.stringify(evalResult)}`)
 
-const probePrompt = process.env.WEBUI_PROBE_PROMPT
+const probePrompt = process.env.WEBUI_PROBE_PROMPT || 'hi'
 if (probePrompt) {
   const setInputResult = await send('Runtime.evaluate', {
     expression: `(() => {

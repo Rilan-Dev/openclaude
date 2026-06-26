@@ -13,6 +13,7 @@ import { getDisplayPath } from '../../utils/file.js';
 import { formatDuration, formatSecondsShort } from '../../utils/format.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import type { buildMessageLookups } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/imports.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { CtrlOToExpand } from '../CtrlOToExpand.js';
 import { useSelectedMessageBg } from '../messageActions.js';
@@ -20,7 +21,7 @@ import { PrBadge } from '../PrBadge.js';
 import { ToolUseLoader } from '../ToolUseLoader.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemCollapsed = feature('TEAMMEM') ? require('./teamMemCollapsed.js') as typeof import('./teamMemCollapsed.js') : null;
+const teamMemCollapsed = !isBrowserRuntime() && feature('TEAMMEM') ? require('./teamMemCollapsed.js') as typeof import('./teamMemCollapsed.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 // Hold each ⤿ hint for a minimum duration so fast-completing tool calls

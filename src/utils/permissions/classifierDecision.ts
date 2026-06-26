@@ -20,27 +20,28 @@ import { TEAM_DELETE_TOOL_NAME } from '../../tools/TeamDeleteTool/constants.js'
 import { TODO_WRITE_TOOL_NAME } from '../../tools/TodoWriteTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { YOLO_CLASSIFIER_TOOL_NAME } from './yoloClassifier.js'
+import { isBrowserRuntime } from '../imports.js'
 
 // Ant-only tool names: conditional require so Bun can DCE these in external builds.
 // Gates mirror tools.ts. Keeps the tool name strings out of cli.js.
 /* eslint-disable @typescript-eslint/no-require-imports */
-const TERMINAL_CAPTURE_TOOL_NAME = feature('TERMINAL_PANEL')
+const TERMINAL_CAPTURE_TOOL_NAME = !isBrowserRuntime() && feature('TERMINAL_PANEL')
   ? (
       require('../../tools/TerminalCaptureTool/prompt.js') as typeof import('../../tools/TerminalCaptureTool/prompt.js')
     ).TERMINAL_CAPTURE_TOOL_NAME
   : null
-const OVERFLOW_TEST_TOOL_NAME = feature('OVERFLOW_TEST_TOOL')
+const OVERFLOW_TEST_TOOL_NAME = !isBrowserRuntime() && feature('OVERFLOW_TEST_TOOL')
   ? (
       require('../../tools/OverflowTestTool/OverflowTestTool.js') as typeof import('../../tools/OverflowTestTool/OverflowTestTool.js')
     ).OVERFLOW_TEST_TOOL_NAME
   : null
 const VERIFY_PLAN_EXECUTION_TOOL_NAME =
-  process.env.USER_TYPE === 'ant'
+  !isBrowserRuntime() && process.env.USER_TYPE === 'ant'
     ? (
         require('../../tools/VerifyPlanExecutionTool/constants.js') as typeof import('../../tools/VerifyPlanExecutionTool/constants.js')
       ).VERIFY_PLAN_EXECUTION_TOOL_NAME
     : null
-const WORKFLOW_TOOL_NAME = feature('WORKFLOW_SCRIPTS')
+const WORKFLOW_TOOL_NAME = !isBrowserRuntime() && feature('WORKFLOW_SCRIPTS')
   ? (
       require('../../tools/WorkflowTool/constants.js') as typeof import('../../tools/WorkflowTool/constants.js')
     ).WORKFLOW_TOOL_NAME

@@ -1,5 +1,8 @@
 import { deflateSync as fflateDeflateSync } from 'fflate'
 
+const NativeTextEncoder = globalThis.TextEncoder
+const NativeTextDecoder = globalThis.TextDecoder
+
 const unavailable = name => {
   throw new Error(`${name} is not available in the browser web UI`)
 }
@@ -150,8 +153,8 @@ export class AsyncLocalStorage {
   }
 }
 
-const textEncoder = new TextEncoder()
-const textDecoder = new TextDecoder()
+const textEncoder = new NativeTextEncoder()
+const textDecoder = new NativeTextDecoder()
 
 export class Buffer extends Uint8Array {
   static from(input, encoding = 'utf8') {
@@ -239,6 +242,9 @@ export function randomInt(min, max, callback) {
 }
 
 export const webcrypto = globalThis.crypto
+
+export const TextEncoder = NativeTextEncoder
+export const TextDecoder = NativeTextDecoder
 
 export function createHash() {
   const chunks = []
@@ -431,6 +437,7 @@ export async function mkdir() {}
 export async function chmod() {}
 export async function copyFile() {}
 export async function link() {}
+export async function truncate() {}
 export async function symlink() {}
 export async function rename() {}
 export async function rm() {}

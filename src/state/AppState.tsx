@@ -27,7 +27,7 @@ import { getDefaultAppState } from './AppStateStore.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const VoiceProvider: React.ComponentType<{
   children: React.ReactNode
-}> = feature('VOICE_MODE')
+}> = !isBrowserRuntime() && feature('VOICE_MODE')
   ? require('../context/voice.js').VoiceProvider
   : ({ children }) => children
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -60,7 +60,34 @@ type Props = {
 
 const HasAppStateContext = React.createContext<boolean>(false)
 
+let browserAppStore: AppStateStore | undefined
+
+function BrowserAppStateProvider({
+  children,
+  initialState,
+  onChangeAppState,
+}: Props): React.ReactNode {
+  if (!browserAppStore) {
+    browserAppStore = createStore(
+      initialState ?? getDefaultAppState(),
+      onChangeAppState,
+    )
+  }
+
+  return (
+    <HasAppStateContext.Provider value={true}>
+      <AppStoreContext.Provider value={browserAppStore}>
+        {children}
+      </AppStoreContext.Provider>
+    </HasAppStateContext.Provider>
+  )
+}
+
 export function AppStateProvider(t0: Props): React.ReactNode {
+  if (isBrowserRuntime()) {
+    return <BrowserAppStateProvider {...t0} />
+  }
+
   const { children, initialState, onChangeAppState } = t0
 
   const hasAppStateContext = useContext(HasAppStateContext)

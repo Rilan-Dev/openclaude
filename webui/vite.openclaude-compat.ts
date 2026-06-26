@@ -378,8 +378,17 @@ export function browserAliasesFromRootPackage(): Record<string, string> {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
   const browser = pkg.browser ?? {}
   const aliases: Record<string, string> = {}
+  const reactBrowserKeys = new Set([
+    'react',
+    'react/jsx-runtime',
+    'react/jsx-dev-runtime',
+    'react-dom',
+    'react-dom/client',
+    'react-dom/server',
+  ])
 
   for (const [key, value] of Object.entries(browser)) {
+    if (reactBrowserKeys.has(key)) continue
     if (typeof value === 'string') {
       aliases[key] = path.resolve(repoRoot, value)
     }

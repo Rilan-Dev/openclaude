@@ -3,13 +3,16 @@ import type { Task, TaskType } from './Task.js'
 import { DreamTask } from './tasks/DreamTask/DreamTask.js'
 import { LocalAgentTask } from './tasks/LocalAgentTask/LocalAgentTask.js'
 import { LocalShellTask } from './tasks/LocalShellTask/LocalShellTask.js'
-import { RemoteAgentTask } from './tasks/RemoteAgentTask/RemoteAgentTask.js'
+import { isBrowserRuntime } from './utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const LocalWorkflowTask: Task | null = feature('WORKFLOW_SCRIPTS')
+const RemoteAgentTask: Task | null = !isBrowserRuntime()
+  ? require('./tasks/RemoteAgentTask/RemoteAgentTask.js').RemoteAgentTask
+  : null
+const LocalWorkflowTask: Task | null = !isBrowserRuntime() && feature('WORKFLOW_SCRIPTS')
   ? require('./tasks/LocalWorkflowTask/LocalWorkflowTask.js').LocalWorkflowTask
   : null
-const MonitorMcpTask: Task | null = feature('MONITOR_TOOL')
+const MonitorMcpTask: Task | null = !isBrowserRuntime() && feature('MONITOR_TOOL')
   ? require('./tasks/MonitorMcpTask/MonitorMcpTask.js').MonitorMcpTask
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

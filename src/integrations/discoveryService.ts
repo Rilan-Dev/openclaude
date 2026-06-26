@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import {
   getCachedModels,
   isCacheStale,
@@ -31,6 +30,7 @@ import {
 } from '../utils/providerDiscovery.js'
 import { parseCustomHeadersEnv } from '../utils/providerCustomHeaders.js'
 import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
+import { hashContent } from '../utils/hash.js'
 
 export type RouteDiscoveryResult = {
   routeId: string
@@ -112,10 +112,7 @@ function normalizeDiscoveryCacheHeaders(
 }
 
 function hashDiscoveryCachePartition(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(value))
-    .digest('hex')
-    .slice(0, 16)
+  return hashContent(JSON.stringify(value)).slice(0, 16)
 }
 
 export function getDiscoveryCacheKey(

@@ -21,6 +21,7 @@ import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { GrepTool } from '../tools/GrepTool/GrepTool.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import type { HookCallback } from '../types/hooks.js'
+import { isBrowserRuntime } from './imports.js'
 import {
   detectSessionFileType,
   detectSessionPatternType,
@@ -29,13 +30,13 @@ import {
 } from './memoryFileDetection.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = feature('TEAMMEM')
+const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
-const teamMemWatcher = feature('TEAMMEM')
+const teamMemWatcher = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../services/teamMemorySync/watcher.js') as typeof import('../services/teamMemorySync/watcher.js'))
   : null
-const memoryShapeTelemetry = feature('MEMORY_SHAPE_TELEMETRY')
+const memoryShapeTelemetry = !isBrowserRuntime() && feature('MEMORY_SHAPE_TELEMETRY')
   ? (require('../memdir/memoryShapeTelemetry.js') as typeof import('../memdir/memoryShapeTelemetry.js'))
   : null
 
@@ -132,7 +133,7 @@ export function isMemoryFileAccess(
   if (
     filePath &&
     (isAutoMemFile(filePath) ||
-      (feature('TEAMMEM') && teamMemPaths!.isTeamMemFile(filePath)))
+      (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths?.isTeamMemFile(filePath)))
   ) {
     return true
   }
@@ -186,7 +187,7 @@ async function handleSessionFileAccess(
   }
 
   // Team memory access tracking
-  if (feature('TEAMMEM') && filePath && teamMemPaths!.isTeamMemFile(filePath)) {
+  if (!isBrowserRuntime() && feature('TEAMMEM') && filePath && teamMemPaths?.isTeamMemFile(filePath)) {
     logEvent('tengu_team_mem_accessed', {
       tool: input.tool_name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       ...subagentProps,
@@ -207,7 +208,7 @@ async function handleSessionFileAccess(
     }
   }
 
-  if (feature('MEMORY_SHAPE_TELEMETRY') && filePath) {
+  if (!isBrowserRuntime() && feature('MEMORY_SHAPE_TELEMETRY') && filePath) {
     const scope = memoryScopeForPath(filePath)
     if (
       scope !== null &&

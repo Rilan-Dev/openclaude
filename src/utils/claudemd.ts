@@ -49,6 +49,7 @@ import {
 import { truncateEntrypointContent } from '../memdir/memdir.js'
 import { getAutoMemEntrypoint, isAutoMemoryEnabled } from '../memdir/paths.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+import { isBrowserRuntime } from './imports.js'
 import {
   getCurrentProjectConfig,
   getManagedClaudeRulesDir,
@@ -84,7 +85,7 @@ import { isSettingSourceEnabled } from './settings/constants.js'
 import { getInitialSettings } from './settings/settings.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = feature('TEAMMEM')
+const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -1016,9 +1017,13 @@ export const getMemoryFiles = memoize(
     }
 
     // Team memory entrypoint - only if feature is on and file exists
-    if (feature('TEAMMEM') && teamMemPaths!.isTeamMemoryEnabled()) {
+    if (
+      !isBrowserRuntime() &&
+      feature('TEAMMEM') &&
+      teamMemPaths?.isTeamMemoryEnabled()
+    ) {
       const { info: teamMemEntry } = await safelyReadMemoryFileAsync(
-        teamMemPaths!.getTeamMemEntrypoint(),
+        teamMemPaths.getTeamMemEntrypoint(),
         'TeamMem',
       )
       if (teamMemEntry) {
@@ -1056,7 +1061,7 @@ export const getMemoryFiles = memoize(
         local_count: typeCounts['Local'] ?? 0,
         managed_count: typeCounts['Managed'] ?? 0,
         automem_count: typeCounts['AutoMem'] ?? 0,
-        ...(feature('TEAMMEM')
+        ...(!isBrowserRuntime() && feature('TEAMMEM')
           ? { teammem_count: typeCounts['TeamMem'] ?? 0 }
           : {}),
         duration_ms: Date.now() - startTime,
@@ -1194,14 +1199,14 @@ export const getClaudeMds = (
           ? ' (project instructions, checked into the codebase)'
           : file.type === 'Local'
             ? " (user's private project instructions, not checked in)"
-            : feature('TEAMMEM') && file.type === 'TeamMem'
+          : !isBrowserRuntime() && feature('TEAMMEM') && file.type === 'TeamMem'
               ? ' (shared team memory, synced across the organization)'
               : file.type === 'AutoMem'
                 ? " (user's auto-memory, persists across conversations)"
                 : " (user's private global instructions for all projects)"
 
       const content = file.content.trim()
-      if (feature('TEAMMEM') && file.type === 'TeamMem') {
+      if (!isBrowserRuntime() && feature('TEAMMEM') && file.type === 'TeamMem') {
         memories.push(
           `Contents of ${file.path}${description}:\n\n<team-memory-content source="shared">\n${content}\n</team-memory-content>`,
         )

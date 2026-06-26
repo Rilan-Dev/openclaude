@@ -14,11 +14,12 @@ import {
 } from './services/compact/autoCompact.js'
 import { consumeCompactionRequest } from './utils/memoryPressure.js'
 import { buildPostCompactMessages } from './services/compact/compact.js'
+import { isBrowserRuntime } from './utils/imports.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
-const reactiveCompact = feature('REACTIVE_COMPACT')
+const reactiveCompact = !isBrowserRuntime() && feature('REACTIVE_COMPACT')
   ? (require('./services/compact/reactiveCompact.js') as typeof import('./services/compact/reactiveCompact.js'))
   : null
-const contextCollapse = feature('CONTEXT_COLLAPSE')
+const contextCollapse = !isBrowserRuntime() && feature('CONTEXT_COLLAPSE')
   ? (require('./services/contextCollapse/index.js') as typeof import('./services/contextCollapse/index.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -67,10 +68,10 @@ import {
   startRelevantMemoryPrefetch,
 } from './utils/attachments.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
-const skillPrefetch = feature('EXPERIMENTAL_SKILL_SEARCH')
+const skillPrefetch = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('./services/skillSearch/prefetch.js') as typeof import('./services/skillSearch/prefetch.js'))
   : null
-const jobClassifier = feature('TEMPLATES')
+const jobClassifier = !isBrowserRuntime() && feature('TEMPLATES')
   ? (require('./jobs/classifier.js') as typeof import('./jobs/classifier.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -127,10 +128,10 @@ import {
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
-const snipModule = feature('HISTORY_SNIP')
+const snipModule = !isBrowserRuntime() && feature('HISTORY_SNIP')
   ? (require('./services/compact/snipCompact.js') as typeof import('./services/compact/snipCompact.js'))
   : null
-const taskSummaryModule = feature('BG_SESSIONS')
+const taskSummaryModule = !isBrowserRuntime() && feature('BG_SESSIONS')
   ? (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

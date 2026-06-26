@@ -58,12 +58,13 @@ import {
   type PermissionRuleFromEditableSettings,
   shouldAllowManagedPermissionRulesOnly,
 } from './permissionsLoader.js'
+import { isBrowserRuntime } from '../imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const classifierDecisionModule = feature('TRANSCRIPT_CLASSIFIER')
+const classifierDecisionModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
   ? (require('./classifierDecision.js') as typeof import('./classifierDecision.js'))
   : null
-const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
+const autoModeStateModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
   ? (require('./autoModeState.js') as typeof import('./autoModeState.js'))
   : null
 
@@ -71,6 +72,9 @@ function applyPermissionUpdatesToLiveContext(
   context: ToolPermissionContext,
   updates: PermissionUpdate[],
 ): ToolPermissionContext {
+  if (isBrowserRuntime()) {
+    return context
+  }
   const { applyPermissionUpdatesToLiveContext: applyLiveUpdates } =
     require('./permissionSetup.js') as typeof import('./permissionSetup.js')
   return applyLiveUpdates(context, updates)
@@ -677,7 +681,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
 
       // Allowlisted tools are safe and don't need YOLO classification.
       // This uses the safe-tool allowlist to skip unnecessary classifier API calls.
-      if (classifierDecisionModule!.isAutoModeAllowlistedTool(tool.name)) {
+      if (classifierDecisionModule?.isAutoModeAllowlistedTool(tool.name)) {
         const newDenialState = recordSuccess(denialState)
         persistDenialState(context, newDenialState)
         logForDebugging(

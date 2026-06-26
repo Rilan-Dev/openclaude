@@ -69,36 +69,36 @@ import {
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
-const getCachedMCConfigForFRC = feature('CACHED_MICROCOMPACT')
+const getCachedMCConfigForFRC = !isBrowserRuntime() && feature('CACHED_MICROCOMPACT')
   ? (
       require('../services/compact/cachedMCConfig.js') as typeof import('../services/compact/cachedMCConfig.js')
     ).getCachedMCConfig
   : null
 
 const proactiveModule =
-  feature('PROACTIVE') || feature('KAIROS')
+  !isBrowserRuntime() && (feature('PROACTIVE') || feature('KAIROS'))
     ? require('../proactive/index.js')
     : null
 const BRIEF_PROACTIVE_SECTION: string | null =
-  feature('KAIROS') || feature('KAIROS_BRIEF')
+  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (
         require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')
       ).BRIEF_PROACTIVE_SECTION
     : null
 const briefToolModule =
-  feature('KAIROS') || feature('KAIROS_BRIEF')
+  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js'))
     : null
-const DISCOVER_SKILLS_TOOL_NAME: string | null = feature(
-  'EXPERIMENTAL_SKILL_SEARCH',
-)
+const DISCOVER_SKILLS_TOOL_NAME: string | null =
+  !isBrowserRuntime() &&
+  feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('../tools/DiscoverSkillsTool/prompt.js') as typeof import('../tools/DiscoverSkillsTool/prompt.js')
     ).DISCOVER_SKILLS_TOOL_NAME
   : null
 // Capture the module (not .isSkillSearchEnabled directly) so spyOn() in tests
 // patches what we actually call — a captured function ref would point past the spy.
-const skillSearchFeatureCheck = feature('EXPERIMENTAL_SKILL_SEARCH')
+const skillSearchFeatureCheck = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('../services/skillSearch/featureCheck.js') as typeof import('../services/skillSearch/featureCheck.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
+import { isBrowserRuntime } from '../src/utils/imports'
 import {
   browserAliasesFromRootPackage,
   openClaudeCompatPlugin,
@@ -10,6 +11,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const webuiRoot = __dirname
 const repoRoot = path.resolve(__dirname, '..')
 
 function resolveBackendOrigin() {
@@ -31,6 +33,7 @@ function resolveBackendOrigin() {
 
 const backendOrigin = resolveBackendOrigin()
 const browserAliases = browserAliasesFromRootPackage()
+const excludedBrowserAliases = Object.keys(browserAliases)
 
 export default defineConfig({
   plugins: [
@@ -57,6 +60,7 @@ export default defineConfig({
   },
 
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       ...browserAliases,
 
@@ -69,8 +73,9 @@ export default defineConfig({
   },
 
   optimizeDeps: {
+    include: ['react', 'react-dom/client'],
     exclude: [
-      ...Object.keys(browserAliases),
+      ...excludedBrowserAliases,
       'bun:bundle',
       'plist',
       'cacache',

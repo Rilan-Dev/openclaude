@@ -60,9 +60,10 @@ import {
   buildExtractAutoOnlyPrompt,
   buildExtractCombinedPrompt,
 } from './prompts.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = feature('TEAMMEM')
+const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
   ? (require('../../memdir/teamMemPaths.js') as typeof import('../../memdir/teamMemPaths.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

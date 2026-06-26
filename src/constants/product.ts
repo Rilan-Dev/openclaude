@@ -1,3 +1,5 @@
+import { isBrowserRuntime } from '../utils/imports.js'
+
 export const PRODUCT_DISPLAY_NAME = 'OpenClaude'
 export const PRODUCT_URL = 'https://claude.com/claude-code'
 
@@ -68,8 +70,10 @@ export function getRemoteSessionUrl(
   ingressUrl?: string,
 ): string {
   /* eslint-disable @typescript-eslint/no-require-imports */
-  const { toCompatSessionId } =
-    require('../bridge/sessionIdCompat.js') as typeof import('../bridge/sessionIdCompat.js')
+  const toCompatSessionId = isBrowserRuntime()
+    ? (value: string) => value
+    : (require('../bridge/sessionIdCompat.js') as typeof import('../bridge/sessionIdCompat.js'))
+        .toCompatSessionId
   /* eslint-enable @typescript-eslint/no-require-imports */
   const compatId = toCompatSessionId(sessionId)
   const baseUrl = getClaudeAiBaseUrl(compatId, ingressUrl)

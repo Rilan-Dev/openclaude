@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { isBrowserRuntime } from '../imports.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { TASK_OUTPUT_TOOL_NAME } from '../../tools/TaskOutputTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
@@ -8,7 +9,7 @@ import type { PermissionRuleValue } from './PermissionRule.js'
 // their strings don't leak into external builds. Static imports always bundle.
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRIEF_TOOL_NAME: string | null =
-  feature('KAIROS') || feature('KAIROS_BRIEF')
+  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (
         require('../../tools/BriefTool/prompt.js') as typeof import('../../tools/BriefTool/prompt.js')
       ).BRIEF_TOOL_NAME

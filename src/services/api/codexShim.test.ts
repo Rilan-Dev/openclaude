@@ -127,18 +127,6 @@ describe('Codex provider config', () => {
     expect(resolved.resolvedModel).toBe('gpt-5.5')
   })
 
-  test('treats a local /codex proxy base URL as Codex transport', async () => {
-    const { resolveProviderRequest } = await importFreshProviderConfigModule()
-    const resolved = resolveProviderRequest({
-      model: 'codexplan',
-      baseUrl: 'http://127.0.0.1:5175/codex',
-    })
-
-    expect(resolved.transport).toBe('codex_responses')
-    expect(resolved.baseUrl).toBe('http://127.0.0.1:5175/codex')
-    expect(resolved.resolvedModel).toBe('gpt-5.5')
-  })
-
   test('resolves codexplan to Codex transport even when OPENAI_BASE_URL is the string "undefined"', async () => {
     const { resolveProviderRequest } = await importFreshProviderConfigModule()
     // On Windows, env vars can leak as the literal string "undefined" instead of

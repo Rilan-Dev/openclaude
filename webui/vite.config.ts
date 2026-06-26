@@ -125,6 +125,16 @@ export default defineConfig(({ mode }) => {
         allow: [repoRoot],
       },
       proxy: {
+        '/api/responses': {
+          target: backendOrigin,
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api/, ''),
+        },
+        '/api/chat/completions': {
+          target: backendOrigin,
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api/, ''),
+        },
         '/api': { target: backendOrigin, changeOrigin: true },
         '/socket.io': { target: backendOrigin, ws: true },
       },

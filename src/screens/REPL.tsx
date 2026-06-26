@@ -608,190 +608,7 @@ function logQueryLifecycle(event: string, context: QueryLifecycleContext, extras
   logForDebugging(formatQueryLifecycleLogMessage(event, context, extras));
 }
 type ReplRenderMode = 'terminal' | 'web';
-const WEB_SURFACE_STYLES: Record<string, React.CSSProperties> = {
-  shell: {
-    minHeight: '100vh',
-    display: 'grid',
-    gridTemplateColumns: 'minmax(16rem, 22rem) minmax(0, 1fr)',
-    gap: '1rem',
-    padding: '1rem',
-    boxSizing: 'border-box',
-    color: '#f3eadc',
-    background: 'radial-gradient(circle at 16% 8%, rgba(239, 184, 90, 0.14), transparent 24rem), radial-gradient(circle at 82% 12%, rgba(95, 145, 154, 0.16), transparent 24rem), #0c1115'
-  },
-  sidebar: {
-    border: '1px solid rgba(243, 234, 220, 0.12)',
-    borderRadius: '1.5rem',
-    padding: '1rem',
-    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025))',
-    boxShadow: '0 1.5rem 4rem rgba(0, 0, 0, 0.32)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between'
-  },
-  brand: {
-    display: 'grid',
-    gap: '0.75rem'
-  },
-  badge: {
-    width: 'fit-content',
-    border: '1px solid rgba(239, 184, 90, 0.28)',
-    borderRadius: '999px',
-    padding: '0.35rem 0.7rem',
-    color: '#efb85a',
-    fontSize: '0.78rem',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase'
-  },
-  title: {
-    margin: 0,
-    fontSize: 'clamp(2rem, 5vw, 4.7rem)',
-    lineHeight: 0.92,
-    letterSpacing: '-0.08em',
-    fontFamily: '"Fraunces", "Georgia", serif'
-  },
-  sidebarText: {
-    color: 'rgba(243, 234, 220, 0.72)',
-    lineHeight: 1.55,
-    margin: 0
-  },
-  statGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: '0.65rem',
-    marginTop: '1.25rem'
-  },
-  stat: {
-    border: '1px solid rgba(243, 234, 220, 0.1)',
-    borderRadius: '1rem',
-    padding: '0.8rem',
-    background: 'rgba(0, 0, 0, 0.18)'
-  },
-  statValue: {
-    display: 'block',
-    color: '#fff6df',
-    fontSize: '1.35rem',
-    fontWeight: 750
-  },
-  statLabel: {
-    color: 'rgba(243, 234, 220, 0.58)',
-    fontSize: '0.76rem'
-  },
-  main: {
-    minWidth: 0,
-    border: '1px solid rgba(243, 234, 220, 0.12)',
-    borderRadius: '1.5rem',
-    overflow: 'hidden',
-    background: 'rgba(7, 11, 14, 0.72)',
-    boxShadow: '0 1.5rem 4rem rgba(0, 0, 0, 0.34)',
-    display: 'grid',
-    gridTemplateRows: 'auto minmax(0, 1fr) auto',
-    backdropFilter: 'blur(18px)'
-  },
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '1rem',
-    padding: '0.9rem 1rem',
-    borderBottom: '1px solid rgba(243, 234, 220, 0.1)',
-    background: 'rgba(255, 255, 255, 0.045)'
-  },
-  toolbarTitle: {
-    margin: 0,
-    fontSize: '0.9rem',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'rgba(243, 234, 220, 0.68)'
-  },
-  statusPill: {
-    borderRadius: '999px',
-    padding: '0.35rem 0.7rem',
-    background: 'rgba(95, 145, 154, 0.14)',
-    color: '#a9d6db',
-    fontSize: '0.78rem',
-    whiteSpace: 'nowrap'
-  },
-  transcript: {
-    minHeight: 0,
-    overflowY: 'auto',
-    padding: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.85rem'
-  },
-  message: {
-    maxWidth: 'min(54rem, 92%)',
-    border: '1px solid rgba(243, 234, 220, 0.1)',
-    borderRadius: '1.15rem',
-    padding: '0.85rem 0.95rem',
-    whiteSpace: 'pre-wrap',
-    overflowWrap: 'anywhere',
-    lineHeight: 1.55
-  },
-  messageMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '1rem',
-    marginBottom: '0.35rem',
-    color: 'rgba(243, 234, 220, 0.48)',
-    fontSize: '0.73rem',
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase'
-  },
-  placeholder: {
-    alignSelf: 'flex-end',
-    background: 'linear-gradient(135deg, rgba(239, 184, 90, 0.2), rgba(239, 184, 90, 0.08))'
-  },
-  assistant: {
-    alignSelf: 'flex-start',
-    background: 'rgba(255, 255, 255, 0.055)'
-  },
-  user: {
-    alignSelf: 'flex-end',
-    background: 'linear-gradient(135deg, rgba(95, 145, 154, 0.22), rgba(95, 145, 154, 0.08))'
-  },
-  system: {
-    alignSelf: 'center',
-    maxWidth: 'min(46rem, 100%)',
-    background: 'rgba(239, 184, 90, 0.09)',
-    color: '#ecd7ad'
-  },
-  composer: {
-    borderTop: '1px solid rgba(243, 234, 220, 0.1)',
-    padding: '1rem',
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) auto',
-    gap: '0.75rem',
-    background: 'rgba(255, 255, 255, 0.035)'
-  },
-  textarea: {
-    minHeight: '3rem',
-    maxHeight: '12rem',
-    resize: 'vertical',
-    border: '1px solid rgba(243, 234, 220, 0.16)',
-    borderRadius: '1rem',
-    padding: '0.9rem 1rem',
-    color: '#fff8ea',
-    background: 'rgba(0, 0, 0, 0.28)',
-    outline: 'none',
-    font: 'inherit',
-    lineHeight: 1.45
-  },
-  send: {
-    border: 0,
-    borderRadius: '1rem',
-    padding: '0 1.25rem',
-    color: '#1b1206',
-    background: 'linear-gradient(135deg, #ffd37b, #e79a32)',
-    fontWeight: 800,
-    cursor: 'pointer'
-  },
-  disabledSend: {
-    opacity: 0.5,
-    cursor: 'not-allowed'
-  }
-};
+
 function webMessageRole(message: MessageType): 'assistant' | 'user' | 'system' {
   if (message.type === 'assistant') return 'assistant';
   if (message.type === 'user' || message.type === 'attachment') return 'user';
@@ -838,9 +655,6 @@ function webMessageText(message: MessageType): string {
   };
   return stringifyWebContent(candidate.message?.content ?? candidate.attachment ?? candidate.content ?? candidate.text ?? message);
 }
-function webElement(type: string, props: Record<string, unknown> | null, ...children: React.ReactNode[]): React.ReactElement {
-  return React.createElement(type, props, ...children);
-}
 function WebREPLSurface({
   messages,
   streamingText,
@@ -866,6 +680,8 @@ function WebREPLSurface({
   model: string;
   toolCount: number;
 }) {
+  const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const [stickToBottom, setStickToBottom] = useState(true);
   const handleSubmit = useCallback((event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextInput = inputValue.trim();
@@ -876,115 +692,190 @@ function WebREPLSurface({
       resetHistory: () => { }
     });
   }, [disabled, inputValue, isLoading, onSubmit, setInputValue]);
-  const sendStyle = isLoading || disabled || inputValue.trim().length === 0 ? {
-    ...WEB_SURFACE_STYLES.send,
-    ...WEB_SURFACE_STYLES.disabledSend
-  } : WEB_SURFACE_STYLES.send;
-  const emptyMessage = webElement('article', {
-    style: {
-      ...WEB_SURFACE_STYLES.message,
-      ...WEB_SURFACE_STYLES.system
-    }
-  }, webElement('div', {
-    style: WEB_SURFACE_STYLES.messageMeta
-  }, webElement('span', null, 'system'), webElement('span', null, 'empty')), 'Start a prompt below. The web UI calls the same REPL submit function directly.');
-  const renderedMessages = messages.length === 0 ? [emptyMessage] : messages.map((message, index) => {
+  const stateLabel = isLoading ? streamMode : 'ready';
+  const statusLabel = disabled ? 'Read only' : isLoading ? 'Streaming' : 'Connected';
+  const sendDisabled = isLoading || disabled || inputValue.trim().length === 0;
+  const transcriptCountLabel = `${messages.length} messages`;
+  const transcriptModelLabel = model || 'default model';
+  const transcriptSummaryLabel = `${transcriptCountLabel} · ${toolCount} tools · ${transcriptModelLabel}`;
+  useEffect(() => {
+    if (!stickToBottom) return;
+    const transcript = transcriptRef.current;
+    if (!transcript) return;
+    transcript.scrollTo({
+      top: transcript.scrollHeight,
+      behavior: 'smooth'
+    });
+  }, [messages, placeholderText, streamingText, stickToBottom]);
+  const emptyStateMessage = (
+    <article key="empty-state" className="repl-message repl-messageEmpty">
+      <div className="repl-emptyTitle">Start the conversation</div>
+      <div className="repl-emptyCopy">
+        Ask OpenClaude to inspect code, explain a failure, draft a change, or stream tool output here.
+      </div>
+    </article>
+  );
+  const renderedMessages = messages.length === 0 ? [emptyStateMessage] : messages.map((message, index) => {
     const role = webMessageRole(message);
-    return webElement('article', {
-      key: `${message.uuid ?? role}-${index}`,
-      style: {
-        ...WEB_SURFACE_STYLES.message,
-        ...WEB_SURFACE_STYLES[role]
-      }
-    }, webElement('div', {
-      style: WEB_SURFACE_STYLES.messageMeta
-    }, webElement('span', null, role), webElement('span', null, message.type)), webMessageText(message));
+    return (
+      <article
+        key={`${message.uuid ?? role}-${index}`}
+        className={`repl-message repl-message${role.charAt(0).toUpperCase()}${role.slice(1)}`}
+      >
+        <div className="repl-messageMeta">
+          <span className="repl-messageRole">{role}</span>
+          <span className="repl-messageType">{message.type}</span>
+        </div>
+        <div className="repl-messageText">{webMessageText(message)}</div>
+      </article>
+    );
   });
-  const placeholderMessage = placeholderText ? webElement('article', {
-    style: {
-      ...WEB_SURFACE_STYLES.message,
-      ...WEB_SURFACE_STYLES.placeholder
-    }
-  }, webElement('div', {
-    style: WEB_SURFACE_STYLES.messageMeta
-  }, webElement('span', null, 'you'), webElement('span', null, 'queued')), placeholderText) : null;
-  const streamingMessage = streamingText ? webElement('article', {
-    style: {
-      ...WEB_SURFACE_STYLES.message,
-      ...WEB_SURFACE_STYLES.assistant
-    }
-  }, webElement('div', {
-    style: WEB_SURFACE_STYLES.messageMeta
-  }, webElement('span', null, 'assistant'), webElement('span', null, 'streaming')), streamingText) : null;
-  return webElement('div', {
-    style: WEB_SURFACE_STYLES.shell
-  }, webElement('aside', {
-    style: WEB_SURFACE_STYLES.sidebar
-  }, webElement('div', {
-    style: WEB_SURFACE_STYLES.brand
-  }, webElement('span', {
-    style: WEB_SURFACE_STYLES.badge
-  }, 'Agentic AI'), webElement('h1', {
-    style: WEB_SURFACE_STYLES.title
-  }, 'OpenClaude'), webElement('p', {
-    style: WEB_SURFACE_STYLES.sidebarText
-  }, 'Same REPL controller, message stream, submit path, tools, and model loop. This branch only changes the render surface from terminal rows to browser UI.')), webElement('div', {
-    style: WEB_SURFACE_STYLES.statGrid
-  }, webElement('div', {
-    style: WEB_SURFACE_STYLES.stat
-  }, webElement('span', {
-    style: WEB_SURFACE_STYLES.statValue
-  }, String(messages.length)), webElement('span', {
-    style: WEB_SURFACE_STYLES.statLabel
-  }, 'messages')), webElement('div', {
-    style: WEB_SURFACE_STYLES.stat
-  }, webElement('span', {
-    style: WEB_SURFACE_STYLES.statValue
-  }, String(toolCount)), webElement('span', {
-    style: WEB_SURFACE_STYLES.statLabel
-  }, 'tools')), webElement('div', {
-    style: WEB_SURFACE_STYLES.stat
-  }, webElement('span', {
-    style: WEB_SURFACE_STYLES.statValue
-  }, isLoading ? 'live' : 'idle'), webElement('span', {
-    style: WEB_SURFACE_STYLES.statLabel
-  }, 'state')), webElement('div', {
-    style: WEB_SURFACE_STYLES.stat
-  }, webElement('span', {
-    style: WEB_SURFACE_STYLES.statValue
-  }, model), webElement('span', {
-    style: WEB_SURFACE_STYLES.statLabel
-  }, 'model')))), webElement('main', {
-    style: WEB_SURFACE_STYLES.main
-  }, webElement('header', {
-    style: WEB_SURFACE_STYLES.toolbar
-  }, webElement('h2', {
-    style: WEB_SURFACE_STYLES.toolbarTitle
-  }, 'Live Session'), webElement('span', {
-    style: WEB_SURFACE_STYLES.statusPill
-  }, isLoading ? streamMode : 'ready')), webElement('section', {
-    style: WEB_SURFACE_STYLES.transcript,
-    'aria-live': 'polite'
-  }, ...renderedMessages, placeholderMessage, streamingMessage), webElement('form', {
-    style: WEB_SURFACE_STYLES.composer,
-    onSubmit: handleSubmit
-  }, webElement('textarea', {
-    style: WEB_SURFACE_STYLES.textarea,
-    value: inputValue,
-    disabled,
-    placeholder: isLoading ? 'Assistant is responding...' : 'Ask OpenClaude to inspect, edit, or explain code...',
-    onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(event.currentTarget.value),
-    onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        event.currentTarget.form?.requestSubmit();
-      }
-    }
-  }), webElement('button', {
-    style: sendStyle,
-    disabled: isLoading || disabled || inputValue.trim().length === 0,
-    type: 'submit'
-  }, 'Send'))));
+  const placeholderMessage = placeholderText ? (
+    <article className="repl-message repl-messagePlaceholder">
+      <div className="repl-messageMeta">
+        <span className="repl-messageRole">you</span>
+        <span className="repl-messageType">queued</span>
+      </div>
+      <div className="repl-messageText">{placeholderText}</div>
+    </article>
+  ) : null;
+  const streamingMessage = streamingText ? (
+    <article className="repl-message repl-messageAssistant">
+      <div className="repl-messageMeta">
+        <span className="repl-messageRole">assistant</span>
+        <span className="repl-messageType">streaming</span>
+      </div>
+      <div className="repl-messageText">{streamingText}</div>
+    </article>
+  ) : null;
+  const stats = [{
+    label: 'Messages',
+    value: String(messages.length)
+  }, {
+    label: 'Tools',
+    value: String(toolCount)
+  }, {
+    label: 'State',
+    value: stateLabel
+  }, {
+    label: 'Model',
+    value: model
+  }];
+  return (
+    <div className="repl-shell">
+      <aside className="repl-rail">
+        <div className="repl-brand">
+          <div className="repl-kicker">OpenClaude Web</div>
+          <h1 className="repl-title">Browser REPL</h1>
+          <p className="repl-copy">
+            The same REPL controller, same tool routing, same streaming path.
+            Only the render surface changes from terminal rows to a browser UI.
+          </p>
+        </div>
+        <div className="repl-railCard">
+          <div className="repl-railCardHeading">Session</div>
+          <div className="repl-stats">
+            {stats.map(stat => (
+              <div key={stat.label} className="repl-stat">
+                <span className="repl-statValue">{stat.value}</span>
+                <span className="repl-statLabel">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="repl-footer">
+          <p className="repl-note">
+            Enter sends a message. Shift+Enter inserts a newline. Streaming
+            assistant output and tool calls appear inline as they resolve.
+          </p>
+          <div className="repl-pillRow">
+            <span className="repl-pill">{statusLabel}</span>
+            <span className="repl-pill">{isLoading ? 'Streaming' : 'Idle'}</span>
+            <span className="repl-pill">{`Model: ${transcriptModelLabel}`}</span>
+          </div>
+        </div>
+      </aside>
+      <main className="repl-workspace">
+        <header className="repl-workspaceHeader">
+          <div className="repl-workspaceHeaderCopy">
+            <div className="repl-workspaceHeadingRow">
+            <h2 className="repl-workspaceHeading">Live conversation</h2>
+              <span className="repl-statusChip">{statusLabel}</span>
+            </div>
+            <div className="repl-workspaceSubline">
+              {isLoading ? `Streaming ${stateLabel}` : 'Ready for the next prompt'} · {transcriptSummaryLabel}
+            </div>
+          </div>
+          <div className="repl-headerBadges" aria-hidden="true">
+            <span className="repl-miniBadge">{transcriptModelLabel}</span>
+            <span className="repl-miniBadge">{toolCount} tools</span>
+          </div>
+        </header>
+        <section
+          ref={transcriptRef}
+          className="repl-transcript"
+          aria-live="polite"
+          onScroll={event => {
+            const el = event.currentTarget;
+            const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+            setStickToBottom(distanceFromBottom < 48);
+          }}
+        >
+          {renderedMessages}
+          {placeholderMessage}
+          {streamingMessage}
+          <div className="repl-transcriptSpacer" aria-hidden="true" />
+        </section>
+        <footer className="repl-sessionFooter" aria-label="Session status">
+          <div className="repl-sessionFooterCopy">
+            <div className="repl-sessionFooterLabel">Session</div>
+            <div className="repl-sessionFooterText">
+              {isLoading ? `Streaming ${streamMode}` : 'Ready'}
+              {' · '}
+              {transcriptSummaryLabel}
+            </div>
+          </div>
+          <div className="repl-sessionFooterBadges">
+            <span className="repl-pill">{messages.length} messages</span>
+            <span className="repl-pill">{toolCount} tools</span>
+            <span className="repl-pill">{disabled ? 'Read only' : 'Interactive'}</span>
+          </div>
+        </footer>
+        <form className="repl-composerShell" onSubmit={handleSubmit}>
+          <div className="repl-composerPanel">
+            <div className="repl-composerMeta">
+              <span className="repl-composerLabel">Message composer</span>
+              <span className="repl-composerHint">
+                {disabled ? 'Chat is disabled for this session' : isLoading ? 'Assistant is responding' : 'Enter to send · Shift+Enter for newline'}
+              </span>
+            </div>
+            <div className="repl-composerRow">
+              <textarea
+                className="repl-textarea"
+                value={inputValue}
+                disabled={disabled}
+                placeholder={isLoading ? 'Assistant is responding...' : 'Ask OpenClaude to inspect, edit, explain, or summarize code...'}
+                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(event.currentTarget.value)}
+                onKeyDown={(event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+              />
+              <button
+                className="repl-sendButton"
+                disabled={sendDisabled}
+                type="submit"
+              >
+                {isLoading ? 'Sending' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </main>
+    </div>
+  );
 }
 export type Props = {
   commands: Command[];

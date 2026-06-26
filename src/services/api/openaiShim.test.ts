@@ -500,9 +500,9 @@ test('strips store from strict OpenAI-compatible responses providers', async () 
   expect(capturedBody?.store).toBeUndefined()
 })
 
-test('keeps store false for proxied Codex responses requests', async () => {
+test('keeps store false for direct Codex responses requests', async () => {
   process.env.CLAUDE_CODE_USE_OPENAI = '1'
-  process.env.OPENAI_BASE_URL = 'http://localhost:5175/codex'
+  process.env.OPENAI_BASE_URL = 'https://chatgpt.com/backend-api/codex'
   process.env.OPENAI_API_FORMAT = 'responses'
   process.env.OPENAI_MODEL = 'codexplan'
   process.env.OPENAI_API_KEY = 'codex-test-key'
@@ -542,7 +542,7 @@ test('keeps store false for proxied Codex responses requests', async () => {
     stream: false,
   })
 
-  expect(capturedUrl).toBe('http://localhost:5175/codex/responses')
+  expect(capturedUrl).toBe('https://chatgpt.com/backend-api/codex/responses')
   expect(capturedBody?.store).toBe(false)
 })
 

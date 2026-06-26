@@ -1,0 +1,23 @@
+  🔇 no-telemetry: stubbed 10 modules
+✓ Built openclaude v0.19.0 → dist/cli.mjs
+Building SDK bundle...
+  🔇 no-telemetry: stubbed 10 modules
+✓ Built SDK bundle → dist/sdk.mjs
+  🔄 feature-flags: transformed 193 files during bundling
+✓ SDK bundle: no React/Ink leakage detected
+
+Validating external lists...
+✓ CLI bundle: All dependencies accounted for (0 missing, 11 external)
+✓ SDK bundle: All dependencies accounted for (0 missing, 15 external)
+✓ INTENTIONALLY_BUNDLED: All entries still exist in package.json (58 entries)
+
+✓ All external lists valid.
+✓ SDK type declarations in sync (62 exports match).
+✓ Bundle guard: no unexpected missing-module stubs
+
+  [32m[1mVITE[22m v6.4.3[39m  [2mready in [0m[1m1076[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5175[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://100.95.249.56:[1m5175[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.6:[1m5175[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.27.48.1:[1m5175[22m/[39m

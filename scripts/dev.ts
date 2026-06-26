@@ -40,6 +40,11 @@ function readRenderModeFromDotEnv(): string | undefined {
 
 const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 
+type CodexBrowserAuth = {
+  accessToken?: string
+  accountId?: string
+}
+
 function resolveCodexAuthPath(): string | undefined {
   const explicit = process.env.CODEX_AUTH_JSON_PATH?.trim()
   if (explicit) return explicit
@@ -80,6 +85,16 @@ function readCodexAuthFromDisk(): CodexBrowserAuth | undefined {
     return { accessToken, accountId }
   } catch {
     return undefined
+  }
+}
+
+function normalizeUpstreamBaseUrl(raw: string | undefined): URL {
+  const fallback = 'https://api.openai.com/v1'
+  const candidate = raw?.trim() || fallback
+  try {
+    return new URL(candidate)
+  } catch {
+    return new URL(fallback)
   }
 }
 
@@ -125,7 +140,8 @@ function applyBrowserCodexRuntimeEnv(): void {
   process.env.OPENAI_API_KEY = auth.accessToken
   process.env.OPENAI_API_FORMAT = 'responses'
   process.env.OPENAI_MODEL = 'codexplan'
-  process.env.OPENAI_BASE_URL = DEFAULT_CODEX_BASE_URL
+  process.env.OPENAI_BASE_URL = '/api'
+  process.env.VITE_BACKEND_ORIGIN = DEFAULT_CODEX_BASE_URL
   if (auth.accountId) {
     process.env.CHATGPT_ACCOUNT_ID = auth.accountId
     process.env.CODEX_ACCOUNT_ID = auth.accountId

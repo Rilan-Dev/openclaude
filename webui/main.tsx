@@ -1,15 +1,23 @@
 import * as React from 'react'
 import * as ReactDOMClient from 'react-dom-client-browser'
 import './styles.css'
+import './repl.css'
 import processShim from './shims/process.js'
 import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
 import type { Props as REPLPropsType } from '../src/screens/REPL.js'
 import { getRuntimeRenderMode, isBrowserRuntime } from '../src/utils/imports.js'
 
 const ultraplanPromptText = 'This is a planning prompt stub.'
-const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 
 globalThis.process = processShim
+
+processShim.updateEnv({
+  OPENCLAUDE_RENDER_MODE: 'web',
+  CLAUDE_CODE_USE_OPENAI: '1',
+  OPENAI_BASE_URL: '/api',
+  OPENAI_API_BASE: '/api',
+  VITE_BACKEND_ORIGIN: '/api',
+})
 
 if (!globalThis.Buffer) {
   globalThis.Buffer = BrowserBuffer
@@ -19,73 +27,6 @@ if (!('global' in globalThis)) {
   ;(globalThis as typeof globalThis & { global: typeof globalThis }).global =
     globalThis
 }
-
-function isDefaultOpenAIBaseUrl(raw: string | undefined): boolean {
-  if (!raw) return true
-  try {
-    const parsed = new URL(raw)
-    return (
-      parsed.origin === 'https://api.openai.com' &&
-      parsed.pathname.replace(/\/+$/, '') === '/v1'
-    )
-  } catch {
-    return false
-  }
-}
-
-function isCodexBackendBaseUrl(raw: string | undefined): boolean {
-  if (!raw) return false
-  return raw.includes('chatgpt.com/backend-api/codex')
-}
-
-function applyBrowserCodexEnv(): void {
-  if (!isBrowserRuntime()) return
-
-  const env = processShim.env as Record<string, string | undefined>
-  const hasCodexCredentials = Boolean(
-    env.CODEX_API_KEY?.trim() ||
-      env.CLAUDE_CODE_OAUTH_TOKEN?.trim() ||
-      env.CHATGPT_ACCOUNT_ID?.trim() ||
-      env.CODEX_ACCOUNT_ID?.trim(),
-  )
-  if (!hasCodexCredentials) return
-
-  const currentBaseUrl = env.OPENAI_BASE_URL?.trim()
-  if (
-    !isDefaultOpenAIBaseUrl(currentBaseUrl) &&
-    !isCodexBackendBaseUrl(currentBaseUrl)
-  ) {
-    return
-  }
-
-  const browserEnv: Record<string, string> = {
-    CLAUDE_CODE_USE_OPENAI: env.CLAUDE_CODE_USE_OPENAI?.trim() || '1',
-    CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED:
-      env.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED?.trim() || '1',
-    CODEX_CREDENTIAL_SOURCE: env.CODEX_CREDENTIAL_SOURCE?.trim() || 'oauth',
-    OPENAI_API_FORMAT: env.OPENAI_API_FORMAT?.trim() || 'responses',
-    OPENAI_BASE_URL: currentBaseUrl || DEFAULT_CODEX_BASE_URL,
-    OPENAI_MODEL: env.OPENAI_MODEL?.trim() || 'codexplan',
-  }
-
-  const accessToken =
-    env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || env.CODEX_API_KEY?.trim()
-  if (accessToken) {
-    browserEnv.CLAUDE_CODE_OAUTH_TOKEN = accessToken
-    browserEnv.CODEX_API_KEY = env.CODEX_API_KEY?.trim() || accessToken
-    browserEnv.OPENAI_API_KEY = env.OPENAI_API_KEY?.trim() || accessToken
-  }
-
-  const accountId = env.CHATGPT_ACCOUNT_ID?.trim() || env.CODEX_ACCOUNT_ID?.trim()
-  if (accountId) {
-    browserEnv.CHATGPT_ACCOUNT_ID = accountId
-    browserEnv.CODEX_ACCOUNT_ID = accountId
-  }
-
-  processShim.updateEnv(browserEnv)
-}
-
-applyBrowserCodexEnv()
 
 type BrowserRequireStub = Record<string, unknown> & {
   [key: string]: unknown

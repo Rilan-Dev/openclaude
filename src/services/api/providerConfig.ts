@@ -23,6 +23,7 @@ import {
   openAIShimSupportsApiFormatForModel,
   resolveOpenAIShimRuntimeContext,
 } from '../../integrations/runtimeMetadata.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1'
 export const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
@@ -351,7 +352,11 @@ export function shouldUseCodexTransport(
   baseUrl: string | undefined,
 ): boolean {
   const explicitBaseUrl = asEnvUrl(baseUrl)
-  return isCodexBaseUrl(explicitBaseUrl) || (!explicitBaseUrl && isCodexAlias(model))
+  return (
+    isCodexBaseUrl(explicitBaseUrl) ||
+    isBrowserCodexBridgeBaseUrl(explicitBaseUrl) ||
+    (!explicitBaseUrl && isCodexAlias(model))
+  )
 }
 
 function shouldUseGithubResponsesApi(model: string): boolean {
@@ -577,8 +582,14 @@ export function isCodexBaseUrl(baseUrl: string | undefined): boolean {
       parsed.pathname.replace(/\/+$/, '') === '/backend-api/codex'
     )
   } catch {
-    return false
+    return isBrowserCodexBridgeBaseUrl(baseUrl)
   }
+}
+
+function isBrowserCodexBridgeBaseUrl(baseUrl: string | undefined): boolean {
+  if (!isBrowserRuntime() || !baseUrl) return false
+  const normalized = baseUrl.trim().replace(/\/+$/, '')
+  return normalized === '/api' || normalized.endsWith('/api')
 }
 
 function normalizeGithubModelSegment(requestedModel: string): string {

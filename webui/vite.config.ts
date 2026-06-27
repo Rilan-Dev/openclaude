@@ -53,6 +53,12 @@ export default defineConfig(({ mode }) => {
 
   const browserAliases = browserAliasesFromRootPackage()
   const excludedBrowserAliases = Object.keys(browserAliases)
+  const browserAliasEntries = Object.entries(browserAliases)
+    .sort(([a], [b]) => b.length - a.length)
+    .map(([find, replacement]) => ({
+      find,
+      replacement,
+    }))
 
   return {
     plugins: [
@@ -89,18 +95,24 @@ export default defineConfig(({ mode }) => {
 
     resolve: {
       dedupe: ['react', 'react-dom'],
-      alias: {
-        ...browserAliases,
-
-        '@': path.resolve(repoRoot, 'src'),
-
-        '@web': path.resolve(__dirname, 'src'),
-
-        'react-dom-client-browser': path.join(
-          webuiRoot,
-          'node_modules/react-dom/cjs/react-dom-client.development.js',
-        ),
-      },
+      alias: [
+        ...browserAliasEntries,
+        {
+          find: '@',
+          replacement: path.resolve(repoRoot, 'src'),
+        },
+        {
+          find: '@web',
+          replacement: path.resolve(__dirname, 'src'),
+        },
+        {
+          find: 'react-dom-client-browser',
+          replacement: path.join(
+            webuiRoot,
+            'node_modules/react-dom/cjs/react-dom-client.development.js',
+          ),
+        },
+      ],
     },
 
     optimizeDeps: {

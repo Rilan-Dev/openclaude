@@ -31,6 +31,21 @@ export class ListInferenceProfilesCommand extends OptionalCommand {}
 export class GetInferenceProfileCommand extends OptionalCommand {}
 export class CountTokensCommand extends OptionalCommand {}
 
+class BrowserServiceException extends Error {
+  constructor(opts = {}) {
+    super(opts.message ?? 'AWS service exception')
+    this.name = new.target?.name ?? 'BrowserServiceException'
+    Object.assign(this, opts)
+    Object.setPrototypeOf(this, new.target.prototype)
+  }
+}
+
+export class BedrockRuntimeServiceException extends BrowserServiceException {}
+export class InternalServerException extends BrowserServiceException {}
+export class ModelStreamErrorException extends BrowserServiceException {}
+export class ThrottlingException extends BrowserServiceException {}
+export class ValidationException extends BrowserServiceException {}
+
 export function fromIni() {
   return async () => {
     unavailable('@aws-sdk/credential-providers.fromIni')
@@ -51,6 +66,10 @@ export function defaultProvider() {
 
 export class NodeHttpHandler {}
 export class NoAuthSigner {}
+
+export async function streamCollector() {
+  return new Uint8Array()
+}
 
 export const BROWSER_TOOLS = []
 
@@ -120,17 +139,22 @@ export default {
   BROWSER_TOOLS,
   BedrockClient,
   BedrockRuntimeClient,
+  BedrockRuntimeServiceException,
   CountTokensCommand,
   GetCallerIdentityCommand,
   GetInferenceProfileCommand,
+  InternalServerException,
   ListInferenceProfilesCommand,
   McpbManifestSchema,
+  ModelStreamErrorException,
   NoAuthSigner,
   NodeHttpHandler,
   STSClient,
   StreamMessageReader,
   StreamMessageWriter,
   Trace,
+  ThrottlingException,
+  ValidationException,
   createClaudeForChromeMcpServer,
   createMessageConnection,
   defaultProvider,
@@ -138,4 +162,5 @@ export default {
   fromLoginCredentials,
   getMcpConfigForManifest,
   plot,
+  streamCollector,
 }

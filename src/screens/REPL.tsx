@@ -655,6 +655,110 @@ function webMessageText(message: MessageType): string {
   };
   return stringifyWebContent(candidate.message?.content ?? candidate.attachment ?? candidate.content ?? candidate.text ?? message);
 }
+type WebTranscriptEntryKind = 'message' | 'placeholder' | 'streaming' | 'empty';
+type WebTranscriptEntry = {
+  key: string;
+  role: string;
+  type: string;
+  text: string;
+  className: string;
+  kind: WebTranscriptEntryKind;
+};
+type WebSearchMatch = {
+  entryIndex: number;
+  start: number;
+  end: number;
+};
+function buildWebTranscriptEntries(messages: MessageType[], placeholderText?: string, streamingText?: string | null): WebTranscriptEntry[] {
+  const entries: WebTranscriptEntry[] = messages.length === 0 ? [{
+    key: 'empty-state',
+    role: 'system',
+    type: 'empty',
+    text: 'Start the conversation. Ask OpenClaude to inspect code, explain a failure, draft a change, or stream tool output here.',
+    className: 'repl-message repl-messageEmpty',
+    kind: 'empty'
+  }] : messages.map((message, index) => {
+    const role = webMessageRole(message);
+    return {
+      key: `${message.uuid ?? role}-${index}`,
+      role,
+      type: message.type,
+      text: webMessageText(message),
+      className: `repl-message repl-message${role.charAt(0).toUpperCase()}${role.slice(1)}`,
+      kind: 'message'
+    };
+  });
+  if (placeholderText) {
+    entries.push({
+      key: 'placeholder',
+      role: 'you',
+      type: 'queued',
+      text: placeholderText,
+      className: 'repl-message repl-messagePlaceholder',
+      kind: 'placeholder'
+    });
+  }
+  if (streamingText) {
+    entries.push({
+      key: 'streaming',
+      role: 'assistant',
+      type: 'streaming',
+      text: streamingText,
+      className: 'repl-message repl-messageAssistant',
+      kind: 'streaming'
+    });
+  }
+  return entries;
+}
+function buildWebSearchMatches(entries: WebTranscriptEntry[], query: string): WebSearchMatch[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const needle = trimmed.toLowerCase();
+  const matches: WebSearchMatch[] = [];
+  for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+    const haystack = entries[entryIndex]!.text;
+    const lowerHaystack = haystack.toLowerCase();
+    let start = 0;
+    while (start <= lowerHaystack.length) {
+      const found = lowerHaystack.indexOf(needle, start);
+      if (found === -1) break;
+      matches.push({
+        entryIndex,
+        start: found,
+        end: found + needle.length
+      });
+      start = found + Math.max(needle.length, 1);
+    }
+  }
+  return matches;
+}
+function renderHighlightedWebText(text: string, query: string, activeMatchIndex: number | null, matches: WebSearchMatch[], entryIndex: number): React.ReactNode {
+  const trimmed = query.trim();
+  if (!trimmed || matches.length === 0) return text;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  const entryMatches = matches.filter(match => match.entryIndex === entryIndex);
+  for (let i = 0; i < entryMatches.length; i++) {
+    const match = entryMatches[i]!;
+    if (lastIndex < match.start) {
+      parts.push(text.slice(lastIndex, match.start));
+    }
+    const isActive = activeMatchIndex !== null && matches.findIndex(candidate => candidate.entryIndex === entryIndex && candidate.start === match.start && candidate.end === match.end) === activeMatchIndex;
+    parts.push(
+      <mark
+        key={`${entryIndex}:${match.start}:${match.end}`}
+        className={isActive ? 'repl-match repl-matchCurrent' : 'repl-match'}
+      >
+        {text.slice(match.start, match.end)}
+      </mark>,
+    );
+    lastIndex = match.end;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? parts : text;
+}
 function WebREPLSurface({
   messages,
   streamingText,
@@ -681,7 +785,13 @@ function WebREPLSurface({
   toolCount: number;
 }) {
   const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const transcriptEntryRefs = useRef(new Map<number, HTMLDivElement | null>());
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [stickToBottom, setStickToBottom] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCurrent, setSearchCurrent] = useState(0);
   const handleSubmit = useCallback((event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextInput = inputValue.trim();
@@ -698,6 +808,77 @@ function WebREPLSurface({
   const transcriptCountLabel = `${messages.length} messages`;
   const transcriptModelLabel = model || 'default model';
   const transcriptSummaryLabel = `${transcriptCountLabel} · ${toolCount} tools · ${transcriptModelLabel}`;
+  const transcriptEntries = useMemo(() => buildWebTranscriptEntries(messages, placeholderText, streamingText), [messages, placeholderText, streamingText]);
+  const effectiveSearchQuery = searchOpen ? searchDraft : searchQuery;
+  const searchMatches = useMemo(() => buildWebSearchMatches(transcriptEntries, effectiveSearchQuery), [effectiveSearchQuery, transcriptEntries]);
+  const searchCount = searchMatches.length;
+  const openSearch = useCallback((nextQuery: string = searchQuery) => {
+    setSearchDraft(nextQuery);
+    setSearchOpen(true);
+  }, [searchQuery]);
+  const closeSearchAndCommit = useCallback((nextQuery: string) => {
+    const trimmed = nextQuery.trim();
+    if (trimmed && searchCount > 0) {
+      setSearchQuery(nextQuery);
+    } else {
+      setSearchQuery('');
+    }
+    setSearchOpen(false);
+  }, [searchCount]);
+  const cancelSearch = useCallback(() => {
+    setSearchDraft(searchQuery);
+    setSearchOpen(false);
+  }, [searchQuery]);
+  const jumpToMatch = useCallback((direction: 1 | -1) => {
+    if (searchCount === 0) return;
+    setSearchCurrent(current => {
+      const zeroBased = current > 0 ? current - 1 : direction === 1 ? -1 : 0;
+      const next = (zeroBased + direction + searchCount) % searchCount;
+      return next + 1;
+    });
+  }, [searchCount]);
+  const activeMatchIndex = searchCurrent > 0 && searchCurrent <= searchCount ? searchCurrent - 1 : null;
+  const activeMatch = activeMatchIndex !== null ? searchMatches[activeMatchIndex] : undefined;
+  useEffect(() => {
+    if (!searchOpen) return;
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  }, [searchOpen]);
+  useEffect(() => {
+    const nextCurrent = effectiveSearchQuery.trim() && searchCount > 0 ? 1 : 0;
+    setSearchCurrent(nextCurrent);
+  }, [effectiveSearchQuery, searchCount]);
+  useEffect(() => {
+    const handleWindowKeyDown = (event: KeyboardEvent): void => {
+      if (searchOpen) return;
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      const isTypingField = tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable;
+      if (isTypingField) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === '/') {
+        event.preventDefault();
+        openSearch(searchQuery);
+        return;
+      }
+      if (searchQuery && searchCount > 0 && (event.key === 'n' || event.key === 'N')) {
+        event.preventDefault();
+        jumpToMatch(event.key === 'n' ? 1 : -1);
+      }
+    };
+    window.addEventListener('keydown', handleWindowKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleWindowKeyDown);
+    };
+  }, [jumpToMatch, openSearch, searchCount, searchOpen, searchQuery]);
+  useLayoutEffect(() => {
+    if (!activeMatch) return;
+    const matchElement = transcriptEntryRefs.current.get(activeMatch.entryIndex);
+    matchElement?.scrollIntoView({
+      block: 'center',
+      behavior: 'smooth'
+    });
+  }, [activeMatch?.entryIndex, activeMatch?.end, activeMatch?.start]);
   useEffect(() => {
     if (!stickToBottom) return;
     const transcript = transcriptRef.current;
@@ -707,47 +888,6 @@ function WebREPLSurface({
       behavior: 'smooth'
     });
   }, [messages, placeholderText, streamingText, stickToBottom]);
-  const emptyStateMessage = (
-    <article key="empty-state" className="repl-message repl-messageEmpty">
-      <div className="repl-emptyTitle">Start the conversation</div>
-      <div className="repl-emptyCopy">
-        Ask OpenClaude to inspect code, explain a failure, draft a change, or stream tool output here.
-      </div>
-    </article>
-  );
-  const renderedMessages = messages.length === 0 ? [emptyStateMessage] : messages.map((message, index) => {
-    const role = webMessageRole(message);
-    return (
-      <article
-        key={`${message.uuid ?? role}-${index}`}
-        className={`repl-message repl-message${role.charAt(0).toUpperCase()}${role.slice(1)}`}
-      >
-        <div className="repl-messageMeta">
-          <span className="repl-messageRole">{role}</span>
-          <span className="repl-messageType">{message.type}</span>
-        </div>
-        <div className="repl-messageText">{webMessageText(message)}</div>
-      </article>
-    );
-  });
-  const placeholderMessage = placeholderText ? (
-    <article className="repl-message repl-messagePlaceholder">
-      <div className="repl-messageMeta">
-        <span className="repl-messageRole">you</span>
-        <span className="repl-messageType">queued</span>
-      </div>
-      <div className="repl-messageText">{placeholderText}</div>
-    </article>
-  ) : null;
-  const streamingMessage = streamingText ? (
-    <article className="repl-message repl-messageAssistant">
-      <div className="repl-messageMeta">
-        <span className="repl-messageRole">assistant</span>
-        <span className="repl-messageType">streaming</span>
-      </div>
-      <div className="repl-messageText">{streamingText}</div>
-    </article>
-  ) : null;
   const stats = [{
     label: 'Messages',
     value: String(messages.length)
@@ -761,6 +901,67 @@ function WebREPLSurface({
     label: 'Model',
     value: model
   }];
+  const handleTranscriptKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (searchOpen) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === '/') {
+      event.preventDefault();
+      openSearch(searchQuery);
+      return;
+    }
+    if (searchQuery && searchCount > 0 && (event.key === 'n' || event.key === 'N')) {
+      event.preventDefault();
+      jumpToMatch(event.key === 'n' ? 1 : -1);
+    }
+  }, [jumpToMatch, openSearch, searchCount, searchOpen, searchQuery]);
+  const renderSearchBar = searchOpen || searchQuery ? (
+    <div className="repl-searchBar" role="search" aria-label="Transcript search">
+      <div className="repl-searchPrompt">/</div>
+      {searchOpen ? (
+        <input
+          ref={searchInputRef}
+          className="repl-searchInput"
+          value={searchDraft}
+          placeholder="Search transcript"
+          onChange={event => setSearchDraft(event.currentTarget.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              closeSearchAndCommit(searchDraft);
+              return;
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelSearch();
+              return;
+            }
+          }}
+        />
+      ) : (
+        <button
+          className="repl-searchDisplay"
+          type="button"
+          onClick={() => openSearch(searchQuery)}
+        >
+          {searchQuery || 'Search transcript'}
+        </button>
+      )}
+      <div className="repl-searchMeta">
+        {effectiveSearchQuery.trim() ? searchCount > 0 ? `${searchCurrent}/${searchCount}` : 'no matches' : 'press / to search'}
+      </div>
+      <div className="repl-searchActions">
+        {searchQuery && searchCount > 0 ? (
+          <>
+            <button className="repl-searchNavButton" type="button" onClick={() => jumpToMatch(-1)}>Prev</button>
+            <button className="repl-searchNavButton" type="button" onClick={() => jumpToMatch(1)}>Next</button>
+          </>
+        ) : null}
+        <button className="repl-searchNavButton repl-searchNavButtonGhost" type="button" onClick={() => (searchOpen ? cancelSearch() : openSearch(searchQuery))}>
+          {searchOpen ? 'Esc' : 'Find'}
+        </button>
+      </div>
+    </div>
+  ) : null;
   return (
     <div className="repl-shell">
       <aside className="repl-rail">
@@ -799,7 +1000,7 @@ function WebREPLSurface({
         <header className="repl-workspaceHeader">
           <div className="repl-workspaceHeaderCopy">
             <div className="repl-workspaceHeadingRow">
-            <h2 className="repl-workspaceHeading">Live conversation</h2>
+              <h2 className="repl-workspaceHeading">Live conversation</h2>
               <span className="repl-statusChip">{statusLabel}</span>
             </div>
             <div className="repl-workspaceSubline">
@@ -809,21 +1010,55 @@ function WebREPLSurface({
           <div className="repl-headerBadges" aria-hidden="true">
             <span className="repl-miniBadge">{transcriptModelLabel}</span>
             <span className="repl-miniBadge">{toolCount} tools</span>
+            <button
+              className="repl-searchToggle"
+              type="button"
+              onClick={() => openSearch(searchQuery)}
+            >
+              Search
+            </button>
           </div>
         </header>
+        {renderSearchBar}
         <section
           ref={transcriptRef}
           className="repl-transcript"
           aria-live="polite"
+          tabIndex={0}
+          onFocus={() => setStickToBottom(true)}
+          onMouseDown={event => {
+            if (event.currentTarget === event.target) {
+              event.currentTarget.focus();
+            }
+          }}
+          onKeyDown={handleTranscriptKeyDown}
           onScroll={event => {
             const el = event.currentTarget;
             const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
             setStickToBottom(distanceFromBottom < 48);
           }}
         >
-          {renderedMessages}
-          {placeholderMessage}
-          {streamingMessage}
+          {transcriptEntries.map((entry, index) => (
+            <article
+              key={entry.key}
+              ref={node => {
+                if (node) {
+                  transcriptEntryRefs.current.set(index, node);
+                } else {
+                  transcriptEntryRefs.current.delete(index);
+                }
+              }}
+              className={entry.className}
+            >
+              <div className="repl-messageMeta">
+                <span className="repl-messageRole">{entry.role}</span>
+                <span className="repl-messageType">{entry.type}</span>
+              </div>
+              <div className="repl-messageText">
+                {renderHighlightedWebText(entry.text, effectiveSearchQuery, activeMatchIndex, searchMatches, index)}
+              </div>
+            </article>
+          ))}
           <div className="repl-transcriptSpacer" aria-hidden="true" />
         </section>
         <footer className="repl-sessionFooter" aria-label="Session status">
@@ -839,6 +1074,7 @@ function WebREPLSurface({
             <span className="repl-pill">{messages.length} messages</span>
             <span className="repl-pill">{toolCount} tools</span>
             <span className="repl-pill">{disabled ? 'Read only' : 'Interactive'}</span>
+            {searchQuery ? <span className="repl-pill">{searchCount > 0 ? `${searchCurrent}/${searchCount}` : 'no matches'}</span> : null}
           </div>
         </footer>
         <form className="repl-composerShell" onSubmit={handleSubmit}>

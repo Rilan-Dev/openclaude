@@ -189,6 +189,17 @@
   justify-content: flex-end;
 }
 
+.repl-searchToggle {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  padding: 0.32rem 0.8rem;
+  color: #dbeafe;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
 .repl-miniBadge {
   border-radius: 999px;
   padding: 0.32rem 0.65rem;
@@ -219,6 +230,90 @@
   flex-direction: column;
   gap: 0.85rem;
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.02));
+}
+
+.repl-searchBar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.repl-searchPrompt {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  background: rgba(15, 23, 42, 0.78);
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.repl-searchInput,
+.repl-searchDisplay {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.85rem;
+  padding: 0.72rem 0.9rem;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.88);
+  font: inherit;
+  outline: none;
+}
+
+.repl-searchDisplay {
+  text-align: left;
+  cursor: pointer;
+}
+
+.repl-searchInput:focus,
+.repl-searchDisplay:focus {
+  border-color: rgba(96, 165, 250, 0.48);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.repl-searchMeta {
+  color: rgba(148, 163, 184, 0.82);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.repl-searchActions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.repl-searchNavButton {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.78);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.repl-searchNavButtonGhost {
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.repl-match {
+  padding: 0 0.12rem;
+  border-radius: 0.25rem;
+  background: rgba(250, 204, 21, 0.14);
+  color: #fef3c7;
+}
+
+.repl-matchCurrent {
+  background: rgba(59, 130, 246, 0.42);
+  color: #eff6ff;
+  box-shadow: 0 0 0 1px rgba(191, 219, 254, 0.55);
 }
 
 .repl-transcriptSpacer {
@@ -444,8 +539,13 @@
   }
 
   .repl-headerBadges,
-  .repl-sessionFooterBadges {
+  .repl-sessionFooterBadges,
+  .repl-searchBar {
     justify-content: flex-start;
+  }
+
+  .repl-searchBar {
+    grid-template-columns: 1fr;
   }
 
   .repl-composerRow {

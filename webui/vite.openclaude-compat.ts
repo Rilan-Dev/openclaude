@@ -182,6 +182,18 @@ function moduleKey(specifier: string): string {
   return `module:${specifier}`
 }
 
+function findOptionalModuleRoot(
+  source: string,
+  optionalModules: Set<string>,
+): string | null {
+  for (const moduleName of optionalModules) {
+    if (source === moduleName || source.startsWith(`${moduleName}/`)) {
+      return moduleName
+    }
+  }
+  return null
+}
+
 function relativeKey(importer: string, specifier: string): string {
   return `relative:${normalizePath(importer)}::${specifier}`
 }
@@ -426,7 +438,6 @@ function makeOptionalModules(): Set<string> {
     '@aws-sdk/credential-provider-login',
     '@aws-sdk/credential-provider-node',
     '@aws-sdk/credential-providers',
-    '@smithy/core',
     '@smithy/node-http-handler',
 
     '@ant/computer-use-mcp',
@@ -471,8 +482,12 @@ export function openClaudeCompatPlugin(): Plugin {
         return `${OPTIONAL_PREFIX}${source}`
       }
 
-      if (optionalModules.has(source)) {
-        return `${OPTIONAL_PREFIX}${source}`
+      const optionalModuleRoot = findOptionalModuleRoot(
+        source,
+        optionalModules,
+      )
+      if (optionalModuleRoot) {
+        return `${OPTIONAL_PREFIX}${optionalModuleRoot}`
       }
 
       if (/\.(md|txt)$/.test(source)) {

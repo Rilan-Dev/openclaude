@@ -55,6 +55,8 @@ export async function cp() {}
 
 export async function rmdir() {}
 
+export async function* glob() {}
+
 export async function open(path) {
   throw enoent(path)
 }
@@ -264,6 +266,23 @@ export function createHash() {
       if (encoding === 'hex') return hex
       if (encoding === 'base64') return Buffer.from(hex).toString('base64')
       return Buffer.from(hex)
+    },
+  }
+}
+
+export function createInterface() {
+  return {
+    question(_query, callback) {
+      if (typeof callback === 'function') {
+        callback('')
+      }
+    },
+    close() {},
+    on() {
+      return this
+    },
+    once() {
+      return this
     },
   }
 }

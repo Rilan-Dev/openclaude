@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -24,6 +23,7 @@ import {
   resolveOpenAIShimRuntimeContext,
 } from '../../integrations/runtimeMetadata.js'
 import { isBrowserRuntime } from '../../utils/imports.js'
+import { hashContent } from '../../utils/hash.js'
 
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1'
 export const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
@@ -160,10 +160,7 @@ type ModelDescriptor = {
 const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
 
 function hashCacheScopePartition(value: unknown): string {
-  return createHash('sha256')
-    .update(JSON.stringify(value))
-    .digest('hex')
-    .slice(0, 16)
+  return hashContent(JSON.stringify(value)).slice(0, 16)
 }
 
 function normalizeCacheScopeHeaderValue(value: string | undefined): string {

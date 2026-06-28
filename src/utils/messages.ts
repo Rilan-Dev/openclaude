@@ -30,6 +30,8 @@ import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from '../services/analytics/growthbook.js'
+import { projectSnippedView } from '../services/compact/snipProjection.js'
+import { getSnipCompactRuntimeModule } from '../services/compact/snipCompactRuntime.js'
 import {
   getImageTooLargeErrorMessage,
   getPdfInvalidErrorMessage,
@@ -2110,9 +2112,7 @@ export function normalizeMessagesForAPI(
   // injection (in the user case) and the post-merge sweep below share it.
   let injectSnipTags = false
   if (feature('HISTORY_SNIP') && process.env.NODE_ENV !== 'test') {
-    const { isSnipRuntimeEnabled } =
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
+    const { isSnipRuntimeEnabled } = getSnipCompactRuntimeModule()
     injectSnipTags = isSnipRuntimeEnabled()
   }
 
@@ -2593,9 +2593,7 @@ export function mergeUserMessages(a: UserMessage, b: UserMessage): UserMessage {
     // affects downstream callers (e.g., VCR fixture hashing in SDK harness
     // tests), so this must only fire when snip is actually enabled — not
     // for all ants.
-    const { isSnipRuntimeEnabled } =
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
+    const { isSnipRuntimeEnabled } = getSnipCompactRuntimeModule()
     if (isSnipRuntimeEnabled()) {
       return {
         ...a,
@@ -4333,9 +4331,7 @@ You have exited auto mode. The user may now want to interact more directly. You 
     }
     case 'context_efficiency': {
       if (feature('HISTORY_SNIP')) {
-        const { SNIP_NUDGE_TEXT } =
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
+        const { SNIP_NUDGE_TEXT } = getSnipCompactRuntimeModule()
         return wrapMessagesInSystemReminder([
           createUserMessage({
             content: SNIP_NUDGE_TEXT,
@@ -4832,10 +4828,6 @@ export function getMessagesAfterCompactBoundary<
   const boundaryIndex = findLastCompactBoundaryIndex(messages)
   const sliced = boundaryIndex === -1 ? messages : messages.slice(boundaryIndex)
   if (!options?.includeSnipped && feature('HISTORY_SNIP')) {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    const { projectSnippedView } =
-      require('../services/compact/snipProjection.js') as typeof import('../services/compact/snipProjection.js')
-    /* eslint-enable @typescript-eslint/no-require-imports */
     return projectSnippedView(sliced as Message[]) as T[]
   }
   return sliced

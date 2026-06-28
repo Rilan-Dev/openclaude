@@ -102,9 +102,18 @@ let builtInCommandNamesCache: Set<string> | undefined
 
 function getBuiltInCommandNames(): Set<string> {
   if (builtInCommandNamesCache) return builtInCommandNamesCache
-  const commands =
-    require('../commands.js') as typeof import('../commands.js')
-  const names = commands.builtInCommandNames()
+  let names: Set<string>
+  try {
+    const commands =
+      require('../commands.js') as typeof import('../commands.js')
+    const maybeNames =
+      typeof commands.builtInCommandNames === 'function'
+        ? commands.builtInCommandNames()
+        : undefined
+    names = maybeNames instanceof Set ? maybeNames : new Set<string>()
+  } catch {
+    names = new Set<string>()
+  }
   builtInCommandNamesCache = names
   return names
 }
@@ -1108,16 +1117,20 @@ private async appendToFile(filePath: string, data: string): Promise<void> {
         await this.appendEntry(transcriptMessage)
         const shouldTrackReplay = !this.shouldSkipPersistence()
         if (shouldTrackReplay && !isSidechain && message.type === 'user') {
-          const content = getFirstMeaningfulUserMessageTextContent([message])
-          if (content) {
-            try {
-              getReplayIndexBuilder().trackUserMessage(
-                content,
-                message.timestamp ?? new Date().toISOString(),
-              )
-            } catch {
-              // Replay tracking is best-effort and must not affect transcript writes.
+          try {
+            const content = getFirstMeaningfulUserMessageTextContent([message])
+            if (content) {
+              try {
+                getReplayIndexBuilder().trackUserMessage(
+                  content,
+                  message.timestamp ?? new Date().toISOString(),
+                )
+              } catch {
+                // Replay tracking is best-effort and must not affect transcript writes.
+              }
             }
+          } catch {
+            // Transcript classification is best-effort and must not affect writes.
           }
         }
         if (shouldTrackReplay && !isSidechain && message.type === 'system') {
@@ -1511,41 +1524,48 @@ export async function recordTranscript(
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
 ): Promise<UUID | null> {
-  const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
-  const sessionId = getSessionId() as UUID
-  const messageSet = await getSessionMessages(sessionId)
-  const newMessages: typeof cleanedMessages = []
-  let startingParentUuid: UUID | undefined = startingParentUuidHint
-  let seenNewMessage = false
-  for (const m of cleanedMessages) {
-    if (messageSet.has(m.uuid as UUID)) {
-      // Only track skipped messages that form a prefix. After compaction,
-      // messagesToKeep appear AFTER new CB/summary, so this skips them.
-      if (!seenNewMessage && isChainParticipant(m)) {
-        startingParentUuid = m.uuid as UUID
+  try {
+    const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
+    const sessionId = getSessionId() as UUID
+    const messageSet = await getSessionMessages(sessionId)
+    const newMessages: typeof cleanedMessages = []
+    let startingParentUuid: UUID | undefined = startingParentUuidHint
+    let seenNewMessage = false
+    for (const m of cleanedMessages) {
+      if (messageSet.has(m.uuid as UUID)) {
+        // Only track skipped messages that form a prefix. After compaction,
+        // messagesToKeep appear AFTER new CB/summary, so this skips them.
+        if (!seenNewMessage && isChainParticipant(m)) {
+          startingParentUuid = m.uuid as UUID
+        }
+      } else {
+        newMessages.push(m)
+        seenNewMessage = true
       }
-    } else {
-      newMessages.push(m)
-      seenNewMessage = true
     }
+    if (newMessages.length > 0) {
+      await getProject().insertMessageChain(
+        newMessages,
+        false,
+        undefined,
+        startingParentUuid,
+        teamInfo,
+      )
+    }
+    // Return the last ACTUALLY recorded chain-participant's UUID, OR the
+    // prefix-tracked UUID if no new chain participants were recorded. This lets
+    // callers (useLogMessages) maintain the correct parent chain even when the
+    // slice is all-recorded (rewind, /resume scenarios where every message is
+    // already in messageSet). Progress is skipped — it's written to the JSONL
+    // but nothing chains TO it (see isChainParticipant).
+    const lastRecorded = newMessages.findLast(isChainParticipant)
+    return (lastRecorded?.uuid as UUID | undefined) ?? startingParentUuid ?? null
+  } catch (error) {
+    if (isBrowserRuntime()) {
+      return null
+    }
+    throw error
   }
-  if (newMessages.length > 0) {
-    await getProject().insertMessageChain(
-      newMessages,
-      false,
-      undefined,
-      startingParentUuid,
-      teamInfo,
-    )
-  }
-  // Return the last ACTUALLY recorded chain-participant's UUID, OR the
-  // prefix-tracked UUID if no new chain participants were recorded. This lets
-  // callers (useLogMessages) maintain the correct parent chain even when the
-  // slice is all-recorded (rewind, /resume scenarios where every message is
-  // already in messageSet). Progress is skipped — it's written to the JSONL
-  // but nothing chains TO it (see isChainParticipant).
-  const lastRecorded = newMessages.findLast(isChainParticipant)
-  return (lastRecorded?.uuid as UUID | undefined) ?? startingParentUuid ?? null
 }
 
 export async function recordSidechainTranscript(
@@ -1883,10 +1903,11 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
       const commandNameTag = extractTag(textContent, COMMAND_NAME_TAG)
       if (commandNameTag) {
         const commandName = commandNameTag.replace(/^\//, '')
+        const builtInCommandNames = getBuiltInCommandNames()
 
         // If it's a built-in command, then it's unlikely to provide
         // meaningful context (e.g. `/model sonnet`)
-        if (getBuiltInCommandNames().has(commandName)) {
+        if (builtInCommandNames?.has?.(commandName)) {
           continue
         } else {
           // Otherwise, for custom commands, then keep it only if it has

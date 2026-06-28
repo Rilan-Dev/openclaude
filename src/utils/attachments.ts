@@ -195,6 +195,7 @@ import {
   getUserMessageText,
   isThinkingMessage,
 } from './messages.js'
+import { getSnipCompactRuntimeModule } from '../services/compact/snipCompactRuntime.js'
 import { isHumanTurn } from './messagePredicates.js'
 import { isEnvTruthy, getClaudeConfigHomeDir } from './envUtils.js'
 import { feature } from 'bun:bundle'
@@ -4025,8 +4026,7 @@ export function getContextEfficiencyAttachment(
   // Gate must match SnipTool.isEnabled() — don't nudge toward a tool that
   // isn't in the tool list. Lazy require keeps this file snip-string-free.
   const { isSnipRuntimeEnabled, shouldNudgeForSnips } =
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
+    getSnipCompactRuntimeModule()
   if (!isSnipRuntimeEnabled()) {
     return []
   }

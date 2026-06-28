@@ -16,6 +16,7 @@ import type { SettingSource } from '../utils/settings/constants.js'
 import { resetSettingsCache } from '../utils/settings/settingsCache.js'
 import type { PluginHookMatcher } from '../utils/settings/types.js'
 import { createSignal } from '../utils/signal.js'
+import { ReplayIndexBuilder } from '../utils/replayIndexBuilder.js'
 import { createAsyncContextStorage } from '../utils/imports.js'
 
 type ProcessLike = {
@@ -28,7 +29,6 @@ const processLike = (globalThis.process ?? { env: {} }) as ProcessLike
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
 
 import type { SessionId } from '../types/ids.js'
-import type { ReplayIndexBuilder } from '../utils/replayIndexBuilder.js'
 
 type ReplayIndexBuilderEntry = {
   builder: ReplayIndexBuilder
@@ -1690,9 +1690,6 @@ export function getReplayIndexBuilder(): ReplayIndexBuilder {
   const sessionId = getSessionId()
   let entry = STATE.replayIndexBuilders.get(sessionId)
   if (!entry) {
-    // Lazy import to avoid circular dependencies
-    const { ReplayIndexBuilder } =
-      require('../utils/replayIndexBuilder.js') as typeof import('../utils/replayIndexBuilder.js')
     entry = {
       builder: new ReplayIndexBuilder(),
       projectDir: getSessionProjectDir(),

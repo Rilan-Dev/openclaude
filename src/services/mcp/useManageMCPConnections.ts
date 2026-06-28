@@ -35,12 +35,13 @@ type ChannelPermissionNotification = {
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const fetchMcpSkillsForClient = feature('MCP_SKILLS')
+const hasNodeRequire = typeof require === 'function'
+const fetchMcpSkillsForClient = feature('MCP_SKILLS') && hasNodeRequire
   ? (
       require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js')
     ).fetchMcpSkillsForClient
   : null
-const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
+const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH') && hasNodeRequire
   ? (
       require('../skillSearch/localSearch.js') as typeof import('../skillSearch/localSearch.js')
     ).clearSkillIndexCache

@@ -98,18 +98,19 @@ import { isHumanTurn } from '../utils/messagePredicates.js';
 import { logError } from '../utils/log.js';
 // Dead code elimination: conditional imports
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
+const hasNodeRequire = typeof require === 'function';
+const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
   stripTrailing: () => 0,
   handleKeyEvent: () => { },
   resetAnchor: () => { }
 });
-const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
+const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Dead code elimination: conditional import for coordinator mode
 const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
   name: string;
 }>, scratchpadDir?: string) => {
   [k: string]: string;
-} = feature('COORDINATOR_MODE') ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
+} = feature('COORDINATOR_MODE') && hasNodeRequire ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import useCanUseTool from '../hooks/useCanUseTool.js';
 import type { ToolPermissionContext, Tool } from '../Tool.js';
@@ -191,11 +192,11 @@ import { getActiveSessionAgentModelSelection } from './replActiveAgentModel.js';
 import type { ModelSetting } from '../utils/model/model.js';
 // Dead code elimination: conditional import for loop mode
 /* eslint-disable @typescript-eslint/no-require-imports */
-const proactiveModule = feature('PROACTIVE') ? require('../proactive/index.js') : feature('KAIROS') ? require('../proactive/index.js') : null;
+const proactiveModule = (feature('PROACTIVE') || feature('KAIROS')) && hasNodeRequire ? require('../proactive/index.js') : null;
 const PROACTIVE_NO_OP_SUBSCRIBE = (_cb: () => void) => () => { };
 const PROACTIVE_FALSE = () => false;
 const SUGGEST_BG_PR_NOOP = (_p: string, _n: string): boolean => false;
-const useScheduledTasks = require('../hooks/useScheduledTasks.js').useScheduledTasks;
+const useScheduledTasks: typeof import('../hooks/useScheduledTasks.js').useScheduledTasks = hasNodeRequire ? require('../hooks/useScheduledTasks.js').useScheduledTasks : (() => { }) as typeof import('../hooks/useScheduledTasks.js').useScheduledTasks;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { decideStreamingTextUpdate } from './streamingTextPublish.js';
@@ -266,7 +267,7 @@ import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotificatio
 import { AutoRunIssueNotification, shouldAutoRunIssue, getAutoRunIssueReasonText, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 /* eslint-disable @typescript-eslint/no-require-imports */
-const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
+const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') && hasNodeRequire ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
@@ -1905,7 +1906,7 @@ export function REPL({
       const messages = deserializeMessages(log.messages);
 
       // Match coordinator/normal mode to the resumed session
-      if (feature('COORDINATOR_MODE')) {
+      if (feature('COORDINATOR_MODE') && hasNodeRequire) {
         /* eslint-disable @typescript-eslint/no-require-imports */
         const coordinatorModule = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
         /* eslint-enable @typescript-eslint/no-require-imports */
@@ -2065,15 +2066,17 @@ export function REPL({
 
       // Persist the current mode so future resumes know what mode this session was in
       if (feature('COORDINATOR_MODE')) {
-        /* eslint-disable @typescript-eslint/no-require-imports */
-        const {
-          saveMode
-        } = require('../utils/sessionStorage.js');
-        const {
-          isCoordinatorMode
-        } = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
-        /* eslint-enable @typescript-eslint/no-require-imports */
-        saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
+        if (hasNodeRequire) {
+          /* eslint-disable @typescript-eslint/no-require-imports */
+          const {
+            saveMode
+          } = require('../utils/sessionStorage.js');
+          const {
+            isCoordinatorMode
+          } = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
+          /* eslint-enable @typescript-eslint/no-require-imports */
+          saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
+        }
       }
 
       // Restore target session's costs from the data we read earlier
@@ -3949,7 +3952,7 @@ export function REPL({
     // Reset cached microcompact state so stale pinned cache edits
     // don't reference tool_use_ids from truncated messages
     resetMicrocompactState();
-    if (feature('CONTEXT_COLLAPSE')) {
+    if (feature('CONTEXT_COLLAPSE') && hasNodeRequire) {
       // Rewind truncates the REPL array. Commits whose archived span
       // was past the rewind point can't be projected anymore
       // (projectView silently skips them) but the staged queue and ID

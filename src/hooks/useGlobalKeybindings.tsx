@@ -14,6 +14,7 @@ import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEve
 import { useAppState, useSetAppState } from '../state/AppState.js';
 import { count } from '../utils/array.js';
 import { getTerminalPanel } from '../utils/terminalPanel.js';
+const hasNodeRequire = typeof require === 'function';
 type Props = {
   screen: Screen;
   setScreen: React.Dispatch<React.SetStateAction<Screen>>;
@@ -55,9 +56,10 @@ export function GlobalKeybindingHandlers({
     setAppState(prev => {
       const {
         getAllInProcessTeammateTasks
-      } =
+      } = hasNodeRequire
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../tasks/InProcessTeammateTask/InProcessTeammateTask.js') as typeof import('../tasks/InProcessTeammateTask/InProcessTeammateTask.js');
+      ? require('../tasks/InProcessTeammateTask/InProcessTeammateTask.js') as typeof import('../tasks/InProcessTeammateTask/InProcessTeammateTask.js')
+      : { getAllInProcessTeammateTasks: () => [] };
       const hasTeammates = count(getAllInProcessTeammateTasks(prev.tasks), t => t.status === 'running') > 0;
       if (hasTeammates) {
         // Both exist: none → tasks → teammates → none
@@ -102,7 +104,9 @@ export function GlobalKeybindingHandlers({
       /* eslint-disable @typescript-eslint/no-require-imports */
       const {
         isBriefEnabled
-      } = require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js');
+      } = hasNodeRequire
+        ? require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js')
+        : { isBriefEnabled: () => false };
       /* eslint-enable @typescript-eslint/no-require-imports */
       if (!isBriefEnabled() && isBriefOnly && screen !== 'transcript') {
         setAppState(prev_0 => {
@@ -162,7 +166,9 @@ export function GlobalKeybindingHandlers({
       /* eslint-disable @typescript-eslint/no-require-imports */
       const {
         isBriefEnabled: isBriefEnabled_0
-      } = require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js');
+      } = hasNodeRequire
+        ? require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js')
+        : { isBriefEnabled: () => false };
       /* eslint-enable @typescript-eslint/no-require-imports */
       if (!isBriefEnabled_0() && !isBriefOnly) return;
       const next = !isBriefOnly;

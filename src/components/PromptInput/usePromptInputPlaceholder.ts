@@ -8,8 +8,9 @@ import { isQueuedCommandEditable } from 'src/utils/messageQueueManager.js'
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
+const hasNodeRequire = typeof require === 'function'
 const proactiveModule =
-  feature('PROACTIVE') || feature('KAIROS')
+  (feature('PROACTIVE') || feature('KAIROS')) && hasNodeRequire
     ? require('../../proactive/index.js')
     : null
 

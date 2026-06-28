@@ -2755,6 +2755,7 @@ function WebPromptInput({
   getBorderColor,
   suggestions,
   selectedSuggestion,
+  maxColumnWidth,
   commandArgumentHint,
   promptSuggestion,
   footerItems,

@@ -5,6 +5,15 @@ import type { Props as REPLProps } from './screens/REPL.js'
 import type { AppState } from './state/AppStateStore.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 
+type BrowserRoot = {
+  render: (node: React.ReactNode) => void
+  unmount: () => void
+}
+
+type BrowserGlobals = typeof globalThis & {
+  __openclaudeWebUiRoot?: BrowserRoot
+}
+
 type AppWrapperProps = {
   getFpsMetrics: () => FpsMetrics | undefined
   stats?: StatsStore
@@ -37,10 +46,26 @@ export async function launchRepl(
   )
 
   if (appProps.renderMode === 'web') {
-    const { AppStateProvider } = await import('./state/AppState.js')
+    const [
+      { createRoot },
+      { AppStateProvider },
+      { startDeferredPrefetches },
+    ] = await Promise.all([
+      import('react-dom/client'),
+      import('./state/AppState.js'),
+      import('./main.js'),
+    ])
 
-    await renderAndRun(
-      root,
+    const container = globalThis.document?.getElementById('root')
+    if (!container) {
+      throw new Error('OpenClaude web UI root element not found')
+    }
+
+    const globals = globalThis as BrowserGlobals
+    const browserRoot = globals.__openclaudeWebUiRoot ?? createRoot(container)
+    globals.__openclaudeWebUiRoot = browserRoot
+
+    browserRoot.render(
       <AppStateProvider
         initialState={appProps.initialState}
         onChangeAppState={onChangeAppState}
@@ -48,6 +73,8 @@ export async function launchRepl(
         {appElement}
       </AppStateProvider>,
     )
+
+    startDeferredPrefetches()
 
     return
   }

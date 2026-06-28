@@ -3,6 +3,7 @@ import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { getSnipCompactRuntimeModule } from '../../services/compact/snipCompactRuntime.js'
 import { getPrompt, SNIP_TOOL_NAME } from './prompt.js'
 
 const inputSchema = lazySchema(() =>
@@ -39,8 +40,7 @@ export const SnipTool = buildTool({
     return inputSchema()
   },
   async call(input, context) {
-    const { markForSnip } =
-      require('../../services/compact/snipCompact.js') as typeof import('../../services/compact/snipCompact.js')
+    const { markForSnip } = getSnipCompactRuntimeModule()
     // Resolve short IDs → UUIDs against THIS conversation's messages so the
     // pending removal is scoped to this session (see markForSnip). Report the
     // count that actually resolved, not the raw request length: stale or

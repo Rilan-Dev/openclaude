@@ -55,7 +55,10 @@ const browserOsModule = browserBuiltins as typeof import('os')
 
 export function isBrowserRuntime(): boolean {
   // Force browser mode when explicitly configured.
-  if (process.env.OPENCLAUDE_RENDER_MODE === "web") {
+  if (
+    typeof process !== 'undefined' &&
+    process.env.OPENCLAUDE_RENDER_MODE === 'web'
+  ) {
     return true;
   }
 
@@ -70,7 +73,10 @@ export type RuntimeRenderMode = 'terminal' | 'web'
 export function getRuntimeRenderMode(
   fallback: RuntimeRenderMode = isBrowserRuntime() ? 'web' : 'terminal',
 ): RuntimeRenderMode {
-  const value = process.env.OPENCLAUDE_RENDER_MODE?.trim().toLowerCase()
+  const value =
+    typeof process !== 'undefined'
+      ? process.env.OPENCLAUDE_RENDER_MODE?.trim().toLowerCase()
+      : undefined
   if (value === 'terminal' || value === 'web') {
     return value
   }

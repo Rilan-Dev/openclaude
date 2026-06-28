@@ -1,11 +1,8 @@
-import React from 'react'
-import ReactDOMClient from 'react-dom/client'
 import './styles.css'
 import './repl.css'
 import processShim from './shims/process.js'
 import { Buffer as BrowserBuffer } from './shims/nodeBuiltins.js'
-import type { Props as REPLPropsType } from '../src/screens/REPL.js'
-import { getRuntimeRenderMode, isBrowserRuntime } from '../src/utils/imports.js'
+
 
 const ultraplanPromptText = 'This is a planning prompt stub.'
 
@@ -358,197 +355,21 @@ function installBrowserRequire(): void {
   const browserRequire = (id: string) =>
     browserRequireMap[id] ?? createBrowserRequireFallback()
 
-  if (!(globalThis as typeof globalThis & { require?: typeof browserRequire }).require) {
-    ;(globalThis as typeof globalThis & { require: typeof browserRequire }).require =
-      browserRequire
+  if (
+    !(globalThis as typeof globalThis & { require?: typeof browserRequire })
+      .require
+  ) {
+    ;(
+      globalThis as typeof globalThis & { require: typeof browserRequire }
+    ).require = browserRequire
   }
 }
 
-import type { Command } from '../src/types/command.js'
 
-async function loadWebCommands(): Promise<Command[]> {
-  const commandModules = await Promise.all([
-    import('../src/commands/clear/clear.js').catch(() => null),
-    import('../src/commands/config/config.js').catch(() => null),
-    import('../src/commands/cost/cost.js').catch(() => null),
-    import('../src/commands/doctor/doctor.js').catch(() => null),
-    import('../src/commands/help/help.js').catch(() => null),
-    import('../src/commands/init/init.js').catch(() => null),
-    import('../src/commands/login/login.js').catch(() => null),
-    import('../src/commands/logout/logout.js').catch(() => null),
-    import('../src/commands/mcp/mcp.js').catch(() => null),
-    import('../src/commands/memory/memory.js').catch(() => null),
-    import('../src/commands/model/model.js').catch(() => null),
-    import('../src/commands/permissions/permissions.js').catch(() => null),
-    import('../src/commands/pr_comments/pr_comments.js').catch(() => null),
-    import('../src/commands/review/review.js').catch(() => null),
-    import('../src/commands/terminalSetup/terminalSetup.js').catch(() => null),
-    import('../src/commands/upgrade/upgrade.js').catch(() => null),
-  ])
-
-  return commandModules.flatMap(mod => {
-    if (!mod) return []
-
-    const values = Object.values(mod)
-
-    return values.filter((value): value is Command => {
-      return (
-        typeof value === 'object' &&
-        value !== null &&
-        'name' in value &&
-        'type' in value
-      )
-    })
-  })
-}
-
-const webCommands = await loadWebCommands()
-
-const replProps: REPLPropsType = {
-  commands: webCommands,
-  debug: false,
-  initialTools: [],
-  renderMode: getRuntimeRenderMode('web'),
-  disableSlashCommands: false,
-  thinkingConfig: {
-    type: 'adaptive',
-  },
-}
-
-type BrowserRuntimeModules = {
-  App: AppComponent
-  AppStateProvider: typeof import('../src/state/AppState.js').AppStateProvider
-  REPL: typeof import('../src/screens/REPL.js').REPL
-}
-
-function BrowserRuntimeShell({
-  App,
-  AppStateProvider,
-  REPL,
-}: BrowserRuntimeModules) {
-  return React.createElement(
-    AppStateProvider,
-    null,
-    React.createElement(
-      App,
-      {
-        getFpsMetrics: () => undefined,
-        renderMode: replProps.renderMode,
-      },
-      React.createElement(REPL, replProps),
-    ),
-  )
-}
-
-const createRoot = (ReactDOMClient as Record<string, any>).createRoot
-
-async function renderBootstrap(): Promise<void> {
-  console.debug('[openclaude:web] bootstrap start')
-  const rootEl = document.getElementById('root')
-  if (!rootEl) {
-    throw new Error('root element not found')
-  }
-
-  if (typeof createRoot !== 'function') {
-    throw new Error('react-dom/client did not expose createRoot')
-  }
-
-  const loadingRoot = createRoot(rootEl)
-
-  const loadingScreen = React.createElement(
-    'div',
-    {
-      style: {
-        alignItems: 'center',
-        background:
-          'radial-gradient(circle at top left, rgba(65, 89, 141, 0.22), transparent 34rem), linear-gradient(135deg, #0b1117 0%, #11181f 44%, #16110d 100%)',
-        color: '#f3eadc',
-        display: 'grid',
-        fontFamily: '"IBM Plex Sans", "Aptos", "Segoe UI", sans-serif',
-        minHeight: '100vh',
-        padding: '32px',
-      },
-    },
-    React.createElement(
-      'div',
-      { style: { maxWidth: 720 } },
-      React.createElement(
-        'div',
-        {
-          style: {
-            color: '#86efac',
-            fontSize: 12,
-            letterSpacing: '0.16em',
-            textTransform: 'uppercase',
-          },
-        },
-        'OpenClaude web',
-      ),
-      React.createElement(
-        'h1',
-        { style: { fontSize: 34, lineHeight: 1.1, margin: '10px 0 12px' } },
-        'Bootstrapping browser runtime',
-      ),
-      React.createElement(
-        'p',
-        {
-          style: {
-            color: '#cbd5e1',
-            fontSize: 16,
-            margin: 0,
-          },
-        },
-        'Loading the shared REPL modules and provider bridge. If this stays on screen, the browser import graph is still resolving.',
-      ),
-    ),
-  )
-
-  loadingRoot.render(loadingScreen)
-
-  console.debug('[openclaude:web] importing launchRepl')
-
-  const { launchRepl } = await import('../src/replLauncher.js')
-
-  console.debug('[openclaude:web] imports resolved')
-
-  const root = loadingRoot
-
-  await launchRepl(
-    {} as import('../src/ink.js').Root,
-    {
-      getFpsMetrics: () => undefined,
-      renderMode: 'web',
-    },
-    replProps,
-    async (_root, element) => {
-      root.render(
-        React.createElement(
-          React.StrictMode,
-          null,
-          element,
-        ),
-      )
-    },
-  )
-
-  console.debug('[openclaude:web] rendered')
-
-  if (isBrowserRuntime()) {
-    ;(globalThis as typeof globalThis & {
-      __OPENCLAUDE_APP__?: {
-        renderMode: REPLPropsType['renderMode']
-        root: typeof root
-      }
-    }).__OPENCLAUDE_APP__ = {
-      renderMode: replProps.renderMode,
-      root,
-    }
-  }
-}
-
-export function bootstrapOpenClaudeWebUI(): Promise<void> {
+export async function bootstrapOpenClaudeWebUI(): Promise<void> {
   installBrowserRequire()
-  //   const { main } = await import('../src/main.js')
-  // await main()
-  return renderBootstrap()
+
+  const { main } = await import('../src/main.js')
+
+  await main()
 }

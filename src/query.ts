@@ -15,6 +15,7 @@ import {
 import { consumeCompactionRequest } from './utils/memoryPressure.js'
 import { buildPostCompactMessages } from './services/compact/compact.js'
 import { isBrowserRuntime } from './utils/imports.js'
+import { getSnipCompactRuntimeModule } from './services/compact/snipCompactRuntime.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const reactiveCompact = !isBrowserRuntime() && feature('REACTIVE_COMPACT')
   ? (require('./services/compact/reactiveCompact.js') as typeof import('./services/compact/reactiveCompact.js'))
@@ -120,6 +121,8 @@ import {
 import { productionDeps, type QueryDeps } from './query/deps.js'
 import type { Terminal, Continue } from './query/transitions.js'
 import { feature } from 'bun:bundle'
+
+
 import {
   getCurrentTurnTokenBudget,
   getTurnOutputTokens,
@@ -129,10 +132,15 @@ import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
-  ? (require('./services/compact/snipCompact.js') as typeof import('./services/compact/snipCompact.js'))
+  ? getSnipCompactRuntimeModule()
   : null
 const taskSummaryModule = feature('BG_SESSIONS')
-  ? (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
+  ? isBrowserRuntime()
+    ? ({
+        shouldGenerateTaskSummary: () => false,
+        maybeGenerateTaskSummary: () => undefined,
+      } as typeof import('./utils/taskSummary.js'))
+    : (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 

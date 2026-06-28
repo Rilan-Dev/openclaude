@@ -76,17 +76,23 @@ export function useLogMessages(messages: Message[], ignore: boolean = false) {
         : {},
       parentHint,
       messages,
-    ).then(lastRecordedUuid => {
-      // For compaction/full array case (!isIncremental): use the async return
-      // value. After compaction, messagesToKeep in the array are skipped
-      // (already in transcript), so the sync loop would find a wrong UUID.
-      // Skip if a newer effect already ran (stale closure would overwrite the
-      // fresher sync update from the subsequent incremental render).
-      if (seq !== callSeqRef.current) return
-      if (lastRecordedUuid && !isIncremental) {
-        lastParentUuidRef.current = lastRecordedUuid
-      }
-    })
+    )
+      .then(lastRecordedUuid => {
+        // For compaction/full array case (!isIncremental): use the async return
+        // value. After compaction, messagesToKeep in the array are skipped
+        // (already in transcript), so the sync loop would find a wrong UUID.
+        // Skip if a newer effect already ran (stale closure would overwrite the
+        // fresher sync update from the subsequent incremental render).
+        if (seq !== callSeqRef.current) return
+        if (lastRecordedUuid && !isIncremental) {
+          lastParentUuidRef.current = lastRecordedUuid
+        }
+      })
+      .catch(() => {
+        // Transcript logging is best-effort in the browser. A persistence
+        // failure must never stall the turn loop or surface as an unhandled
+        // rejection in the web UI.
+      })
 
     // Sync-walk safe for: incremental (pure new-tail slice), first-render
     // (no messagesToKeep interleaving), and same-head shrink. Shrink is the

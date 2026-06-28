@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from 'bun:test'
+import { afterEach, beforeEach, expect, mock, test } from 'bun:test'
 import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import { type UUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -14,12 +14,9 @@ import {
   adoptResumedSessionFile,
   buildConversationChain,
   loadTranscriptFile,
-  recordGoalState,
   recordTranscript,
-  flushSessionStorage,
   resetProjectForTesting,
   resetSessionFilePointer,
-  setSessionFileForTesting,
   restoreSessionMetadata,
   stripPersistedToolUseResultsFromJSONLBuffer,
 } from './sessionStorage.ts'
@@ -32,6 +29,7 @@ import {
   switchSession,
 } from '../bootstrap/state.js'
 import type { GoalState } from '../services/goal/types.js'
+import * as realImports from './imports.js'
 import { setClaudeConfigHomeDirForTesting } from './envUtils.js'
 import { resetSettingsCache } from './settings/settingsCache.js'
 
@@ -602,30 +600,55 @@ test('restoreSessionMetadata re-appends the resumed active goal instead of stale
 
 test('recordGoalState writes goal metadata durably before resolving', async () => {
   await withSessionPersistence(async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'openclaude-session-storage-'))
-    tempDirs.push(dir)
-    const filePath = join(dir, `${sessionId}.jsonl`)
-    switchSession(sessionId as never, dir)
-    setSessionFileForTesting(filePath)
-
-    await recordGoalState(
-      {
-        id: 'goal-durable',
-        condition: 'durable goal',
-        status: 'active',
-        createdAt: ts,
-        updatedAt: ts,
-        startedAt: ts,
-        turnCount: 0,
-        maxTurns: 50,
-        evaluatorFailures: 0,
-      },
-      sessionId as never,
+    const configDir = await mkdtemp(
+      join(tmpdir(), 'openclaude-session-storage-config-'),
     )
-    await flushSessionStorage()
+    tempDirs.push(configDir)
+    setClaudeConfigHomeDirForTesting(configDir)
+    await writeFile(
+      join(configDir, 'settings.json'),
+      JSON.stringify({ cleanupPeriodDays: 30 }),
+      'utf-8',
+    )
+    resetSettingsCache()
 
-    const text = await readFile(filePath, 'utf8')
-    expect(text).toContain('"type":"goal-state"')
-    expect(text).toContain('durable goal')
+    try {
+      mock.module('./imports.js', () => ({
+        ...realImports,
+        isBrowserRuntime: () => false,
+      }))
+      const freshSessionStorage = await import(
+        `./sessionStorage.ts?ts=${Date.now()}-${Math.random()}`
+      )
+
+      const dir = await mkdtemp(join(tmpdir(), 'openclaude-session-storage-'))
+      tempDirs.push(dir)
+      const filePath = join(dir, `${sessionId}.jsonl`)
+      switchSession(sessionId as never, dir)
+      freshSessionStorage.setSessionFileForTesting(filePath)
+
+      await freshSessionStorage.recordGoalState(
+        {
+          id: 'goal-durable',
+          condition: 'durable goal',
+          status: 'active',
+          createdAt: ts,
+          updatedAt: ts,
+          startedAt: ts,
+          turnCount: 0,
+          maxTurns: 50,
+          evaluatorFailures: 0,
+        },
+        sessionId as never,
+      )
+      await freshSessionStorage.flushSessionStorage()
+
+      const text = await readFile(filePath, 'utf8')
+      expect(text).toContain('"type":"goal-state"')
+      expect(text).toContain('durable goal')
+    } finally {
+      setClaudeConfigHomeDirForTesting(undefined)
+      resetSettingsCache()
+    }
   })
 })

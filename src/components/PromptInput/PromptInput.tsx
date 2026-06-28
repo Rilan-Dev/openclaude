@@ -2,7 +2,6 @@ import { feature } from 'bun:bundle';
 import chalk from 'chalk';
 import * as path from 'path';
 import * as React from 'react';
-import figures from 'figures'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useNotifications } from 'src/context/notifications.js';
 import { useCommandQueue } from 'src/hooks/useCommandQueue.js';
@@ -12,14 +11,14 @@ import { type AppState, useAppState, useAppStateStore, useSetAppState } from 'sr
 import type { FooterItem } from 'src/state/AppStateStore.js';
 import { getCwd } from 'src/utils/cwd.js';
 import { isQueuedCommandEditable, popAllEditable } from 'src/utils/messageQueueManager.js';
-import { stripVTControlCharacters as stripAnsi } from '../../utils/stripVTControlCharacters.js';
+import { stripVTControlCharacters as stripAnsi } from 'node:util';
 import { companionReservedColumns } from '../../buddy/CompanionSprite.js';
 import { isBuddyEnabled } from '../../buddy/feature.js';
 import { findBuddyTriggerPositions, useBuddyNotification } from '../../buddy/useBuddyNotification.js';
 import { FastModePicker } from '../../commands/fast/fast.js';
 import { isUltrareviewEnabled } from '../../commands/review/ultrareviewEnabled.js';
 import { getNativeCSIuTerminalDisplayName } from '../../commands/terminalSetup/terminalSetup.js';
-import { type Command, hasCommand } from '../../types/command.js';
+import { type Command, hasCommand } from '../../commands.js';
 import { useIsModalOverlayActive } from '../../context/overlayContext.js';
 import { useSetPromptOverlayDialog } from '../../context/promptOverlayContext.js';
 import { formatImageRef, formatPastedTextRef, getPastedTextRefNumLines, parseReferences } from '../../history.js';
@@ -1118,7 +1117,7 @@ function PromptInput({
       slashCommandOverride
     } : undefined);
   }, [promptSuggestionState, speculation, speculationSessionTimeSavedMs, teamContext, store, footerItems, suggestionsState.suggestions, onSubmitProp, onAgentSubmit, clearBuffer, resetHistory, logOutcomeAtSubmission, setAppState, markAccepted, pastedContents, removeNotification]);
-  
+
   const {
     suggestions,
     selectedSuggestion,
@@ -1140,6 +1139,59 @@ function PromptInput({
     markAccepted,
     onModeChange
   })
+
+  const applySelectedWebSuggestion = React.useCallback(
+    (item: SuggestionItem) => {
+      const beforeCursor = input.slice(0, cursorOffset)
+      const afterCursor = input.slice(cursorOffset)
+
+      const slashMatch = /(^|\s)(\/[a-zA-Z][a-zA-Z0-9:\-_]*)?$/.exec(
+        beforeCursor,
+      )
+
+      if (slashMatch) {
+        const matchStart = beforeCursor.length - (slashMatch[2]?.length ?? 0)
+
+        const replacement = item.displayText.startsWith('/')
+          ? item.displayText
+          : `/${item.displayText}`
+
+        const nextInput =
+          beforeCursor.slice(0, matchStart) +
+          replacement +
+          ' ' +
+          afterCursor
+
+        const nextCursorOffset =
+          beforeCursor.slice(0, matchStart).length + replacement.length + 1
+
+        trackAndSetInput(nextInput)
+        setCursorOffset(nextCursorOffset)
+
+        setSuggestionsState(prev => ({
+          ...prev,
+          suggestions: [],
+          selectedSuggestion: -1,
+          commandArgumentHint: undefined,
+        }))
+
+        return
+      }
+
+      const nextInput = beforeCursor + item.displayText + afterCursor
+
+      trackAndSetInput(nextInput)
+      setCursorOffset(beforeCursor.length + item.displayText.length)
+
+      setSuggestionsState(prev => ({
+        ...prev,
+        suggestions: [],
+        selectedSuggestion: -1,
+        commandArgumentHint: undefined,
+      }))
+    },
+    [input, cursorOffset, trackAndSetInput, setCursorOffset, setSuggestionsState],
+  )
 
   // Track if prompt suggestion should be shown (computed later with terminal width).
   // Hidden in teammate view — suggestion is leader-context only.
@@ -2173,18 +2225,15 @@ function PromptInput({
   // Memoized so the portal useEffect doesn't churn on every PromptInput render.
   const autoModeOptInDialog = useMemo(() => feature('TRANSCRIPT_CLASSIFIER') && showAutoModeOptIn ? <AutoModeOptInDialog onAccept={handleAutoModeOptInAccept} onDecline={handleAutoModeOptInDecline} /> : null, [showAutoModeOptIn, handleAutoModeOptInAccept, handleAutoModeOptInDecline]);
   useSetPromptOverlayDialog(isFullscreenEnvEnabled() ? autoModeOptInDialog : null);
-  // TUI modal/dialog returns stay unchanged for terminal rendering.
-  // In WebUI we keep all hooks and command handlers active, then render the
-  // browser-adaptive prompt below so DOM never receives Ink-only components.
-  if (!isBrowserRuntime() && showBashesDialog) {
+  if (showBashesDialog) {
     return <BackgroundTasksDialog onDone={() => setShowBashesDialog(false)} toolUseContext={getToolUseContext(messages, [], new AbortController(), mainLoopModel)} initialDetailTaskId={typeof showBashesDialog === 'string' ? showBashesDialog : undefined} />;
   }
-  if (!isBrowserRuntime() && isAgentSwarmsEnabled() && showTeamsDialog) {
+  if (isAgentSwarmsEnabled() && showTeamsDialog) {
     return <TeamsDialog initialTeams={cachedTeams} onDone={() => {
       setShowTeamsDialog(false);
     }} />;
   }
-  if (!isBrowserRuntime() && feature('QUICK_SEARCH')) {
+  if (feature('QUICK_SEARCH')) {
     const insertWithSpacing = (text: string) => {
       const cursorChar = input[cursorOffset - 1] ?? ' ';
       insertTextAtCursor(/\s/.test(cursorChar) ? text : ` ${text}`);
@@ -2196,7 +2245,7 @@ function PromptInput({
       return <GlobalSearchDialog onDone={() => setShowGlobalSearch(false)} onInsert={insertWithSpacing} />;
     }
   }
-  if (!isBrowserRuntime() && feature('HISTORY_PICKER') && showHistoryPicker) {
+  if (feature('HISTORY_PICKER') && showHistoryPicker) {
     return <HistorySearchDialog initialQuery={input} onSelect={entry => {
       const entryMode = getModeFromInput(entry.display);
       const value = getValueFromInput(entry.display);
@@ -2209,25 +2258,24 @@ function PromptInput({
   }
 
   // Show loop mode menu when requested (internal-only, eliminated from external builds)
-  if (!isBrowserRuntime() && modelPickerElement) {
+  if (modelPickerElement) {
     return modelPickerElement;
   }
-  if (!isBrowserRuntime() && fastModePickerElement) {
+  if (fastModePickerElement) {
     return fastModePickerElement;
   }
-  if (!isBrowserRuntime() && thinkingToggleElement) {
+  if (thinkingToggleElement) {
     return thinkingToggleElement;
   }
-  if (!isBrowserRuntime() && showBridgeDialog) {
+  if (showBridgeDialog) {
     return <BridgeDialog onDone={() => {
       setShowBridgeDialog(false);
       selectFooterItem(null);
     }} />;
   }
-  if (!isBrowserRuntime() && dangerousModeDialog) {
+  if (dangerousModeDialog) {
     return dangerousModeDialog;
   }
-
   const baseProps: BaseTextInputProps = {
     multiline: true,
     onSubmit,
@@ -2293,82 +2341,101 @@ function PromptInput({
     return 'promptBorder';
   };
   if (isExternalEditorActive) {
-    if (isBrowserRuntime()) {
-      return (
-        <WebPromptShell borderColor={themeColorToWebColor(getBorderColor())}>
-          <WebPanelTitle>External editor active</WebPanelTitle>
-          <WebPanelText>Save and close editor to continue...</WebPanelText>
-        </WebPromptShell>
-      )
-    }
-
     return <Box flexDirection="row" alignItems="center" justifyContent="center" borderColor={getBorderColor()} borderStyle="round" borderLeft={false} borderRight={false} borderBottom width="100%">
       <Text dimColor italic>
         Save and close editor to continue...
       </Text>
     </Box>;
   }
-  const textInputElement = isVimModeEnabled() ? (
-    <VimTextInput
-      {...baseProps}
-      initialMode={vimMode}
-      onModeChange={setVimMode}
-    />
-  ) : (
-    <TextInput {...baseProps} />
-  )
-
+  const textInputElement = isVimModeEnabled() ? <VimTextInput {...baseProps} initialMode={vimMode} onModeChange={setVimMode} /> : <TextInput {...baseProps} />;
   if (isBrowserRuntime()) {
     return (
-      <WebPromptInput
-        mode={mode}
-        isLoading={isLoading}
-        input={input}
-        placeholder={typeof placeholder === 'string' ? placeholder : undefined}
-        isSearchingHistory={isSearchingHistory}
-        historyMatch={historyMatch}
-        cursorOffset={cursorOffset}
-        setCursorOffset={setCursorOffset}
-        onChange={onChange}
-        onSubmit={value => {
-          void onSubmit(value)
+      <div
+        data-openclaude-web-prompt-shell
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '10px 12px 12px',
+          background: 'transparent',
+          color: '#f3eadc',
+          fontFamily:
+            '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
         }}
-        onTextPaste={onTextPaste}
-        onImagePaste={onImagePaste}
-        handleNewline={handleNewline}
-        handleUndo={handleUndo}
-        canUndo={canUndo}
-        handleStash={handleStash}
-        handleModelPicker={handleModelPicker}
-        handleFastModePicker={handleFastModePicker}
-        handleThinkingToggle={handleThinkingToggle}
-        handleCycleMode={handleCycleMode}
-        handleImagePaste={handleImagePaste}
-        viewingAgentName={viewingAgentName}
-        viewingAgentColor={viewingAgentColor}
-        getBorderColor={getBorderColor}
-        suggestions={suggestions}
-        selectedSuggestion={selectedSuggestion}
-        maxColumnWidth={maxColumnWidth}
-        commandArgumentHint={commandArgumentHint}
-        promptSuggestion={promptSuggestion}
-        footerItems={footerItems}
-        footerItemSelected={footerItemSelected}
-        tasksSelected={tasksSelected}
-        teamsSelected={teamsSelected}
-        bridgeSelected={bridgeSelected}
-        verbose={verbose}
-        debug={debug}
-        helpOpen={helpOpen}
-        isPasting={isPasting}
-        showFastIcon={showFastIcon}
-        showFastIconHint={showFastIconHint}
-        fastModeCooldown={fastModeCooldown}
-        stashedPrompt={stashedPrompt}
-      />
+      >
+        {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
+
+        <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
+
+        <WebPromptTextareaOnly
+          mode={mode}
+          isLoading={isLoading}
+          input={input}
+          placeholder={typeof placeholder === 'string' ? placeholder : undefined}
+          isSearchingHistory={isSearchingHistory}
+          historyMatch={historyMatch}
+          cursorOffset={cursorOffset}
+          setCursorOffset={setCursorOffset}
+          onChange={onChange}
+          onSubmit={value => {
+            void onSubmit(value)
+          }}
+          onTextPaste={onTextPaste}
+          onImagePaste={onImagePaste}
+          handleNewline={handleNewline}
+          handleUndo={handleUndo}
+          canUndo={canUndo}
+          handleStash={handleStash}
+          suggestions={suggestions}
+          selectedSuggestion={selectedSuggestion}
+          setSuggestionsState={setSuggestionsState}
+          commandArgumentHint={commandArgumentHint}
+          onApplySuggestion={applySelectedWebSuggestion}
+          viewingAgentName={viewingAgentName}
+          viewingAgentColor={viewingAgentColor}
+          getBorderColor={getBorderColor}
+        />
+
+        <PromptInputFooter
+          apiKeyStatus={apiKeyStatus}
+          debug={debug}
+          exitMessage={exitMessage}
+          vimMode={isVimModeEnabled() ? vimMode : undefined}
+          mode={mode}
+          autoUpdaterResult={autoUpdaterResult}
+          isAutoUpdating={isAutoUpdating}
+          verbose={verbose}
+          onAutoUpdaterResult={onAutoUpdaterResult}
+          onChangeIsUpdating={setIsAutoUpdating}
+          suggestions={suggestions}
+          selectedSuggestion={selectedSuggestion}
+          maxColumnWidth={maxColumnWidth}
+          toolPermissionContext={effectiveToolPermissionContext}
+          helpOpen={helpOpen}
+          suppressHint={input.length > 0}
+          isLoading={isLoading}
+          tasksSelected={tasksSelected}
+          teamsSelected={teamsSelected}
+          bridgeSelected={bridgeSelected}
+          tmuxSelected={tmuxSelected}
+          teammateFooterIndex={teammateFooterIndex}
+          ideSelection={ideSelection}
+          mcpClients={mcpClients}
+          isPasting={isPasting}
+          isInputWrapped={isInputWrapped}
+          messages={messages}
+          isSearching={isSearchingHistory}
+          historyQuery={historyQuery}
+          setHistoryQuery={setHistoryQuery}
+          historyFailedMatch={historyFailedMatch}
+          onOpenTasksDialog={
+            isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined
+          }
+        />
+
+        {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
+      </div>
     )
   }
-
   return <Box flexDirection="column" marginTop={briefOwnsGap ? 0 : 1}>
     {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
     <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
@@ -2393,11 +2460,11 @@ function PromptInput({
     </> :
       <Box flexDirection="row" alignItems="flex-start" justifyContent="flex-start" borderColor={getBorderColor()} borderStyle="round" borderLeft={false} borderRight={false} borderBottom width="100%" borderText={buildBorderText(showFastIcon ?? false, showFastIconHint, fastModeCooldown)}>
         <PromptInputModeIndicator mode={mode} isLoading={isLoading} viewingAgentName={viewingAgentName} viewingAgentColor={viewingAgentColor} />
-        <Box flexGrow={1} flexShrink={2} onClick={handleInputClick}>
+        <Box flexGrow={1} flexShrink={1} onClick={handleInputClick}>
           {textInputElement}
         </Box>
       </Box>
-    }
+      }
     <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
     {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
     {isFullscreenEnvEnabled() ?
@@ -2423,255 +2490,13 @@ function PromptInput({
   </Box>;
 }
 
-function themeColorToWebColor(color?: keyof Theme): string {
-  if (!color) return '#f3eadc'
-
-  const map: Partial<Record<keyof Theme, string>> = {
-    promptBorder: '#64748b',
-    bashBorder: '#f59e0b',
-    warning: '#f59e0b',
-    suggestion: '#60a5fa',
-    success: '#22c55e',
-    error: '#ef4444',
-    subtle: '#94a3b8',
-    text: '#f3eadc',
-    inverseText: '#0f172a',
-  }
-
-  return map[color] ?? `var(--openclaude-${String(color)}, #f3eadc)`
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result)
-        return
-      }
-
-      reject(new Error('Unable to read pasted image'))
-    }
-
-    reader.onerror = () => reject(reader.error ?? new Error('Image read failed'))
-
-    reader.readAsDataURL(file)
-  })
-}
-
-
-function WebPromptShell({
-  borderColor,
-  children,
-}: {
-  borderColor: string
-  children: React.ReactNode
-}): React.ReactNode {
-  return (
-    <div
-      data-openclaude-web-prompt-shell
-      style={{
-        width: '100%',
-        boxSizing: 'border-box',
-        padding: 18,
-        color: '#f3eadc',
-        background:
-          'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88))',
-        borderTop: `1px solid ${borderColor}`,
-        fontFamily:
-          '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function WebPanelTitle({ children }: { children: React.ReactNode }): React.ReactNode {
-  return (
-    <div
-      style={{
-        margin: '0 0 6px',
-        fontSize: 15,
-        fontWeight: 750,
-        color: '#f8fafc',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function WebPanelText({ children }: { children: React.ReactNode }): React.ReactNode {
-  return (
-    <div
-      style={{
-        margin: '0 0 10px',
-        fontSize: 13,
-        color: '#cbd5e1',
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function WebInlinePanel({
-  title,
-  description,
-  onClose,
-}: {
-  title: string
-  description: string
-  onClose: () => void
-}): React.ReactNode {
-  return (
-    <div
-      data-openclaude-web-inline-panel
-      style={{
-        marginBottom: 10,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid rgba(96, 165, 250, 0.32)',
-        background: 'rgba(30, 41, 59, 0.72)',
-      }}
-    >
-      <WebPanelTitle>{title}</WebPanelTitle>
-      <WebPanelText>{description}</WebPanelText>
-      <button type="button" style={webButtonStyle(false)} onClick={onClose}>
-        Close
-      </button>
-    </div>
-  )
-}
-
-const WEB_OVERLAY_MAX_ITEMS = 5
-
-function webStringWidth(value: string): number {
-  return Array.from(value).length
-}
-
-function webTruncateToWidth(value: string, width: number): string {
-  if (width <= 0) return ''
-  if (webStringWidth(value) <= width) return value
-  if (width <= 1) return '…'
-
-  return `${Array.from(value).slice(0, width - 1).join('')}…`
-}
-
-function webGetSuggestionIcon(itemId: string): string {
-  if (itemId.startsWith('file-')) return '+'
-  if (itemId.startsWith('mcp-resource-')) return '◇'
-  if (itemId.startsWith('agent-')) return '*'
-  return '+'
-}
-
-function WebPromptInputFooterSuggestions({
-  suggestions,
-  selectedSuggestion,
-  maxColumnWidth,
-  overlay,
-}: {
+type WebSuggestionsState = {
   suggestions: SuggestionItem[]
   selectedSuggestion: number
-  maxColumnWidth?: number
-  overlay?: boolean
-}): React.ReactNode {
-  if (suggestions.length === 0) {
-    return null
-  }
-
-  const maxVisibleItems = overlay ? WEB_OVERLAY_MAX_ITEMS : 6
-
-  const safeSelectedSuggestion =
-    selectedSuggestion >= 0
-      ? Math.min(selectedSuggestion, suggestions.length - 1)
-      : 0
-
-  const startIndex = Math.max(
-    0,
-    Math.min(
-      safeSelectedSuggestion - Math.floor(maxVisibleItems / 2),
-      suggestions.length - maxVisibleItems,
-    ),
-  )
-
-  const endIndex = Math.min(startIndex + maxVisibleItems, suggestions.length)
-  const visibleItems = suggestions.slice(startIndex, endIndex)
-
-  const computedMaxColumnWidth =
-    maxColumnWidth ??
-    Math.max(...suggestions.map(item => webStringWidth(item.displayText))) + 5
-
-  return (
-    <div
-      data-openclaude-web-footer-suggestions
-      style={{
-        marginTop: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: overlay ? 'flex-start' : 'flex-end',
-        width: '100%',
-        overflow: 'hidden',
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-        fontSize: 13,
-        lineHeight: 1.35,
-      }}
-    >
-      {visibleItems.map(item => {
-        const isSelected = item.id === suggestions[safeSelectedSuggestion]?.id
-        const selectionPrefix = isSelected ? '❯ ' : '  '
-        const icon = webGetSuggestionIcon(item.id)
-
-        const displayTextWidth = Math.min(computedMaxColumnWidth, 40)
-        const displayText = webTruncateToWidth(
-          item.displayText,
-          Math.max(1, displayTextWidth - 2),
-        )
-
-        const tagText = item.tag ? `[${item.tag}] ` : ''
-        const description = item.description
-          ? webTruncateToWidth(item.description.replace(/\s+/g, ' '), 80)
-          : ''
-
-        return (
-          <div
-            key={`${item.id}:${isSelected ? 'selected' : 'idle'}`}
-            data-openclaude-web-suggestion-row
-            data-selected={isSelected}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '1px 4px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              background: isSelected ? '#60a5fa' : 'transparent',
-              color: isSelected ? '#0f172a' : '#cbd5e1',
-              fontWeight: isSelected ? 700 : 400,
-              opacity: isSelected ? 1 : 0.72,
-            }}
-          >
-            <span>{selectionPrefix}</span>
-            <span>{icon} </span>
-            <span>{displayText}</span>
-            {tagText ? <span>{tagText}</span> : null}
-            {description ? (
-              <span style={{ opacity: isSelected ? 0.85 : 0.72 }}>
-                {' '}
-                {description}
-              </span>
-            ) : null}
-          </div>
-        )
-      })}
-    </div>
-  )
+  commandArgumentHint?: string
 }
 
-type WebPromptInputProps = {
+type WebPromptTextareaOnlyProps = {
   mode: PromptInputMode
   isLoading: boolean
   input: string
@@ -2694,41 +2519,60 @@ type WebPromptInputProps = {
   handleUndo: () => void
   canUndo: boolean
   handleStash: () => void
-  handleModelPicker: () => void
-  handleFastModePicker: () => void
-  handleThinkingToggle: () => void
-  handleCycleMode: () => void
-  handleImagePaste: () => void
+  suggestions: SuggestionItem[]
+  selectedSuggestion: number
+  setSuggestionsState: (
+    updater:
+      | WebSuggestionsState
+      | ((prev: WebSuggestionsState) => WebSuggestionsState),
+  ) => void
+  commandArgumentHint?: string
+  onApplySuggestion: (item: SuggestionItem) => void
   viewingAgentName?: string
   viewingAgentColor?: AgentColorName
   getBorderColor: () => keyof Theme
-  suggestions: SuggestionItem[]
-  selectedSuggestion: number
-  maxColumnWidth?: number
-  commandArgumentHint?: string
-  promptSuggestion?: string | null
-  footerItems: FooterItem[]
-  footerItemSelected: FooterItem | null
-  tasksSelected: boolean
-  teamsSelected: boolean
-  bridgeSelected: boolean
-  verbose: boolean
-  debug: boolean
-  helpOpen: boolean
-  isPasting: boolean
-  showFastIcon: boolean | undefined
-  showFastIconHint: boolean
-  fastModeCooldown: boolean
-  stashedPrompt:
-    | {
-        text: string
-        cursorOffset: number
-        pastedContents: Record<number, PastedContent>
-      }
-    | undefined
 }
 
-function WebPromptInput({
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+
+      reject(new Error('Unable to read pasted image'))
+    }
+
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Image read failed'))
+    }
+
+    reader.readAsDataURL(file)
+  })
+}
+
+function themeColorToWebColor(color?: keyof Theme): string {
+  if (!color) return '#f3eadc'
+
+  const map: Partial<Record<keyof Theme, string>> = {
+    promptBorder: '#64748b',
+    bashBorder: '#f59e0b',
+    warning: '#f59e0b',
+    suggestion: '#60a5fa',
+    success: '#22c55e',
+    error: '#ef4444',
+    subtle: '#94a3b8',
+    text: '#f3eadc',
+    inverseText: '#0f172a',
+  }
+
+  return map[color] ?? `var(--openclaude-${String(color)}, #f3eadc)`
+}
+
+function WebPromptTextareaOnly({
   mode,
   isLoading,
   input,
@@ -2745,33 +2589,17 @@ function WebPromptInput({
   handleUndo,
   canUndo,
   handleStash,
-  handleModelPicker,
-  handleFastModePicker,
-  handleThinkingToggle,
-  handleCycleMode,
-  handleImagePaste,
+  suggestions,
+  selectedSuggestion,
+  setSuggestionsState,
+  commandArgumentHint,
+  onApplySuggestion,
   viewingAgentName,
   viewingAgentColor,
   getBorderColor,
-  suggestions,
-  selectedSuggestion,
-  maxColumnWidth,
-  commandArgumentHint,
-  promptSuggestion,
-  footerItems,
-  footerItemSelected,
-  tasksSelected,
-  teamsSelected,
-  bridgeSelected,
-  verbose,
-  debug,
-  helpOpen,
-  isPasting,
-  showFastIcon,
-  showFastIconHint,
-  fastModeCooldown,
-  stashedPrompt,
-}: WebPromptInputProps): React.ReactNode {
+}: WebPromptTextareaOnlyProps): React.ReactNode {
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+
   const borderColor = themeColorToWebColor(getBorderColor())
 
   const teammateColor =
@@ -2782,13 +2610,15 @@ function WebPromptInput({
   const visibleValue =
     isSearchingHistory && historyMatch
       ? getValueFromInput(
-          typeof historyMatch === 'string'
-            ? historyMatch
-            : historyMatch.display,
-        )
+        typeof historyMatch === 'string'
+          ? historyMatch
+          : historyMatch.display,
+      )
       : input
 
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  React.useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   React.useEffect(() => {
     const textarea = textareaRef.current
@@ -2799,10 +2629,6 @@ function WebPromptInput({
     textarea.selectionStart = cursorOffset
     textarea.selectionEnd = cursorOffset
   }, [cursorOffset, visibleValue])
-
-  React.useEffect(() => {
-    textareaRef.current?.focus()
-  }, [])
 
   const submit = React.useCallback(() => {
     void onSubmit(visibleValue)
@@ -2826,86 +2652,6 @@ function WebPromptInput({
       setCursorOffset(target.selectionStart ?? target.value.length)
     },
     [setCursorOffset],
-  )
-
-  const onTextareaKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // TUI-equivalent submit.
-      // Enter submits. Shift+Enter inserts newline.
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault()
-        submit()
-        return
-      }
-
-      if (event.key === 'Enter' && event.shiftKey) {
-        event.preventDefault()
-        handleNewline()
-        return
-      }
-
-      // TUI-equivalent undo.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
-        if (canUndo) {
-          event.preventDefault()
-          handleUndo()
-        }
-        return
-      }
-
-      // TUI-equivalent stash.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault()
-        handleStash()
-        return
-      }
-
-      // TUI-equivalent image paste hotkey.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
-        event.preventDefault()
-        handleImagePaste()
-        return
-      }
-
-      // TUI-equivalent model picker hotkey fallback.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'm') {
-        event.preventDefault()
-        handleModelPicker()
-        return
-      }
-
-      // TUI-equivalent thinking toggle fallback.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 't') {
-        event.preventDefault()
-        handleThinkingToggle()
-        return
-      }
-
-      // TUI-equivalent permission/mode cycling fallback.
-      if (event.key === 'Tab' && event.shiftKey) {
-        event.preventDefault()
-        handleCycleMode()
-        return
-      }
-
-      // TUI-equivalent fast mode fallback.
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
-        event.preventDefault()
-        handleFastModePicker()
-      }
-    },
-    [
-      submit,
-      handleNewline,
-      canUndo,
-      handleUndo,
-      handleStash,
-      handleImagePaste,
-      handleModelPicker,
-      handleThinkingToggle,
-      handleCycleMode,
-      handleFastModePicker,
-    ],
   )
 
   const onTextareaPaste = React.useCallback(
@@ -2937,234 +2683,203 @@ function WebPromptInput({
     [onImagePaste, onTextPaste],
   )
 
-  const modeLabel =
-    viewingAgentName ??
-    (mode === 'bash' ? 'bash' : mode === 'prompt' ? 'prompt' : mode)
+  const onTextareaKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const hasSuggestions = suggestions.length > 0
+
+      if (hasSuggestions && event.key === 'ArrowDown') {
+        event.preventDefault()
+        event.stopPropagation()
+
+        setSuggestionsState(prev => {
+          const current =
+            prev.selectedSuggestion >= 0
+              ? prev.selectedSuggestion
+              : selectedSuggestion >= 0
+                ? selectedSuggestion
+                : -1
+
+          return {
+            ...prev,
+            suggestions,
+            selectedSuggestion: Math.min(current + 1, suggestions.length - 1),
+            commandArgumentHint,
+          }
+        })
+
+        textareaRef.current?.focus()
+        return
+      }
+
+      if (hasSuggestions && event.key === 'ArrowUp') {
+        event.preventDefault()
+        event.stopPropagation()
+
+        setSuggestionsState(prev => {
+          const current =
+            prev.selectedSuggestion >= 0
+              ? prev.selectedSuggestion
+              : selectedSuggestion >= 0
+                ? selectedSuggestion
+                : 0
+
+          return {
+            ...prev,
+            suggestions,
+            selectedSuggestion: Math.max(current - 1, 0),
+            commandArgumentHint,
+          }
+        })
+
+        textareaRef.current?.focus()
+        return
+      }
+
+      if (
+        hasSuggestions &&
+        (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey))
+      ) {
+        const index =
+          selectedSuggestion >= 0
+            ? Math.min(selectedSuggestion, suggestions.length - 1)
+            : 0
+
+        const item = suggestions[index]
+
+        if (item) {
+          event.preventDefault()
+          event.stopPropagation()
+          onApplySuggestion(item)
+          textareaRef.current?.focus()
+          return
+        }
+      }
+
+      if (event.key === 'Escape' && hasSuggestions) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        setSuggestionsState(prev => ({
+          ...prev,
+          suggestions: [],
+          selectedSuggestion: -1,
+          commandArgumentHint: undefined,
+        }))
+
+        textareaRef.current?.focus()
+        return
+      }
+
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        submit()
+        return
+      }
+
+      if (event.key === 'Enter' && event.shiftKey) {
+        event.preventDefault()
+        handleNewline()
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        if (canUndo) {
+          event.preventDefault()
+          handleUndo()
+        }
+
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        handleStash()
+      }
+    },
+    [
+      suggestions,
+      selectedSuggestion,
+      commandArgumentHint,
+      setSuggestionsState,
+      onApplySuggestion,
+      submit,
+      handleNewline,
+      canUndo,
+      handleUndo,
+      handleStash,
+    ],
+  )
 
   const webPromptSymbol = mode === 'bash' ? '!' : '❯'
-
-  const showStatusLine =
-    Boolean(stashedPrompt) ||
-    isPasting ||
-    isLoading ||
-    verbose ||
-    debug ||
-    helpOpen ||
-    Boolean(showFastIcon)
 
   return (
     <div
       data-openclaude-web-prompt-input
       style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        columnGap: 8,
+        rowGap: 0,
         width: '100%',
         boxSizing: 'border-box',
-        padding: '10px 12px 12px',
-        background: 'transparent',
-        color: '#f3eadc',
-        fontFamily:
-          '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
+        borderTop: `1px solid ${borderColor}`,
+        borderBottom: `1px solid ${borderColor}`,
+        padding: '8px 0',
       }}
     >
-      {showStatusLine ? (
-        <div
-          data-openclaude-web-prompt-status
-          style={{
-            marginBottom: 6,
-            color: '#94a3b8',
-            fontSize: 12,
-            lineHeight: 1.35,
-            minHeight: 16,
-          }}
-        >
-          {stashedPrompt ? 'Stashed prompt available · ' : null}
-          {isPasting ? 'Pasting… · ' : null}
-          {isLoading ? 'Responding… · ' : null}
-          {verbose ? 'verbose · ' : null}
-          {debug ? 'debug · ' : null}
-          {helpOpen ? 'help · ' : null}
-          {showFastIcon
-            ? `${getFastIconString(true, fastModeCooldown)}${
-                showFastIconHint ? ' /fast' : ''
-              }`
-            : null}
-        </div>
-      ) : null}
-
       <div
-        data-openclaude-web-prompt-border
+        title={viewingAgentName ?? mode}
         style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 8,
-          width: '100%',
-          boxSizing: 'border-box',
-          borderTop: `1px solid ${borderColor}`,
-          borderBottom: `1px solid ${borderColor}`,
-          padding: '8px 0',
+          minWidth: 22,
+          paddingTop: 8,
+          color: mode === 'bash' ? '#f59e0b' : teammateColor,
+          fontFamily:
+            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          fontSize: 18,
+          fontWeight: 800,
+          lineHeight: 1,
+          opacity: isLoading ? 0.5 : 1,
+          userSelect: 'none',
         }}
       >
-        <div
-          data-openclaude-web-prompt-indicator
-          title={modeLabel}
-          style={{
-            minWidth: 22,
-            paddingTop: 8,
-            color: mode === 'bash' ? '#f59e0b' : teammateColor,
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            fontSize: 18,
-            fontWeight: 800,
-            lineHeight: 1,
-            opacity: isLoading ? 0.5 : 1,
-            userSelect: 'none',
-          }}
-        >
-          {webPromptSymbol}
-        </div>
-
-        <textarea
-          ref={textareaRef}
-          data-openclaude-web-prompt-textarea
-          value={visibleValue}
-          placeholder={placeholder}
-          disabled={isLoading}
-          onChange={onTextareaChange}
-          onSelect={onTextareaSelect}
-          onKeyDown={onTextareaKeyDown}
-          onPaste={onTextareaPaste}
-          rows={Math.min(8, Math.max(1, visibleValue.split('\n').length))}
-          style={{
-            width: '100%',
-            resize: 'none',
-            boxSizing: 'border-box',
-            minHeight: 34,
-            maxHeight: 220,
-            padding: '6px 0',
-            border: 'none',
-            outline: 'none',
-            background: 'transparent',
-            color: '#f8fafc',
-            caretColor: '#f8fafc',
-            fontSize: 15,
-            lineHeight: 1.5,
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            opacity: isLoading ? 0.72 : 1,
-          }}
-        />
+        {webPromptSymbol}
       </div>
 
-
-      {promptSuggestion && !visibleValue ? (
-        <div
-          data-openclaude-web-prompt-suggestion
-          style={{
-            marginTop: 6,
-            color: '#64748b',
-            fontSize: 12,
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          }}
-        >
-          {promptSuggestion}
-        </div>
-      ) : null}
-
-      {commandArgumentHint ? (
-        <div
-          data-openclaude-web-command-hint
-          style={{
-            marginTop: 6,
-            color: '#60a5fa',
-            fontSize: 12,
-          }}
-        >
-          {commandArgumentHint}
-        </div>
-      ) : null}
-
-      {suggestions.length > 0 ? (
-        <WebPromptInputFooterSuggestions
-          suggestions={suggestions}
-          selectedSuggestion={selectedSuggestion}
-          maxColumnWidth={maxColumnWidth}
-          overlay
-        />
-      ) : null}
-
-      {footerItems.length > 0 ? (
-        <div
-          data-openclaude-web-footer-pills
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 6,
-            marginTop: 6,
-            color: '#94a3b8',
-            fontSize: 12,
-          }}
-        >
-          {footerItems.map(item => {
-            const selected = footerItemSelected === item
-
-            return (
-              <span
-                key={item}
-                data-selected={selected}
-                style={{
-                  color: selected ? '#dbeafe' : '#94a3b8',
-                  background: selected
-                    ? 'rgba(96, 165, 250, 0.14)'
-                    : 'transparent',
-                  borderRadius: 4,
-                  padding: selected ? '1px 4px' : '1px 0',
-                }}
-              >
-                {item}
-              </span>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {(tasksSelected || teamsSelected || bridgeSelected) && (
-        <div
-          data-openclaude-web-footer-selection
-          style={{
-            marginTop: 4,
-            color: '#64748b',
-            fontSize: 12,
-          }}
-        >
-          {tasksSelected ? 'tasks' : null}
-          {teamsSelected ? 'teams' : null}
-          {bridgeSelected ? 'bridge' : null}
-        </div>
-      )}
+      <textarea
+        ref={textareaRef}
+        data-openclaude-web-prompt-textarea
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={suggestions.length > 0}
+        value={visibleValue}
+        placeholder={placeholder}
+        readOnly={isLoading}
+        onChange={onTextareaChange}
+        onSelect={onTextareaSelect}
+        onKeyDown={onTextareaKeyDown}
+        onPaste={onTextareaPaste}
+        rows={Math.min(8, Math.max(1, visibleValue.split('\n').length))}
+        style={{
+          width: '100%',
+          resize: 'none',
+          boxSizing: 'border-box',
+          minHeight: 34,
+          maxHeight: 220,
+          padding: '6px 0',
+          border: 'none',
+          outline: 'none',
+          background: 'transparent',
+          color: '#f8fafc',
+          caretColor: '#f8fafc',
+          fontSize: 15,
+          lineHeight: 1.5,
+          fontFamily:
+            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          opacity: isLoading ? 0.72 : 1,
+        }}
+      />
     </div>
   )
-}
-
-function webButtonStyle(
-  primary: boolean,
-  disabled = false,
-): React.CSSProperties {
-  return {
-    appearance: 'none',
-    border: primary
-      ? '1px solid rgba(96, 165, 250, 0.84)'
-      : '1px solid rgba(148, 163, 184, 0.28)',
-    background: primary
-      ? 'linear-gradient(180deg, rgba(37, 99, 235, 0.95), rgba(29, 78, 216, 0.95))'
-      : 'rgba(15, 23, 42, 0.72)',
-    color: disabled ? '#64748b' : primary ? '#eff6ff' : '#cbd5e1',
-    borderRadius: 10,
-    padding: '7px 10px',
-    fontSize: 12,
-    fontWeight: 650,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.55 : 1,
-  }
 }
 
 /**

@@ -77,7 +77,7 @@ function BrowserAppStateProvider({
   return (
     <HasAppStateContext.Provider value={true}>
       <AppStoreContext.Provider value={browserAppStore}>
-        {children}
+        <MailboxProvider>{children}</MailboxProvider>
       </AppStoreContext.Provider>
     </HasAppStateContext.Provider>
   )

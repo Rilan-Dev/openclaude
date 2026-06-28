@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ReactNode } from 'react';
+import React, { type ComponentType, type ReactNode } from 'react';
 import type { StatsStore } from '../context/stats.js';
 import type { AppState } from '../state/AppStateStore.js';
 import type { FpsMetrics } from '../utils/fpsTracker.js';
@@ -63,7 +63,7 @@ export function App(t0: Props) {
     renderMode = 'terminal'
   } = t0;
   if (renderMode === 'web') {
-    return createElement('div', {
+    return React.createElement('div', {
       style: {
         minHeight: '100vh',
         background: 'radial-gradient(circle at top left, rgba(65, 89, 141, 0.22), transparent 34rem), linear-gradient(135deg, #0b1117 0%, #11181f 44%, #16110d 100%)',
@@ -78,11 +78,11 @@ export function App(t0: Props) {
     AppStateProvider,
     onChangeAppState
   } = getTerminalProviders();
-  return createElement(FpsMetricsProvider, {
+  return React.createElement(FpsMetricsProvider, {
     getFpsMetrics
-  }, createElement(StatsProvider, {
+  }, React.createElement(StatsProvider, {
     store: stats
-  }, createElement(AppStateProvider, {
+  }, React.createElement(AppStateProvider, {
     initialState,
     onChangeAppState
   }, children)));

@@ -2,6 +2,9 @@ import type { SettingsJson } from '../../utils/settings/types.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
+
+const browserRuntime = isBrowserRuntime()
 
 /**
  * Provider override resolved from agent routing config.
@@ -310,7 +313,7 @@ export function resolveOutOfProcessTeammateProviderFromCliArgs(
   args: readonly string[],
   settings: SettingsJson | null,
 ): ProviderOverride | null {
-  if (hasCliFlag(args, '--provider')) return null
+  if (!browserRuntime && hasCliFlag(args, '--provider')) return null
 
   const agentName = parseCliFlag(args, '--agent-name')
   const teamName = parseCliFlag(args, '--team-name')

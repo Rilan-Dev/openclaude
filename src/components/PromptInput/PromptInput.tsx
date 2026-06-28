@@ -2,6 +2,7 @@ import { feature } from 'bun:bundle';
 import chalk from 'chalk';
 import * as path from 'path';
 import * as React from 'react';
+import figures from 'figures'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useNotifications } from 'src/context/notifications.js';
 import { useCommandQueue } from 'src/hooks/useCommandQueue.js';
@@ -124,6 +125,8 @@ import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js';
 import { useShowFastIconHint } from './useShowFastIconHint.js';
 import { useSwarmBanner } from './useSwarmBanner.js';
 import { isNonSpacePrintable, isVimModeEnabled } from './utils.js';
+import { isBrowserRuntime } from '../../utils/imports.js'
+
 type Props = {
   debug: boolean;
   ideSelection: IDESelection | undefined;
@@ -330,8 +333,8 @@ function PromptInput({
   // REPL.tsx) — teammate view falls back to SpinnerWithVerbInner which has
   // its own marginTop, so the gap stays even without ours.
   const briefOwnsGap = feature('KAIROS') || feature('KAIROS_BRIEF') ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-  useAppState(s => s.isBriefOnly) && !viewingAgentTaskId : false;
+    // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+    useAppState(s => s.isBriefOnly) && !viewingAgentTaskId : false;
   const mainLoopModel_ = useAppState(s => s.mainLoopModel);
   const mainLoopModelForSession = useAppState(s => s.mainLoopModelForSession);
   const thinkingEnabled = useAppState(s => s.thinkingEnabled);
@@ -546,8 +549,8 @@ function PromptInput({
   const tokenBudgetTriggers = useMemo(() => feature('TOKEN_BUDGET') ? findTokenBudgetPositions(displayedValue) : [], [displayedValue]);
   const knownChannelsVersion = useSyncExternalStore(subscribeKnownChannels, getKnownChannelsVersion);
   const slackChannelTriggers = useMemo(() => hasSlackMcpServer(store.getState().mcp.clients) ? findSlackChannelPositions(displayedValue) : [],
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- store is a stable ref
-  [displayedValue, knownChannelsVersion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- store is a stable ref
+    [displayedValue, knownChannelsVersion]);
 
   // Find @name mentions and highlight with team member's color
   const memberMentionHighlights = useMemo((): Array<{
@@ -830,9 +833,9 @@ function PromptInput({
         addNotification({
           key: 'stash-hint',
           jsx: <Text dimColor>
-              Tip:{' '}
-              <ConfigurableShortcutHint action="chat:stash" context="Chat" fallback="ctrl+s" description="stash" />
-            </Text>,
+            Tip:{' '}
+            <ConfigurableShortcutHint action="chat:stash" context="Chat" fallback="ctrl+s" description="stash" />
+          </Text>,
           priority: 'immediate',
           timeoutMs: FOOTER_TEMPORARY_STATUS_TIMEOUT
         });
@@ -1115,6 +1118,7 @@ function PromptInput({
       slashCommandOverride
     } : undefined);
   }, [promptSuggestionState, speculation, speculationSessionTimeSavedMs, teamContext, store, footerItems, suggestionsState.suggestions, onSubmitProp, onAgentSubmit, clearBuffer, resetHistory, logOutcomeAtSubmission, setAppState, markAccepted, pastedContents, removeNotification]);
+  
   const {
     suggestions,
     selectedSuggestion,
@@ -1135,7 +1139,7 @@ function PromptInput({
     suppressSuggestions: isSearchingHistory || historyIndex > 0,
     markAccepted,
     onModeChange
-  });
+  })
 
   // Track if prompt suggestion should be shown (computed later with terminal width).
   // Hidden in teammate view — suggestion is leader-context only.
@@ -1290,7 +1294,7 @@ function PromptInput({
     cursorOffsetRef.current = newOffset;
     setCursorOffset(newOffset);
   }
-  const doublePressEscFromEmpty = useDoublePress(() => {}, () => onShowMessageSelector());
+  const doublePressEscFromEmpty = useDoublePress(() => { }, () => onShowMessageSelector());
 
   // Function to get the queued command for editing. Returns true if commands were popped.
   const popAllCommandsFromQueue = useCallback((): boolean => {
@@ -1516,7 +1520,7 @@ function PromptInput({
         mode: nextMode,
         toolPermissionContext: teammateContext,
         onApply: () => {
-        void applyTeammateModeChange();
+          void applyTeammateModeChange();
         },
         onBlocked: error => {
           addNotification({
@@ -1924,9 +1928,9 @@ function PromptInput({
       const shortcut = MACOS_OPTION_SPECIAL_CHARS[char];
       const terminalName = getNativeCSIuTerminalDisplayName();
       const jsx = terminalName ? <Text dimColor>
-          To enable {shortcut}, set <Text bold>Option as Meta</Text> in{' '}
-          {terminalName} preferences (⌘,)
-        </Text> : <Text dimColor>To enable {shortcut}, run /terminal-setup</Text>;
+        To enable {shortcut}, set <Text bold>Option as Meta</Text> in{' '}
+        {terminalName} preferences (⌘,)
+      </Text> : <Text dimColor>To enable {shortcut}, run /terminal-setup</Text>;
       addNotification({
         key: 'option-meta-hint',
         jsx,
@@ -2031,7 +2035,7 @@ function PromptInput({
   }, [effortNotificationText, addNotification, removeNotification]);
   useBuddyNotification();
   const companionSpeaking = isBuddyEnabled() ?
-  useAppState(s => s.companionReaction !== undefined) : false;
+    useAppState(s => s.companionReaction !== undefined) : false;
   const {
     columns,
     rows
@@ -2109,8 +2113,8 @@ function PromptInput({
   const modelPickerElement = useMemo(() => {
     if (!showModelPicker) return null;
     return <Box flexDirection="column" marginTop={1}>
-        <ModelPicker initial={mainLoopModel_} sessionModel={mainLoopModelForSession} onSelect={handleModelSelect} onCancel={handleModelCancel} isStandaloneCommand showFastModeNotice={isFastModeEnabled() && isFastMode && isFastModeSupportedByModel(mainLoopModel_) && isFastModeAvailable()} />
-      </Box>;
+      <ModelPicker initial={mainLoopModel_} sessionModel={mainLoopModelForSession} onSelect={handleModelSelect} onCancel={handleModelCancel} isStandaloneCommand showFastModeNotice={isFastModeEnabled() && isFastMode && isFastModeSupportedByModel(mainLoopModel_) && isFastModeAvailable()} />
+    </Box>;
   }, [showModelPicker, mainLoopModel_, mainLoopModelForSession, handleModelSelect, handleModelCancel]);
   const handleFastModeSelect = useCallback((result?: string) => {
     setShowFastModePicker(false);
@@ -2128,8 +2132,8 @@ function PromptInput({
   const fastModePickerElement = useMemo(() => {
     if (!showFastModePicker) return null;
     return <Box flexDirection="column" marginTop={1}>
-        <FastModePicker onDone={handleFastModeSelect} unavailableReason={getFastModeUnavailableReason()} />
-      </Box>;
+      <FastModePicker onDone={handleFastModeSelect} unavailableReason={getFastModeUnavailableReason()} />
+    </Box>;
   }, [showFastModePicker, handleFastModeSelect]);
 
   // Memoized callbacks for thinking toggle
@@ -2145,8 +2149,8 @@ function PromptInput({
     addNotification({
       key: 'thinking-toggled-hotkey',
       jsx: <Text color={enabled ? 'suggestion' : undefined} dimColor={!enabled}>
-            Thinking {enabled ? 'on' : 'off'}
-          </Text>,
+        Thinking {enabled ? 'on' : 'off'}
+      </Text>,
       priority: 'immediate',
       timeoutMs: 3000
     });
@@ -2159,8 +2163,8 @@ function PromptInput({
   const thinkingToggleElement = useMemo(() => {
     if (!showThinkingToggle) return null;
     return <Box flexDirection="column" marginTop={1}>
-        <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={messages.some(m => m.type === 'assistant')} />
-      </Box>;
+      <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={messages.some(m => m.type === 'assistant')} />
+    </Box>;
   }, [showThinkingToggle, thinkingEnabled, handleThinkingSelect, handleThinkingCancel, messages.length]);
 
   // Portal dialog to DialogOverlay in fullscreen so it escapes the bottom
@@ -2169,15 +2173,18 @@ function PromptInput({
   // Memoized so the portal useEffect doesn't churn on every PromptInput render.
   const autoModeOptInDialog = useMemo(() => feature('TRANSCRIPT_CLASSIFIER') && showAutoModeOptIn ? <AutoModeOptInDialog onAccept={handleAutoModeOptInAccept} onDecline={handleAutoModeOptInDecline} /> : null, [showAutoModeOptIn, handleAutoModeOptInAccept, handleAutoModeOptInDecline]);
   useSetPromptOverlayDialog(isFullscreenEnvEnabled() ? autoModeOptInDialog : null);
-  if (showBashesDialog) {
+  // TUI modal/dialog returns stay unchanged for terminal rendering.
+  // In WebUI we keep all hooks and command handlers active, then render the
+  // browser-adaptive prompt below so DOM never receives Ink-only components.
+  if (!isBrowserRuntime() && showBashesDialog) {
     return <BackgroundTasksDialog onDone={() => setShowBashesDialog(false)} toolUseContext={getToolUseContext(messages, [], new AbortController(), mainLoopModel)} initialDetailTaskId={typeof showBashesDialog === 'string' ? showBashesDialog : undefined} />;
   }
-  if (isAgentSwarmsEnabled() && showTeamsDialog) {
+  if (!isBrowserRuntime() && isAgentSwarmsEnabled() && showTeamsDialog) {
     return <TeamsDialog initialTeams={cachedTeams} onDone={() => {
       setShowTeamsDialog(false);
     }} />;
   }
-  if (feature('QUICK_SEARCH')) {
+  if (!isBrowserRuntime() && feature('QUICK_SEARCH')) {
     const insertWithSpacing = (text: string) => {
       const cursorChar = input[cursorOffset - 1] ?? ' ';
       insertTextAtCursor(/\s/.test(cursorChar) ? text : ` ${text}`);
@@ -2189,7 +2196,7 @@ function PromptInput({
       return <GlobalSearchDialog onDone={() => setShowGlobalSearch(false)} onInsert={insertWithSpacing} />;
     }
   }
-  if (feature('HISTORY_PICKER') && showHistoryPicker) {
+  if (!isBrowserRuntime() && feature('HISTORY_PICKER') && showHistoryPicker) {
     return <HistorySearchDialog initialQuery={input} onSelect={entry => {
       const entryMode = getModeFromInput(entry.display);
       const value = getValueFromInput(entry.display);
@@ -2202,24 +2209,25 @@ function PromptInput({
   }
 
   // Show loop mode menu when requested (internal-only, eliminated from external builds)
-  if (modelPickerElement) {
+  if (!isBrowserRuntime() && modelPickerElement) {
     return modelPickerElement;
   }
-  if (fastModePickerElement) {
+  if (!isBrowserRuntime() && fastModePickerElement) {
     return fastModePickerElement;
   }
-  if (thinkingToggleElement) {
+  if (!isBrowserRuntime() && thinkingToggleElement) {
     return thinkingToggleElement;
   }
-  if (showBridgeDialog) {
+  if (!isBrowserRuntime() && showBridgeDialog) {
     return <BridgeDialog onDone={() => {
       setShowBridgeDialog(false);
       selectFooterItem(null);
     }} />;
   }
-  if (dangerousModeDialog) {
+  if (!isBrowserRuntime() && dangerousModeDialog) {
     return dangerousModeDialog;
   }
+
   const baseProps: BaseTextInputProps = {
     multiline: true,
     onSubmit,
@@ -2285,63 +2293,877 @@ function PromptInput({
     return 'promptBorder';
   };
   if (isExternalEditorActive) {
+    if (isBrowserRuntime()) {
+      return (
+        <WebPromptShell borderColor={themeColorToWebColor(getBorderColor())}>
+          <WebPanelTitle>External editor active</WebPanelTitle>
+          <WebPanelText>Save and close editor to continue...</WebPanelText>
+        </WebPromptShell>
+      )
+    }
+
     return <Box flexDirection="row" alignItems="center" justifyContent="center" borderColor={getBorderColor()} borderStyle="round" borderLeft={false} borderRight={false} borderBottom width="100%">
-        <Text dimColor italic>
-          Save and close editor to continue...
-        </Text>
-      </Box>;
-  }
-  const textInputElement = isVimModeEnabled() ? <VimTextInput {...baseProps} initialMode={vimMode} onModeChange={setVimMode} /> : <TextInput {...baseProps} />;
-  return <Box flexDirection="column" marginTop={briefOwnsGap ? 0 : 1}>
-      {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
-      <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
-      {swarmBanner ? <>
-          <Text color={swarmBanner.bgColor}>
-            {swarmBanner.text ? <>
-                {'─'.repeat(Math.min(columns - 1, Math.max(0, columns - stringWidth(swarmBanner.text) - 4)))}
-                <Text backgroundColor={swarmBanner.bgColor} color="inverseText">
-                  {' '}
-                  {swarmBanner.text}{' '}
-                </Text>
-                {'──'}
-              </> : '─'.repeat(Math.max(0, columns - 1))}
-          </Text>
-          <Box flexDirection="row" width="100%">
-            <PromptInputModeIndicator mode={mode} isLoading={isLoading} viewingAgentName={viewingAgentName} viewingAgentColor={viewingAgentColor} />
-            <Box flexGrow={1} flexShrink={1} onClick={handleInputClick}>
-              {textInputElement}
-            </Box>
-          </Box>
-          <Text color={swarmBanner.bgColor}>{'─'.repeat(Math.max(0, columns - 1))}</Text>
-        </> : <Box flexDirection="row" alignItems="flex-start" justifyContent="flex-start" borderColor={getBorderColor()} borderStyle="round" borderLeft={false} borderRight={false} borderBottom width="100%" borderText={buildBorderText(showFastIcon ?? false, showFastIconHint, fastModeCooldown)}>
-          <PromptInputModeIndicator mode={mode} isLoading={isLoading} viewingAgentName={viewingAgentName} viewingAgentColor={viewingAgentColor} />
-          <Box flexGrow={1} flexShrink={1} onClick={handleInputClick}>
-            {textInputElement}
-          </Box>
-        </Box>}
-      <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
-      {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
-      {isFullscreenEnvEnabled() ?
-    // position=absolute takes zero layout height so the spinner
-    // doesn't shift when a notification appears/disappears. Yoga
-    // anchors absolute children at the parent's content-box origin;
-    // marginTop=-1 pulls it into the marginTop=1 gap row above the
-    // prompt border. In brief mode there is no such gap (briefOwnsGap
-    // strips our marginTop) and BriefSpinner sits flush against the
-    // border — marginTop=-2 skips over the spinner content into
-    // BriefSpinner's own marginTop=1 blank row. height=1 +
-    // overflow=hidden clips multi-line notifications to a single row.
-    // flex-end anchors the bottom line so the visible row is always
-    // the most recent. Suppressed while the slash overlay or
-    // auto-mode opt-in dialog is up by height=0 (NOT unmount) — this
-    // Box renders later in tree order so it would paint over their
-    // bottom row. Keeping Notifications mounted prevents AutoUpdater's
-    // initial-check effect from re-firing on every slash-completion
-    // toggle (PR#22413).
-    <Box position="absolute" marginTop={briefOwnsGap ? -2 : -1} height={suggestions.length === 0 && !showAutoModeOptIn && !isConfirmingDangerousMode ? 1 : 0} width="100%" paddingLeft={2} paddingRight={1} flexDirection="column" justifyContent="flex-end" overflow="hidden">
-          <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} />
-        </Box> : null}
+      <Text dimColor italic>
+        Save and close editor to continue...
+      </Text>
     </Box>;
+  }
+  const textInputElement = isVimModeEnabled() ? (
+    <VimTextInput
+      {...baseProps}
+      initialMode={vimMode}
+      onModeChange={setVimMode}
+    />
+  ) : (
+    <TextInput {...baseProps} />
+  )
+
+  if (isBrowserRuntime()) {
+    return (
+      <WebPromptInput
+        mode={mode}
+        isLoading={isLoading}
+        input={input}
+        placeholder={typeof placeholder === 'string' ? placeholder : undefined}
+        isSearchingHistory={isSearchingHistory}
+        historyMatch={historyMatch}
+        cursorOffset={cursorOffset}
+        setCursorOffset={setCursorOffset}
+        onChange={onChange}
+        onSubmit={value => {
+          void onSubmit(value)
+        }}
+        onTextPaste={onTextPaste}
+        onImagePaste={onImagePaste}
+        handleNewline={handleNewline}
+        handleUndo={handleUndo}
+        canUndo={canUndo}
+        handleStash={handleStash}
+        handleModelPicker={handleModelPicker}
+        handleFastModePicker={handleFastModePicker}
+        handleThinkingToggle={handleThinkingToggle}
+        handleCycleMode={handleCycleMode}
+        handleImagePaste={handleImagePaste}
+        viewingAgentName={viewingAgentName}
+        viewingAgentColor={viewingAgentColor}
+        getBorderColor={getBorderColor}
+        suggestions={suggestions}
+        selectedSuggestion={selectedSuggestion}
+        maxColumnWidth={maxColumnWidth}
+        commandArgumentHint={commandArgumentHint}
+        promptSuggestion={promptSuggestion}
+        footerItems={footerItems}
+        footerItemSelected={footerItemSelected}
+        tasksSelected={tasksSelected}
+        teamsSelected={teamsSelected}
+        bridgeSelected={bridgeSelected}
+        verbose={verbose}
+        debug={debug}
+        helpOpen={helpOpen}
+        isPasting={isPasting}
+        showFastIcon={showFastIcon}
+        showFastIconHint={showFastIconHint}
+        fastModeCooldown={fastModeCooldown}
+        stashedPrompt={stashedPrompt}
+      />
+    )
+  }
+
+  return <Box flexDirection="column" marginTop={briefOwnsGap ? 0 : 1}>
+    {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
+    <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
+    {swarmBanner ? <>
+      <Text color={swarmBanner.bgColor}>
+        {swarmBanner.text ? <>
+          {'─'.repeat(Math.min(columns - 1, Math.max(0, columns - stringWidth(swarmBanner.text) - 4)))}
+          <Text backgroundColor={swarmBanner.bgColor} color="inverseText">
+            {' '}
+            {swarmBanner.text}{' '}
+          </Text>
+          {'──'}
+        </> : '─'.repeat(Math.max(0, columns - 1))}
+      </Text>
+      <Box flexDirection="row" width="100%">
+        <PromptInputModeIndicator mode={mode} isLoading={isLoading} viewingAgentName={viewingAgentName} viewingAgentColor={viewingAgentColor} />
+        <Box flexGrow={1} flexShrink={1} onClick={handleInputClick}>
+          {textInputElement}
+        </Box>
+      </Box>
+      <Text color={swarmBanner.bgColor}>{'─'.repeat(Math.max(0, columns - 1))}</Text>
+    </> :
+      <Box flexDirection="row" alignItems="flex-start" justifyContent="flex-start" borderColor={getBorderColor()} borderStyle="round" borderLeft={false} borderRight={false} borderBottom width="100%" borderText={buildBorderText(showFastIcon ?? false, showFastIconHint, fastModeCooldown)}>
+        <PromptInputModeIndicator mode={mode} isLoading={isLoading} viewingAgentName={viewingAgentName} viewingAgentColor={viewingAgentColor} />
+        <Box flexGrow={1} flexShrink={2} onClick={handleInputClick}>
+          {textInputElement}
+        </Box>
+      </Box>
+    }
+    <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
+    {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
+    {isFullscreenEnvEnabled() ?
+      // position=absolute takes zero layout height so the spinner
+      // doesn't shift when a notification appears/disappears. Yoga
+      // anchors absolute children at the parent's content-box origin;
+      // marginTop=-1 pulls it into the marginTop=1 gap row above the
+      // prompt border. In brief mode there is no such gap (briefOwnsGap
+      // strips our marginTop) and BriefSpinner sits flush against the
+      // border — marginTop=-2 skips over the spinner content into
+      // BriefSpinner's own marginTop=1 blank row. height=1 +
+      // overflow=hidden clips multi-line notifications to a single row.
+      // flex-end anchors the bottom line so the visible row is always
+      // the most recent. Suppressed while the slash overlay or
+      // auto-mode opt-in dialog is up by height=0 (NOT unmount) — this
+      // Box renders later in tree order so it would paint over their
+      // bottom row. Keeping Notifications mounted prevents AutoUpdater's
+      // initial-check effect from re-firing on every slash-completion
+      // toggle (PR#22413).
+      <Box position="absolute" marginTop={briefOwnsGap ? -2 : -1} height={suggestions.length === 0 && !showAutoModeOptIn && !isConfirmingDangerousMode ? 1 : 0} width="100%" paddingLeft={2} paddingRight={1} flexDirection="column" justifyContent="flex-end" overflow="hidden">
+        <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} />
+      </Box> : null}
+  </Box>;
+}
+
+function themeColorToWebColor(color?: keyof Theme): string {
+  if (!color) return '#f3eadc'
+
+  const map: Partial<Record<keyof Theme, string>> = {
+    promptBorder: '#64748b',
+    bashBorder: '#f59e0b',
+    warning: '#f59e0b',
+    suggestion: '#60a5fa',
+    success: '#22c55e',
+    error: '#ef4444',
+    subtle: '#94a3b8',
+    text: '#f3eadc',
+    inverseText: '#0f172a',
+  }
+
+  return map[color] ?? `var(--openclaude-${String(color)}, #f3eadc)`
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+
+      reject(new Error('Unable to read pasted image'))
+    }
+
+    reader.onerror = () => reject(reader.error ?? new Error('Image read failed'))
+
+    reader.readAsDataURL(file)
+  })
+}
+
+
+function WebPromptShell({
+  borderColor,
+  children,
+}: {
+  borderColor: string
+  children: React.ReactNode
+}): React.ReactNode {
+  return (
+    <div
+      data-openclaude-web-prompt-shell
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: 18,
+        color: '#f3eadc',
+        background:
+          'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.88))',
+        borderTop: `1px solid ${borderColor}`,
+        fontFamily:
+          '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function WebPanelTitle({ children }: { children: React.ReactNode }): React.ReactNode {
+  return (
+    <div
+      style={{
+        margin: '0 0 6px',
+        fontSize: 15,
+        fontWeight: 750,
+        color: '#f8fafc',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function WebPanelText({ children }: { children: React.ReactNode }): React.ReactNode {
+  return (
+    <div
+      style={{
+        margin: '0 0 10px',
+        fontSize: 13,
+        color: '#cbd5e1',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function WebInlinePanel({
+  title,
+  description,
+  onClose,
+}: {
+  title: string
+  description: string
+  onClose: () => void
+}): React.ReactNode {
+  return (
+    <div
+      data-openclaude-web-inline-panel
+      style={{
+        marginBottom: 10,
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid rgba(96, 165, 250, 0.32)',
+        background: 'rgba(30, 41, 59, 0.72)',
+      }}
+    >
+      <WebPanelTitle>{title}</WebPanelTitle>
+      <WebPanelText>{description}</WebPanelText>
+      <button type="button" style={webButtonStyle(false)} onClick={onClose}>
+        Close
+      </button>
+    </div>
+  )
+}
+
+const WEB_OVERLAY_MAX_ITEMS = 5
+
+function webStringWidth(value: string): number {
+  return Array.from(value).length
+}
+
+function webTruncateToWidth(value: string, width: number): string {
+  if (width <= 0) return ''
+  if (webStringWidth(value) <= width) return value
+  if (width <= 1) return '…'
+
+  return `${Array.from(value).slice(0, width - 1).join('')}…`
+}
+
+function webGetSuggestionIcon(itemId: string): string {
+  if (itemId.startsWith('file-')) return '+'
+  if (itemId.startsWith('mcp-resource-')) return '◇'
+  if (itemId.startsWith('agent-')) return '*'
+  return '+'
+}
+
+function WebPromptInputFooterSuggestions({
+  suggestions,
+  selectedSuggestion,
+  maxColumnWidth,
+  overlay,
+}: {
+  suggestions: SuggestionItem[]
+  selectedSuggestion: number
+  maxColumnWidth?: number
+  overlay?: boolean
+}): React.ReactNode {
+  if (suggestions.length === 0) {
+    return null
+  }
+
+  const maxVisibleItems = overlay ? WEB_OVERLAY_MAX_ITEMS : 6
+
+  const safeSelectedSuggestion =
+    selectedSuggestion >= 0
+      ? Math.min(selectedSuggestion, suggestions.length - 1)
+      : 0
+
+  const startIndex = Math.max(
+    0,
+    Math.min(
+      safeSelectedSuggestion - Math.floor(maxVisibleItems / 2),
+      suggestions.length - maxVisibleItems,
+    ),
+  )
+
+  const endIndex = Math.min(startIndex + maxVisibleItems, suggestions.length)
+  const visibleItems = suggestions.slice(startIndex, endIndex)
+
+  const computedMaxColumnWidth =
+    maxColumnWidth ??
+    Math.max(...suggestions.map(item => webStringWidth(item.displayText))) + 5
+
+  return (
+    <div
+      data-openclaude-web-footer-suggestions
+      style={{
+        marginTop: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: overlay ? 'flex-start' : 'flex-end',
+        width: '100%',
+        overflow: 'hidden',
+        fontFamily:
+          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        fontSize: 13,
+        lineHeight: 1.35,
+      }}
+    >
+      {visibleItems.map(item => {
+        const isSelected = item.id === suggestions[safeSelectedSuggestion]?.id
+        const selectionPrefix = isSelected ? '❯ ' : '  '
+        const icon = webGetSuggestionIcon(item.id)
+
+        const displayTextWidth = Math.min(computedMaxColumnWidth, 40)
+        const displayText = webTruncateToWidth(
+          item.displayText,
+          Math.max(1, displayTextWidth - 2),
+        )
+
+        const tagText = item.tag ? `[${item.tag}] ` : ''
+        const description = item.description
+          ? webTruncateToWidth(item.description.replace(/\s+/g, ' '), 80)
+          : ''
+
+        return (
+          <div
+            key={`${item.id}:${isSelected ? 'selected' : 'idle'}`}
+            data-openclaude-web-suggestion-row
+            data-selected={isSelected}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '1px 4px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              background: isSelected ? '#60a5fa' : 'transparent',
+              color: isSelected ? '#0f172a' : '#cbd5e1',
+              fontWeight: isSelected ? 700 : 400,
+              opacity: isSelected ? 1 : 0.72,
+            }}
+          >
+            <span>{selectionPrefix}</span>
+            <span>{icon} </span>
+            <span>{displayText}</span>
+            {tagText ? <span>{tagText}</span> : null}
+            {description ? (
+              <span style={{ opacity: isSelected ? 0.85 : 0.72 }}>
+                {' '}
+                {description}
+              </span>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+type WebPromptInputProps = {
+  mode: PromptInputMode
+  isLoading: boolean
+  input: string
+  placeholder: string | undefined
+  isSearchingHistory: boolean
+  historyMatch: string | { display: string } | undefined
+  cursorOffset: number
+  setCursorOffset: (offset: number) => void
+  onChange: (value: string) => void
+  onSubmit: (input: string) => void | Promise<void>
+  onTextPaste: (text: string) => void
+  onImagePaste: (
+    image: string,
+    mediaType?: string,
+    filename?: string,
+    dimensions?: ImageDimensions,
+    sourcePath?: string,
+  ) => void
+  handleNewline: () => void
+  handleUndo: () => void
+  canUndo: boolean
+  handleStash: () => void
+  handleModelPicker: () => void
+  handleFastModePicker: () => void
+  handleThinkingToggle: () => void
+  handleCycleMode: () => void
+  handleImagePaste: () => void
+  viewingAgentName?: string
+  viewingAgentColor?: AgentColorName
+  getBorderColor: () => keyof Theme
+  suggestions: SuggestionItem[]
+  selectedSuggestion: number
+  maxColumnWidth?: number
+  commandArgumentHint?: string
+  promptSuggestion?: string | null
+  footerItems: FooterItem[]
+  footerItemSelected: FooterItem | null
+  tasksSelected: boolean
+  teamsSelected: boolean
+  bridgeSelected: boolean
+  verbose: boolean
+  debug: boolean
+  helpOpen: boolean
+  isPasting: boolean
+  showFastIcon: boolean | undefined
+  showFastIconHint: boolean
+  fastModeCooldown: boolean
+  stashedPrompt:
+    | {
+        text: string
+        cursorOffset: number
+        pastedContents: Record<number, PastedContent>
+      }
+    | undefined
+}
+
+function WebPromptInput({
+  mode,
+  isLoading,
+  input,
+  placeholder,
+  isSearchingHistory,
+  historyMatch,
+  cursorOffset,
+  setCursorOffset,
+  onChange,
+  onSubmit,
+  onTextPaste,
+  onImagePaste,
+  handleNewline,
+  handleUndo,
+  canUndo,
+  handleStash,
+  handleModelPicker,
+  handleFastModePicker,
+  handleThinkingToggle,
+  handleCycleMode,
+  handleImagePaste,
+  viewingAgentName,
+  viewingAgentColor,
+  getBorderColor,
+  suggestions,
+  selectedSuggestion,
+  commandArgumentHint,
+  promptSuggestion,
+  footerItems,
+  footerItemSelected,
+  tasksSelected,
+  teamsSelected,
+  bridgeSelected,
+  verbose,
+  debug,
+  helpOpen,
+  isPasting,
+  showFastIcon,
+  showFastIconHint,
+  fastModeCooldown,
+  stashedPrompt,
+}: WebPromptInputProps): React.ReactNode {
+  const borderColor = themeColorToWebColor(getBorderColor())
+
+  const teammateColor =
+    viewingAgentColor && AGENT_COLOR_TO_THEME_COLOR[viewingAgentColor]
+      ? themeColorToWebColor(AGENT_COLOR_TO_THEME_COLOR[viewingAgentColor])
+      : borderColor
+
+  const visibleValue =
+    isSearchingHistory && historyMatch
+      ? getValueFromInput(
+          typeof historyMatch === 'string'
+            ? historyMatch
+            : historyMatch.display,
+        )
+      : input
+
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+
+  React.useEffect(() => {
+    const textarea = textareaRef.current
+
+    if (!textarea) return
+    if (document.activeElement !== textarea) return
+
+    textarea.selectionStart = cursorOffset
+    textarea.selectionEnd = cursorOffset
+  }, [cursorOffset, visibleValue])
+
+  React.useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
+
+  const submit = React.useCallback(() => {
+    void onSubmit(visibleValue)
+  }, [onSubmit, visibleValue])
+
+  const onTextareaChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const target = event.currentTarget
+      const next = target.value
+      const nextCursor = target.selectionStart ?? next.length
+
+      setCursorOffset(nextCursor)
+      onChange(next)
+    },
+    [onChange, setCursorOffset],
+  )
+
+  const onTextareaSelect = React.useCallback(
+    (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      const target = event.currentTarget
+      setCursorOffset(target.selectionStart ?? target.value.length)
+    },
+    [setCursorOffset],
+  )
+
+  const onTextareaKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // TUI-equivalent submit.
+      // Enter submits. Shift+Enter inserts newline.
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        submit()
+        return
+      }
+
+      if (event.key === 'Enter' && event.shiftKey) {
+        event.preventDefault()
+        handleNewline()
+        return
+      }
+
+      // TUI-equivalent undo.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        if (canUndo) {
+          event.preventDefault()
+          handleUndo()
+        }
+        return
+      }
+
+      // TUI-equivalent stash.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        handleStash()
+        return
+      }
+
+      // TUI-equivalent image paste hotkey.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
+        event.preventDefault()
+        handleImagePaste()
+        return
+      }
+
+      // TUI-equivalent model picker hotkey fallback.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'm') {
+        event.preventDefault()
+        handleModelPicker()
+        return
+      }
+
+      // TUI-equivalent thinking toggle fallback.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 't') {
+        event.preventDefault()
+        handleThinkingToggle()
+        return
+      }
+
+      // TUI-equivalent permission/mode cycling fallback.
+      if (event.key === 'Tab' && event.shiftKey) {
+        event.preventDefault()
+        handleCycleMode()
+        return
+      }
+
+      // TUI-equivalent fast mode fallback.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault()
+        handleFastModePicker()
+      }
+    },
+    [
+      submit,
+      handleNewline,
+      canUndo,
+      handleUndo,
+      handleStash,
+      handleImagePaste,
+      handleModelPicker,
+      handleThinkingToggle,
+      handleCycleMode,
+      handleFastModePicker,
+    ],
+  )
+
+  const onTextareaPaste = React.useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const files = Array.from(event.clipboardData.files ?? [])
+      const imageFile = files.find(file => file.type.startsWith('image/'))
+
+      if (imageFile) {
+        event.preventDefault()
+
+        void readFileAsDataUrl(imageFile).then(dataUrl => {
+          const base64 = dataUrl.includes(',')
+            ? dataUrl.slice(dataUrl.indexOf(',') + 1)
+            : dataUrl
+
+          onImagePaste(base64, imageFile.type, imageFile.name)
+        })
+
+        return
+      }
+
+      const text = event.clipboardData.getData('text/plain')
+
+      if (text) {
+        event.preventDefault()
+        onTextPaste(text)
+      }
+    },
+    [onImagePaste, onTextPaste],
+  )
+
+  const modeLabel =
+    viewingAgentName ??
+    (mode === 'bash' ? 'bash' : mode === 'prompt' ? 'prompt' : mode)
+
+  const webPromptSymbol = mode === 'bash' ? '!' : '❯'
+
+  const showStatusLine =
+    Boolean(stashedPrompt) ||
+    isPasting ||
+    isLoading ||
+    verbose ||
+    debug ||
+    helpOpen ||
+    Boolean(showFastIcon)
+
+  return (
+    <div
+      data-openclaude-web-prompt-input
+      style={{
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: '10px 12px 12px',
+        background: 'transparent',
+        color: '#f3eadc',
+        fontFamily:
+          '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
+      }}
+    >
+      {showStatusLine ? (
+        <div
+          data-openclaude-web-prompt-status
+          style={{
+            marginBottom: 6,
+            color: '#94a3b8',
+            fontSize: 12,
+            lineHeight: 1.35,
+            minHeight: 16,
+          }}
+        >
+          {stashedPrompt ? 'Stashed prompt available · ' : null}
+          {isPasting ? 'Pasting… · ' : null}
+          {isLoading ? 'Responding… · ' : null}
+          {verbose ? 'verbose · ' : null}
+          {debug ? 'debug · ' : null}
+          {helpOpen ? 'help · ' : null}
+          {showFastIcon
+            ? `${getFastIconString(true, fastModeCooldown)}${
+                showFastIconHint ? ' /fast' : ''
+              }`
+            : null}
+        </div>
+      ) : null}
+
+      <div
+        data-openclaude-web-prompt-border
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
+          width: '100%',
+          boxSizing: 'border-box',
+          borderTop: `1px solid ${borderColor}`,
+          borderBottom: `1px solid ${borderColor}`,
+          padding: '8px 0',
+        }}
+      >
+        <div
+          data-openclaude-web-prompt-indicator
+          title={modeLabel}
+          style={{
+            minWidth: 22,
+            paddingTop: 8,
+            color: mode === 'bash' ? '#f59e0b' : teammateColor,
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            fontSize: 18,
+            fontWeight: 800,
+            lineHeight: 1,
+            opacity: isLoading ? 0.5 : 1,
+            userSelect: 'none',
+          }}
+        >
+          {webPromptSymbol}
+        </div>
+
+        <textarea
+          ref={textareaRef}
+          data-openclaude-web-prompt-textarea
+          value={visibleValue}
+          placeholder={placeholder}
+          disabled={isLoading}
+          onChange={onTextareaChange}
+          onSelect={onTextareaSelect}
+          onKeyDown={onTextareaKeyDown}
+          onPaste={onTextareaPaste}
+          rows={Math.min(8, Math.max(1, visibleValue.split('\n').length))}
+          style={{
+            width: '100%',
+            resize: 'none',
+            boxSizing: 'border-box',
+            minHeight: 34,
+            maxHeight: 220,
+            padding: '6px 0',
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            color: '#f8fafc',
+            caretColor: '#f8fafc',
+            fontSize: 15,
+            lineHeight: 1.5,
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            opacity: isLoading ? 0.72 : 1,
+          }}
+        />
+      </div>
+
+
+      {promptSuggestion && !visibleValue ? (
+        <div
+          data-openclaude-web-prompt-suggestion
+          style={{
+            marginTop: 6,
+            color: '#64748b',
+            fontSize: 12,
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          }}
+        >
+          {promptSuggestion}
+        </div>
+      ) : null}
+
+      {commandArgumentHint ? (
+        <div
+          data-openclaude-web-command-hint
+          style={{
+            marginTop: 6,
+            color: '#60a5fa',
+            fontSize: 12,
+          }}
+        >
+          {commandArgumentHint}
+        </div>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <WebPromptInputFooterSuggestions
+          suggestions={suggestions}
+          selectedSuggestion={selectedSuggestion}
+          maxColumnWidth={maxColumnWidth}
+          overlay
+        />
+      ) : null}
+
+      {footerItems.length > 0 ? (
+        <div
+          data-openclaude-web-footer-pills
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            marginTop: 6,
+            color: '#94a3b8',
+            fontSize: 12,
+          }}
+        >
+          {footerItems.map(item => {
+            const selected = footerItemSelected === item
+
+            return (
+              <span
+                key={item}
+                data-selected={selected}
+                style={{
+                  color: selected ? '#dbeafe' : '#94a3b8',
+                  background: selected
+                    ? 'rgba(96, 165, 250, 0.14)'
+                    : 'transparent',
+                  borderRadius: 4,
+                  padding: selected ? '1px 4px' : '1px 0',
+                }}
+              >
+                {item}
+              </span>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {(tasksSelected || teamsSelected || bridgeSelected) && (
+        <div
+          data-openclaude-web-footer-selection
+          style={{
+            marginTop: 4,
+            color: '#64748b',
+            fontSize: 12,
+          }}
+        >
+          {tasksSelected ? 'tasks' : null}
+          {teamsSelected ? 'teams' : null}
+          {bridgeSelected ? 'bridge' : null}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function webButtonStyle(
+  primary: boolean,
+  disabled = false,
+): React.CSSProperties {
+  return {
+    appearance: 'none',
+    border: primary
+      ? '1px solid rgba(96, 165, 250, 0.84)'
+      : '1px solid rgba(148, 163, 184, 0.28)',
+    background: primary
+      ? 'linear-gradient(180deg, rgba(37, 99, 235, 0.95), rgba(29, 78, 216, 0.95))'
+      : 'rgba(15, 23, 42, 0.72)',
+    color: disabled ? '#64748b' : primary ? '#eff6ff' : '#cbd5e1',
+    borderRadius: 10,
+    padding: '7px 10px',
+    fontSize: 12,
+    fontWeight: 650,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.55 : 1,
+  }
 }
 
 /**

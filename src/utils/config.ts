@@ -160,6 +160,7 @@ export {
 } from './configConstants.js'
 
 import type { EDITOR_MODES, NOTIFICATION_CHANNELS } from './configConstants.js'
+import { createDeferredWriter } from './deferredConfigWrites.js'
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number]
 
@@ -1054,6 +1055,62 @@ function reportConfigCacheStats(): void {
 registerCleanup(async () => {
   reportConfigCacheStats()
 })
+
+
+// Coalesced (debounced) global-config writer.
+//
+// saveGlobalConfig does a synchronous lockfile acquire + full re-read + backup
+// copy + fsync on every call, which stalls the event loop (and drops frames)
+// when several low-stakes writes land back-to-back. saveGlobalConfigDeferred
+// queues the updater, write-throughs the in-memory cache immediately so
+// same-process reads stay coherent, and folds all pending updaters into a
+// single locked saveGlobalConfig on a trailing debounce. The auth-loss guard,
+// lockfile and backup all remain on saveGlobalConfig's disk path — this only
+// batches WHEN the disk write happens, never how. Do NOT route auth, onboarding
+// or migration writes through it (see GH #3117); it is for idempotent,
+// loss-tolerant counters/flags only.
+const CONFIG_FLUSH_DEBOUNCE_MS = 500
+
+
+// The queue/debounce/write-through/batch-drain logic lives in a generic,
+// disk-free engine (see deferredConfigWrites.ts) so it can be unit-tested with
+// injected storage/scheduler. Here we wire the real saveGlobalConfig, in-memory
+// cache, and timers into it.
+const globalConfigDeferredWriter = createDeferredWriter<
+  GlobalConfig,
+  ReturnType<typeof setTimeout>
+>({
+  debounceMs: CONFIG_FLUSH_DEBOUNCE_MS,
+  save: updater => saveGlobalConfig(updater),
+  readCache: () => globalConfigCache.config,
+  writeThrough: next => writeThroughGlobalConfigCache(next),
+  setTimer: (fn, ms) => {
+    const timer = setTimeout(fn, ms)
+    // A pending config flush must never hold the process open on its own.
+    timer.unref?.()
+    return timer
+  },
+  clearTimer: timer => clearTimeout(timer),
+})
+
+export function saveGlobalConfigDeferred(
+  updater: (currentConfig: GlobalConfig) => GlobalConfig,
+): void {
+  // Keep tests synchronous and observable, matching saveGlobalConfig.
+  if (process.env.NODE_ENV === 'test') {
+    saveGlobalConfig(updater)
+    return
+  }
+  // Prime the cache before enqueueing. The deferred writer only write-throughs
+  // the pending updater when there is a cached config to apply it to; on a cold
+  // cache (no prior read) it would skip the write-through and the first deferred
+  // counter update would be invisible to getGlobalConfig() until the debounce
+  // flush — breaking same-process read coherence.
+  if (globalConfigCache.config === null) {
+    getGlobalConfig()
+  }
+  globalConfigDeferredWriter.defer(updater)
+}
 
 /**
  * Migrates old autoUpdaterStatus to new installMethod and autoUpdates fields
@@ -1969,8 +2026,8 @@ export function getMemoryPath(memoryType: MemoryType): string {
       return getAutoMemEntrypoint()
   }
   // TeamMem is only a valid MemoryType when feature('TEAMMEM') is true
-  if (!isBrowserRuntime() && feature('TEAMMEM')) {
-    return teamMemPaths!.getTeamMemEntrypoint()
+  if (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths != null) {
+    return teamMemPaths.getTeamMemEntrypoint()
   }
   return '' // unreachable in external builds where TeamMem is not in MemoryType
 }

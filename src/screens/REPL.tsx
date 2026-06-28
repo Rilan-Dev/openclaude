@@ -51,7 +51,7 @@ import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, type 
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
-import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../types/command.js';
+import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { MessageSelector } from '../components/MessageSelector.js';
 import { selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../utils/messageFilters.js';
@@ -122,7 +122,7 @@ import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js';
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
 import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
 import type { AutoUpdaterResult } from '../utils/autoUpdater.js';
-import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
+import { getGlobalConfig, saveGlobalConfig, saveGlobalConfigDeferred } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
@@ -198,6 +198,7 @@ const SUGGEST_BG_PR_NOOP = (_p: string, _n: string): boolean => false;
 const useScheduledTasks = require('../hooks/useScheduledTasks.js').useScheduledTasks;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
+import { decideStreamingTextUpdate } from './streamingTextPublish.js';
 import type { SandboxAskCallback, NetworkHostPattern } from '../utils/sandbox/sandbox-adapter.js';
 import { type IDEExtensionInstallationStatus, closeOpenDiffs, getConnectedIdeClient, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
@@ -274,6 +275,7 @@ import { isBuddyEnabled } from '../buddy/feature.js';
 import { fireCompanionObserver } from '../buddy/observer.js';
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
+import { REMOTE_SAFE_COMMANDS } from '../commands.js';
 import type { RemoteMessageContent } from '../utils/teleport/api.js';
 import { FullscreenLayout, useUnseenDivider, computeUnseenDivider } from '../components/FullscreenLayout.js';
 import { isFullscreenEnvEnabled, maybeGetTmuxMouseHint, isMouseTrackingEnabled } from '../utils/fullscreen.js';
@@ -284,38 +286,10 @@ import { setClipboard } from '../ink/termio/osc.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
 
-
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
 // cause useEffect dependency changes and infinite re-render loops.
 const EMPTY_MCP_CLIENTS: MCPServerConnection[] = [];
-
-const REMOTE_SAFE_COMMAND_NAMES = new Set([
-  'session',
-  'exit',
-  'clear',
-  'help',
-  'theme',
-  'logo',
-  'color',
-  'vim',
-  'cost',
-  'ctx_viz',
-  'usage',
-  'copy',
-  'btw',
-  'feedback',
-  'goal',
-  'plan',
-  'keybindings',
-  'statusline',
-  'stickers',
-  'mobile',
-])
-
-function isRemoteSafeCommand(command: Pick<Command, 'name'>): boolean {
-  return REMOTE_SAFE_COMMAND_NAMES.has(command.name)
-}
 
 // Stable stub for useAssistantHistory's non-KAIROS branch — avoids a new
 // function identity each render, which would break composedOnScroll's memo.
@@ -607,518 +581,10 @@ function summarizeActiveOperations(snapshot: QueryActiveOperationSnapshot): stri
 function logQueryLifecycle(event: string, context: QueryLifecycleContext, extras = ''): void {
   logForDebugging(formatQueryLifecycleLogMessage(event, context, extras));
 }
-type ReplRenderMode = 'terminal' | 'web';
-
-function webMessageRole(message: MessageType): 'assistant' | 'user' | 'system' {
-  if (message.type === 'assistant') return 'assistant';
-  if (message.type === 'user' || message.type === 'attachment') return 'user';
-  return 'system';
-}
-function stringifyWebContent(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(stringifyWebContent).filter(Boolean).join('\n');
-  if (typeof value !== 'object') return '';
-  const block = value as {
-    type?: string;
-    text?: string;
-    content?: unknown;
-    name?: string;
-    input?: unknown;
-    message?: unknown;
-    title?: string;
-    prompt?: string;
-  };
-  if (typeof block.text === 'string') return block.text;
-  if (block.type === 'tool_use') return `Tool call: ${block.name ?? 'unknown'}${block.input ? `\n${stringifyWebContent(block.input)}` : ''}`;
-  if (block.type === 'tool_result') return stringifyWebContent(block.content);
-  if (block.type === 'image') return '[image]';
-  if (block.content !== undefined) return stringifyWebContent(block.content);
-  if (block.message !== undefined) return stringifyWebContent(block.message);
-  if (block.title) return block.title;
-  if (block.prompt) return block.prompt;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-function webMessageText(message: MessageType): string {
-  const candidate = message as {
-    message?: {
-      content?: unknown;
-    };
-    attachment?: unknown;
-    content?: unknown;
-    text?: string;
-  };
-  return stringifyWebContent(candidate.message?.content ?? candidate.attachment ?? candidate.content ?? candidate.text ?? message);
-}
-type WebTranscriptEntryKind = 'message' | 'placeholder' | 'streaming' | 'empty';
-type WebTranscriptEntry = {
-  key: string;
-  role: string;
-  type: string;
-  text: string;
-  className: string;
-  kind: WebTranscriptEntryKind;
-};
-type WebSearchMatch = {
-  entryIndex: number;
-  start: number;
-  end: number;
-};
-function buildWebTranscriptEntries(messages: MessageType[], placeholderText?: string, streamingText?: string | null): WebTranscriptEntry[] {
-  const entries: WebTranscriptEntry[] = messages.length === 0 ? [{
-    key: 'empty-state',
-    role: 'system',
-    type: 'empty',
-    text: 'Start the conversation. Ask OpenClaude to inspect code, explain a failure, draft a change, or stream tool output here.',
-    className: 'repl-message repl-messageEmpty',
-    kind: 'empty'
-  }] : messages.map((message, index) => {
-    const role = webMessageRole(message);
-    return {
-      key: `${message.uuid ?? role}-${index}`,
-      role,
-      type: message.type,
-      text: webMessageText(message),
-      className: `repl-message repl-message${role.charAt(0).toUpperCase()}${role.slice(1)}`,
-      kind: 'message'
-    };
-  });
-  if (placeholderText) {
-    entries.push({
-      key: 'placeholder',
-      role: 'you',
-      type: 'queued',
-      text: placeholderText,
-      className: 'repl-message repl-messagePlaceholder',
-      kind: 'placeholder'
-    });
-  }
-  if (streamingText) {
-    entries.push({
-      key: 'streaming',
-      role: 'assistant',
-      type: 'streaming',
-      text: streamingText,
-      className: 'repl-message repl-messageAssistant',
-      kind: 'streaming'
-    });
-  }
-  return entries;
-}
-function buildWebSearchMatches(entries: WebTranscriptEntry[], query: string): WebSearchMatch[] {
-  const trimmed = query.trim();
-  if (!trimmed) return [];
-  const needle = trimmed.toLowerCase();
-  const matches: WebSearchMatch[] = [];
-  for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
-    const haystack = entries[entryIndex]!.text;
-    const lowerHaystack = haystack.toLowerCase();
-    let start = 0;
-    while (start <= lowerHaystack.length) {
-      const found = lowerHaystack.indexOf(needle, start);
-      if (found === -1) break;
-      matches.push({
-        entryIndex,
-        start: found,
-        end: found + needle.length
-      });
-      start = found + Math.max(needle.length, 1);
-    }
-  }
-  return matches;
-}
-function renderHighlightedWebText(text: string, query: string, activeMatchIndex: number | null, matches: WebSearchMatch[], entryIndex: number): React.ReactNode {
-  const trimmed = query.trim();
-  if (!trimmed || matches.length === 0) return text;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  const entryMatches = matches.filter(match => match.entryIndex === entryIndex);
-  for (let i = 0; i < entryMatches.length; i++) {
-    const match = entryMatches[i]!;
-    if (lastIndex < match.start) {
-      parts.push(text.slice(lastIndex, match.start));
-    }
-    const isActive = activeMatchIndex !== null && matches.findIndex(candidate => candidate.entryIndex === entryIndex && candidate.start === match.start && candidate.end === match.end) === activeMatchIndex;
-    parts.push(
-      <mark
-        key={`${entryIndex}:${match.start}:${match.end}`}
-        className={isActive ? 'repl-match repl-matchCurrent' : 'repl-match'}
-      >
-        {text.slice(match.start, match.end)}
-      </mark>,
-    );
-    lastIndex = match.end;
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-  return parts.length > 0 ? parts : text;
-}
-function WebREPLSurface({
-  messages,
-  streamingText,
-  placeholderText,
-  inputValue,
-  setInputValue,
-  onSubmit,
-  isLoading,
-  disabled,
-  streamMode,
-  model,
-  toolCount
-}: {
-  messages: MessageType[];
-  streamingText: string | null;
-  placeholderText?: string;
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  onSubmit: (input: string, helpers: PromptInputHelpers) => Promise<void>;
-  isLoading: boolean;
-  disabled: boolean;
-  streamMode: SpinnerMode;
-  model: string;
-  toolCount: number;
-}) {
-  const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const transcriptEntryRefs = useRef(new Map<number, HTMLDivElement | null>());
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [stickToBottom, setStickToBottom] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchCurrent, setSearchCurrent] = useState(0);
-  const handleSubmit = useCallback((event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextInput = inputValue.trim();
-    if (!nextInput || isLoading || disabled) return;
-    void onSubmit(nextInput, {
-      setCursorOffset: () => { },
-      clearBuffer: () => setInputValue(''),
-      resetHistory: () => { }
-    });
-  }, [disabled, inputValue, isLoading, onSubmit, setInputValue]);
-  const stateLabel = isLoading ? streamMode : 'ready';
-  const statusLabel = disabled ? 'Read only' : isLoading ? 'Streaming' : 'Connected';
-  const sendDisabled = isLoading || disabled || inputValue.trim().length === 0;
-  const transcriptCountLabel = `${messages.length} messages`;
-  const transcriptModelLabel = model || 'default model';
-  const transcriptSummaryLabel = `${transcriptCountLabel} · ${toolCount} tools · ${transcriptModelLabel}`;
-  const transcriptEntries = useMemo(() => buildWebTranscriptEntries(messages, placeholderText, streamingText), [messages, placeholderText, streamingText]);
-  const effectiveSearchQuery = searchOpen ? searchDraft : searchQuery;
-  const searchMatches = useMemo(() => buildWebSearchMatches(transcriptEntries, effectiveSearchQuery), [effectiveSearchQuery, transcriptEntries]);
-  const searchCount = searchMatches.length;
-  const openSearch = useCallback((nextQuery: string = searchQuery) => {
-    setSearchDraft(nextQuery);
-    setSearchOpen(true);
-  }, [searchQuery]);
-  const closeSearchAndCommit = useCallback((nextQuery: string) => {
-    const trimmed = nextQuery.trim();
-    if (trimmed && searchCount > 0) {
-      setSearchQuery(nextQuery);
-    } else {
-      setSearchQuery('');
-    }
-    setSearchOpen(false);
-  }, [searchCount]);
-  const cancelSearch = useCallback(() => {
-    setSearchDraft(searchQuery);
-    setSearchOpen(false);
-  }, [searchQuery]);
-  const jumpToMatch = useCallback((direction: 1 | -1) => {
-    if (searchCount === 0) return;
-    setSearchCurrent(current => {
-      const zeroBased = current > 0 ? current - 1 : direction === 1 ? -1 : 0;
-      const next = (zeroBased + direction + searchCount) % searchCount;
-      return next + 1;
-    });
-  }, [searchCount]);
-  const activeMatchIndex = searchCurrent > 0 && searchCurrent <= searchCount ? searchCurrent - 1 : null;
-  const activeMatch = activeMatchIndex !== null ? searchMatches[activeMatchIndex] : undefined;
-  useEffect(() => {
-    if (!searchOpen) return;
-    searchInputRef.current?.focus();
-    searchInputRef.current?.select();
-  }, [searchOpen]);
-  useEffect(() => {
-    const nextCurrent = effectiveSearchQuery.trim() && searchCount > 0 ? 1 : 0;
-    setSearchCurrent(nextCurrent);
-  }, [effectiveSearchQuery, searchCount]);
-  useEffect(() => {
-    const handleWindowKeyDown = (event: KeyboardEvent): void => {
-      if (searchOpen) return;
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName;
-      const isTypingField = tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable;
-      if (isTypingField) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.key === '/') {
-        event.preventDefault();
-        openSearch(searchQuery);
-        return;
-      }
-      if (searchQuery && searchCount > 0 && (event.key === 'n' || event.key === 'N')) {
-        event.preventDefault();
-        jumpToMatch(event.key === 'n' ? 1 : -1);
-      }
-    };
-    window.addEventListener('keydown', handleWindowKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleWindowKeyDown);
-    };
-  }, [jumpToMatch, openSearch, searchCount, searchOpen, searchQuery]);
-  useLayoutEffect(() => {
-    if (!activeMatch) return;
-    const matchElement = transcriptEntryRefs.current.get(activeMatch.entryIndex);
-    matchElement?.scrollIntoView({
-      block: 'center',
-      behavior: 'smooth'
-    });
-  }, [activeMatch?.entryIndex, activeMatch?.end, activeMatch?.start]);
-  useEffect(() => {
-    if (!stickToBottom) return;
-    const transcript = transcriptRef.current;
-    if (!transcript) return;
-    transcript.scrollTo({
-      top: transcript.scrollHeight,
-      behavior: 'smooth'
-    });
-  }, [messages, placeholderText, streamingText, stickToBottom]);
-  const stats = [{
-    label: 'Messages',
-    value: String(messages.length)
-  }, {
-    label: 'Tools',
-    value: String(toolCount)
-  }, {
-    label: 'State',
-    value: stateLabel
-  }, {
-    label: 'Model',
-    value: model
-  }];
-  const handleTranscriptKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
-    if (searchOpen) return;
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.key === '/') {
-      event.preventDefault();
-      openSearch(searchQuery);
-      return;
-    }
-    if (searchQuery && searchCount > 0 && (event.key === 'n' || event.key === 'N')) {
-      event.preventDefault();
-      jumpToMatch(event.key === 'n' ? 1 : -1);
-    }
-  }, [jumpToMatch, openSearch, searchCount, searchOpen, searchQuery]);
-  const renderSearchBar = searchOpen || searchQuery ? (
-    <div className="repl-searchBar" role="search" aria-label="Transcript search">
-      <div className="repl-searchPrompt">/</div>
-      {searchOpen ? (
-        <input
-          ref={searchInputRef}
-          className="repl-searchInput"
-          value={searchDraft}
-          placeholder="Search transcript"
-          onChange={event => setSearchDraft(event.currentTarget.value)}
-          onKeyDown={event => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              closeSearchAndCommit(searchDraft);
-              return;
-            }
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              cancelSearch();
-              return;
-            }
-          }}
-        />
-      ) : (
-        <button
-          className="repl-searchDisplay"
-          type="button"
-          onClick={() => openSearch(searchQuery)}
-        >
-          {searchQuery || 'Search transcript'}
-        </button>
-      )}
-      <div className="repl-searchMeta">
-        {effectiveSearchQuery.trim() ? searchCount > 0 ? `${searchCurrent}/${searchCount}` : 'no matches' : 'press / to search'}
-      </div>
-      <div className="repl-searchActions">
-        {searchQuery && searchCount > 0 ? (
-          <>
-            <button className="repl-searchNavButton" type="button" onClick={() => jumpToMatch(-1)}>Prev</button>
-            <button className="repl-searchNavButton" type="button" onClick={() => jumpToMatch(1)}>Next</button>
-          </>
-        ) : null}
-        <button className="repl-searchNavButton repl-searchNavButtonGhost" type="button" onClick={() => (searchOpen ? cancelSearch() : openSearch(searchQuery))}>
-          {searchOpen ? 'Esc' : 'Find'}
-        </button>
-      </div>
-    </div>
-  ) : null;
-  return (
-    <div className="repl-shell">
-      <aside className="repl-rail">
-        <div className="repl-brand">
-          <div className="repl-kicker">OpenClaude Web</div>
-          <h1 className="repl-title">Browser REPL</h1>
-          <p className="repl-copy">
-            The same REPL controller, same tool routing, same streaming path.
-            Only the render surface changes from terminal rows to a browser UI.
-          </p>
-        </div>
-        <div className="repl-railCard">
-          <div className="repl-railCardHeading">Session</div>
-          <div className="repl-stats">
-            {stats.map(stat => (
-              <div key={stat.label} className="repl-stat">
-                <span className="repl-statValue">{stat.value}</span>
-                <span className="repl-statLabel">{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="repl-footer">
-          <p className="repl-note">
-            Enter sends a message. Shift+Enter inserts a newline. Streaming
-            assistant output and tool calls appear inline as they resolve.
-          </p>
-          <div className="repl-pillRow">
-            <span className="repl-pill">{statusLabel}</span>
-            <span className="repl-pill">{isLoading ? 'Streaming' : 'Idle'}</span>
-            <span className="repl-pill">{`Model: ${transcriptModelLabel}`}</span>
-          </div>
-        </div>
-      </aside>
-      <main className="repl-workspace">
-        <header className="repl-workspaceHeader">
-          <div className="repl-workspaceHeaderCopy">
-            <div className="repl-workspaceHeadingRow">
-              <h2 className="repl-workspaceHeading">Live conversation</h2>
-              <span className="repl-statusChip">{statusLabel}</span>
-            </div>
-            <div className="repl-workspaceSubline">
-              {isLoading ? `Streaming ${stateLabel}` : 'Ready for the next prompt'} · {transcriptSummaryLabel}
-            </div>
-          </div>
-          <div className="repl-headerBadges" aria-hidden="true">
-            <span className="repl-miniBadge">{transcriptModelLabel}</span>
-            <span className="repl-miniBadge">{toolCount} tools</span>
-            <button
-              className="repl-searchToggle"
-              type="button"
-              onClick={() => openSearch(searchQuery)}
-            >
-              Search
-            </button>
-          </div>
-        </header>
-        {renderSearchBar}
-        <section
-          ref={transcriptRef}
-          className="repl-transcript"
-          aria-live="polite"
-          tabIndex={0}
-          onFocus={() => setStickToBottom(true)}
-          onMouseDown={event => {
-            if (event.currentTarget === event.target) {
-              event.currentTarget.focus();
-            }
-          }}
-          onKeyDown={handleTranscriptKeyDown}
-          onScroll={event => {
-            const el = event.currentTarget;
-            const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-            setStickToBottom(distanceFromBottom < 48);
-          }}
-        >
-          {transcriptEntries.map((entry, index) => (
-            <article
-              key={entry.key}
-              ref={node => {
-                if (node) {
-                  transcriptEntryRefs.current.set(index, node);
-                } else {
-                  transcriptEntryRefs.current.delete(index);
-                }
-              }}
-              className={entry.className}
-            >
-              <div className="repl-messageMeta">
-                <span className="repl-messageRole">{entry.role}</span>
-                <span className="repl-messageType">{entry.type}</span>
-              </div>
-              <div className="repl-messageText">
-                {renderHighlightedWebText(entry.text, effectiveSearchQuery, activeMatchIndex, searchMatches, index)}
-              </div>
-            </article>
-          ))}
-          <div className="repl-transcriptSpacer" aria-hidden="true" />
-        </section>
-        <footer className="repl-sessionFooter" aria-label="Session status">
-          <div className="repl-sessionFooterCopy">
-            <div className="repl-sessionFooterLabel">Session</div>
-            <div className="repl-sessionFooterText">
-              {isLoading ? `Streaming ${streamMode}` : 'Ready'}
-              {' · '}
-              {transcriptSummaryLabel}
-            </div>
-          </div>
-          <div className="repl-sessionFooterBadges">
-            <span className="repl-pill">{messages.length} messages</span>
-            <span className="repl-pill">{toolCount} tools</span>
-            <span className="repl-pill">{disabled ? 'Read only' : 'Interactive'}</span>
-            {searchQuery ? <span className="repl-pill">{searchCount > 0 ? `${searchCurrent}/${searchCount}` : 'no matches'}</span> : null}
-          </div>
-        </footer>
-        <form className="repl-composerShell" onSubmit={handleSubmit}>
-          <div className="repl-composerPanel">
-            <div className="repl-composerMeta">
-              <span className="repl-composerLabel">Message composer</span>
-              <span className="repl-composerHint">
-                {disabled ? 'Chat is disabled for this session' : isLoading ? 'Assistant is responding' : 'Enter to send · Shift+Enter for newline'}
-              </span>
-            </div>
-            <div className="repl-composerRow">
-              <textarea
-                className="repl-textarea"
-                value={inputValue}
-                disabled={disabled}
-                placeholder={isLoading ? 'Assistant is responding...' : 'Ask OpenClaude to inspect, edit, explain, or summarize code...'}
-                onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setInputValue(event.currentTarget.value)}
-                onKeyDown={(event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <button
-                className="repl-sendButton"
-                disabled={sendDisabled}
-                type="submit"
-              >
-                {isLoading ? 'Sending' : 'Send'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </main>
-    </div>
-  );
-}
 export type Props = {
   commands: Command[];
   debug: boolean;
   initialTools: Tool[];
-  // Optional DOM renderer. Default keeps existing Ink terminal behavior.
-  renderMode?: ReplRenderMode;
   // Initial messages to populate the REPL with
   initialMessages?: MessageType[];
   // Deferred hook messages promise — REPL renders immediately and injects
@@ -1163,13 +629,13 @@ export type Props = {
   thinkingConfig: ThinkingConfig;
   // Model to fallback to when primary model returns overloaded errors (529)
   fallbackModel?: string;
+  renderMode?: string;
 };
 export type Screen = 'prompt' | 'transcript';
 export function REPL({
   commands: initialCommands,
   debug,
   initialTools,
-  renderMode = 'terminal',
   initialMessages,
   pendingHookMessages,
   initialFileHistorySnapshots,
@@ -2010,7 +1476,7 @@ export function REPL({
   const handleRemoteInit = useCallback((remoteSlashCommands: string[]) => {
     const remoteCommandSet = new Set(remoteSlashCommands);
     // Keep commands that CCR lists OR that are in the local-safe set
-    setLocalCommands(prev => prev.filter(cmd => remoteCommandSet.has(cmd.name) || isRemoteSafeCommand(cmd)));
+    setLocalCommands(prev => prev.filter(cmd => remoteCommandSet.has(cmd.name) || REMOTE_SAFE_COMMANDS.has(cmd)));
   }, [setLocalCommands]);
   const [inProgressToolUseIDs, setInProgressToolUseIDs] = useState<Set<string>>(new Set());
   const hasInterruptibleToolInProgressRef = useRef(false);
@@ -2079,15 +1545,37 @@ export function REPL({
     responseLengthRef.current = f(responseLengthRef.current);
   }, []);
 
-  // Streaming text display: set state directly per delta (Ink's 16ms render
-  // throttle batches rapid updates). Cleared on message arrival (messages.ts)
-  // so displayedMessages switches from deferredMessages to messages atomically.
+  // Streaming text display. streamingTextRef holds the full accumulated text
+  // (eager, per delta); streamingText state is only published when the visible
+  // (newline-truncated) preview actually changes. The Ink root is a LegacyRoot,
+  // so every setState from a stream event commits a synchronous REPL render —
+  // and because the preview hides the in-progress trailing line, deltas between
+  // newlines never change anything on screen. Publishing only on newline (and
+  // on clear) drops those no-op renders entirely under fast streams
+  // (100-300 deltas/sec) while keeping the displayed text byte-identical.
+  // Cleared on message arrival (messages.ts) so displayedMessages switches from
+  // deferredMessages to messages atomically.
   const [streamingText, setStreamingText] = useState<string | null>(null);
+  const streamingTextRef = useRef<string | null>(null);
+  const lastFlushedStreamingVisibleRef = useRef<string | null>(null);
   const reducedMotion = useAppState(s => s.settings.prefersReducedMotion) ?? false;
   const showStreamingText = !reducedMotion && !hasCursorUpViewportYankBug();
   const onStreamingText = useCallback((f: (current: string | null) => string | null) => {
-    if (!showStreamingText) return;
-    setStreamingText(f);
+    // decideStreamingTextUpdate keeps the ref current even when the live preview
+    // is disabled (reduced-motion / cursor-up yank bug) — the Esc handler
+    // recovers partial assistant output from it — and publishes to state only
+    // when the newline-truncated visible preview changes.
+    const decision = decideStreamingTextUpdate(
+      streamingTextRef.current,
+      f,
+      showStreamingText,
+      lastFlushedStreamingVisibleRef.current,
+    );
+    streamingTextRef.current = decision.nextText;
+    if (decision.publish) {
+      lastFlushedStreamingVisibleRef.current = decision.nextVisible;
+      setStreamingText(decision.nextText);
+    }
   }, [showStreamingText]);
 
   // Hide the in-progress source line so text streams line-by-line, not
@@ -2166,15 +1654,21 @@ export function REPL({
       bashTools.current.add(tool);
     }
     bashToolsProcessedIdx.current = messagesRef.current.length;
-    void getTipToShowOnSpinner({
+    // The viewer's latest prompt — used only by the opt-in earning tip for
+    // contextual ad matching (sanitized + sent only when sponsored tips are on).
+    const lastUserMsg = messagesRef.current.findLast(selectableUserMessagesFilter);
+    const latestUserMessage = lastUserMsg
+      ? getContentText(lastUserMsg.message.content) ?? undefined
+      : undefined;
+    const tipCtx = {
       theme,
       readFileState: readFileState.current,
-      bashTools: bashTools.current
-    }).then(async tip => {
+      bashTools: bashTools.current,
+      latestUserMessage
+    };
+    void getTipToShowOnSpinner(tipCtx).then(async tip => {
       if (tip) {
-        const content = await tip.content({
-          theme
-        });
+        const content = await tip.content(tipCtx);
         setAppState(prev => ({
           ...prev,
           spinnerTip: content
@@ -2205,6 +1699,8 @@ export function REPL({
     // does not leave the progress bar rendered in the idle UI.
     setCompactProgressRatio(null);
     responseLengthRef.current = 0;
+    streamingTextRef.current = null;
+    lastFlushedStreamingVisibleRef.current = null;
     setStreamingText(null);
     setStreamingToolUses([]);
     setSpinnerMessage(null);
@@ -2255,7 +1751,9 @@ export function REPL({
       if (count >= 3) return;
       const timer = setTimeout((ref, setMessages) => {
         ref.current = true;
-        saveGlobalConfig(prev => {
+        // Loss-tolerant notification counter — coalesce the write so it can't
+        // contend on the config lock with other writers.
+        saveGlobalConfigDeferred(prev => {
           const prevCount = prev.autoPermissionsNotificationCount ?? 0;
           if (prevCount >= 3) return prev;
           return {
@@ -2289,6 +1787,19 @@ export function REPL({
     const inProgressToolUses = lastAssistant.message.content.filter(b => b.type === 'tool_use' && inProgressToolUseIDs.has(b.id));
     return inProgressToolUses.length > 0 && inProgressToolUses.every(b => b.type === 'tool_use' && b.name === SLEEP_TOOL_NAME);
   }, [messages, inProgressToolUseIDs]);
+  // Surface the currently-executing tool in the spinner so long-running tools
+  // (subagents, typecheck, installs) don't look frozen during the elapsed
+  // crunch. Reuses the spinnerSuffix channel; stop-hook progress takes
+  // precedence when both apply (stop hooks run after the turn's tools).
+  const activeToolSpinnerSuffix = useMemo(() => {
+    if (!isLoading || inProgressToolUseIDs.size === 0) return null;
+    const lastAssistant = messages.findLast(m => m.type === 'assistant');
+    if (lastAssistant?.type !== 'assistant') return null;
+    const active = lastAssistant.message.content.filter(b => b.type === 'tool_use' && inProgressToolUseIDs.has(b.id));
+    const first = active[0];
+    if (!first || first.type !== 'tool_use') return null;
+    return active.length > 1 ? `${first.name} +${active.length - 1}` : first.name;
+  }, [messages, inProgressToolUseIDs, isLoading]);
   const mrOnBeforeQuery = useCallback(async (_input: string, _allMessages: MessageType[], _newMessageCount: number) => true, []);
   const mrOnTurnComplete = useCallback(async (_allMessages: MessageType[], _aborted: boolean) => { }, []);
   const mrRender = useCallback(() => null, []);
@@ -2729,10 +2240,8 @@ export function REPL({
     // Suppress lower-priority interrupt dialogs while user is actively typing
     if (promptTypingSuppressionActive) return undefined;
     if (allowDialogsWithAnimation && idleReturnPending) return 'idle-return';
-    if (feature('ULTRAPLAN')) {
-      if (allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
-      if (allowDialogsWithAnimation && !isLoading && ultraplanLaunchPending) return 'ultraplan-launch';
-    }
+    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
+    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanLaunchPending) return 'ultraplan-launch';
 
     // Onboarding dialogs (special conditions)
     if (allowDialogsWithAnimation && showIdeOnboarding) return 'ide-onboarding';
@@ -2801,7 +2310,7 @@ export function REPL({
 
     // Pause proactive mode so the user gets control back.
     // It will resume when they submit their next input (see onSubmit).
-    if (proactiveModule) {
+    if (feature('PROACTIVE') || feature('KAIROS')) {
       proactiveModule?.pauseProactive();
     }
     const cancelContext = queryGuard.activeContext;
@@ -2818,12 +2327,16 @@ export function REPL({
     skipIdleCheckRef.current = false;
 
     // Preserve partially-streamed text so the user can read what was
-    // generated before pressing Esc. Pushed before resetLoadingState clears
-    // streamingText, and before query.ts yields the async interrupt marker,
-    // giving final order [user, partial-assistant, [Request interrupted by user]].
-    if (streamingText?.trim()) {
+    // generated before pressing Esc. Read the ref, not streamingText state:
+    // state only holds up to the last published newline, while the ref has the
+    // full text including the in-progress trailing line. Pushed before
+    // resetLoadingState clears streamingText, and before query.ts yields the
+    // async interrupt marker, giving final order
+    // [user, partial-assistant, [Request interrupted by user]].
+    const partialStreamedText = streamingTextRef.current;
+    if (partialStreamedText?.trim()) {
       setMessages(prev => [...prev, createAssistantMessage({
-        content: streamingText
+        content: partialStreamedText
       })]);
     }
     resetLoadingState();
@@ -3345,7 +2858,7 @@ export function REPL({
         // stale memoized rows remount with post-compact content.
         setConversationId(randomUUID());
         // Compaction succeeded — clear the context-blocked flag so ticks resume
-        if (proactiveModule) {
+        if (feature('PROACTIVE') || feature('KAIROS')) {
           proactiveModule?.setContextBlocked(false);
         }
       } else if (newMessage.type === 'progress' && isEphemeralToolProgress(newMessage.data.type)) {
@@ -3374,7 +2887,7 @@ export function REPL({
       // Block ticks on API errors to prevent tick → error → tick
       // runaway loops (e.g., auth failure, rate limit, blocking limit).
       // Cleared on compact boundary (above) or successful response (below).
-      if (proactiveModule) {
+      if (feature('PROACTIVE') || feature('KAIROS')) {
         if (newMessage.type === 'assistant' && 'isApiErrorMessage' in newMessage && newMessage.isApiErrorMessage) {
           proactiveModule?.setContextBlocked(true);
         } else if (newMessage.type === 'assistant') {
@@ -3468,7 +2981,7 @@ export function REPL({
         // Bump conversationId so Messages.tsx row keys change and
         // stale memoized rows remount with post-compact content.
         setConversationId(randomUUID());
-        if (proactiveModule) {
+        if (feature('PROACTIVE') || feature('KAIROS')) {
           proactiveModule?.setContextBlocked(false);
         }
       }
@@ -3508,7 +3021,7 @@ export function REPL({
     const userContext = {
       ...baseUserContext,
       ...getCoordinatorUserContext(freshMcpClients, isScratchpadEnabled() ? getScratchpadDir() : undefined),
-      ...(proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
+      ...((feature('PROACTIVE') || feature('KAIROS')) && proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
         terminalFocus: 'The terminal is unfocused \u2014 the user is not actively watching.'
       } : {})
     };
@@ -3624,6 +3137,8 @@ export function REPL({
         snapshotOutputTokensForTurn(parsedBudget ?? getCurrentTurnTokenBudget());
       }
       setStreamingToolUses([]);
+      streamingTextRef.current = null;
+      lastFlushedStreamingVisibleRef.current = null;
       setStreamingText(null);
 
       // messagesRef is updated synchronously by the setMessages wrapper
@@ -3844,14 +3359,12 @@ export function REPL({
         let updatedToolPermissionContext = initialMsg.mode ? applyPermissionUpdatesToLiveContext(prev.toolPermissionContext, buildPermissionUpdates(initialMsg.mode, initialMsg.allowedPrompts)) : prev.toolPermissionContext;
         // For auto, override the mode (buildPermissionUpdates maps
         // it to 'default' via toExternalPermissionMode) and strip dangerous rules
-        if (feature('TRANSCRIPT_CLASSIFIER')) {
-          if (initialMsg.mode === 'auto') {
-            updatedToolPermissionContext = stripDangerousPermissionsForAutoMode({
-              ...updatedToolPermissionContext,
-              mode: 'auto',
-              prePlanMode: undefined
-            });
-          }
+        if (feature('TRANSCRIPT_CLASSIFIER') && initialMsg.mode === 'auto') {
+          updatedToolPermissionContext = stripDangerousPermissionsForAutoMode({
+            ...updatedToolPermissionContext,
+            mode: 'auto',
+            prePlanMode: undefined
+          });
         }
         return {
           ...prev,
@@ -3923,7 +3436,7 @@ export function REPL({
     repinScroll();
 
     // Resume loop mode if paused
-    if (proactiveModule) {
+    if (feature('PROACTIVE') || feature('KAIROS')) {
       proactiveModule?.resumeProactive();
     }
 
@@ -4373,10 +3886,6 @@ export function REPL({
   // old REPL scopes can be GC'd — saves ~35MB over a 1000-turn session.
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
-  if (renderMode === 'web') {
-    const webPlaceholderText = userInputOnProcessing && messages.length <= userInputBaselineRef.current ? userInputOnProcessing : undefined;
-    return <WebREPLSurface messages={messages} streamingText={isLoading ? visibleStreamingText : null} placeholderText={webPlaceholderText} inputValue={inputValue} setInputValue={setInputValue} onSubmit={onSubmit} isLoading={isLoading} disabled={disabled} streamMode={streamMode} model={mainLoopModel} toolCount={tools.length} />;
-  }
   const handleOpenRateLimitOptions = useCallback(() => {
     void onSubmitRef.current('/rate-limit-options', {
       setCursorOffset: () => { },
@@ -4389,14 +3898,12 @@ export function REPL({
     // In bg sessions, always detach instead of kill — even when a worktree is
     // active. Without this guard, the worktree branch below short-circuits into
     // ExitFlow (which calls gracefulShutdown) before exit.tsx is ever loaded.
-    if (feature('BG_SESSIONS')) {
-      if (isBgSession()) {
-        spawnSync('tmux', ['detach-client'], {
-          stdio: 'ignore'
-        });
-        setIsExiting(false);
-        return;
-      }
+    if (feature('BG_SESSIONS') && isBgSession()) {
+      spawnSync('tmux', ['detach-client'], {
+        stdio: 'ignore'
+      });
+      setIsExiting(false);
+      return;
     }
     const showWorktree = getCurrentWorktreeSession() !== null;
     if (showWorktree) {
@@ -4620,7 +4127,10 @@ export function REPL({
     }
     if (hasCountedQueueUseRef.current) return;
     hasCountedQueueUseRef.current = true;
-    saveGlobalConfig(current => ({
+    // Loss-tolerant analytics counter. Deferring it coalesces the write so a
+    // render loop (see comment above) can no longer drive the lock contention
+    // that triggers GH #3117.
+    saveGlobalConfigDeferred(current => ({
       ...current,
       promptQueueUseCount: (current.promptQueueUseCount ?? 0) + 1
     }));
@@ -5284,47 +4794,48 @@ export function REPL({
           stays suppressed while a modal is showing so scroll doesn't
           stamp divider/pill state. */}
     <ScrollKeybindingHandler scrollRef={scrollRef} isActive={isFullscreenEnvEnabled() && (centeredModal != null || !focusedInputDialog || focusedInputDialog === 'tool-permission')} onScroll={centeredModal || toolPermissionOverlay || viewedAgentTask ? undefined : composedOnScroll} />
-    {feature('MESSAGE_ACTIONS') ? isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null : null}
+    {feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null}
     <CancelRequestHandler {...cancelRequestProps} />
     <MCPConnectionManager key={remountKey} dynamicMcpConfig={dynamicMcpConfig} isStrictMcpConfig={strictMcpConfig}>
       <FullscreenLayout scrollRef={scrollRef} overlay={toolPermissionOverlay} bottomFloat={isBuddyEnabled() && companionVisible && !companionNarrow ? <CompanionFloatingBubble /> : undefined} modal={centeredModal} modalScrollRef={modalScrollRef} dividerYRef={dividerYRef} hidePill={!!viewedAgentTask} hideSticky={!!viewedTeammateTask} newMessageCount={unseenDivider?.count ?? 0} onPillClick={() => {
         setCursor(null);
         jumpToNew(scrollRef.current);
-      }} scrollable={<>
-        <TeammateViewHeader />
-        <Messages messages={displayedMessages} tools={tools} commands={renderCommands} verbose={verbose} toolJSX={toolJSX} toolUseConfirmQueue={toolUseConfirmQueue} inProgressToolUseIDs={viewedTeammateTask ? viewedTeammateTask.inProgressToolUseIDs ?? new Set() : inProgressToolUseIDs} isMessageSelectorVisible={isMessageSelectorVisible} conversationId={conversationId} screen={screen} streamingToolUses={streamingToolUses} showAllInTranscript={showAllInTranscript} agentDefinitions={agentDefinitions} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingText={isLoading && !viewedAgentTask ? visibleStreamingText : null} isBriefOnly={viewedAgentTask ? false : isBriefOnly} unseenDivider={viewedAgentTask ? undefined : unseenDivider} scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined} trackStickyPrompt={isFullscreenEnvEnabled() ? true : undefined} cursor={cursor} setCursor={setCursor} cursorNavRef={cursorNavRef} />
-        <AwsAuthStatusBox />
-        {/* Hide the processing placeholder while a modal is showing —
+      }}
+        scrollable={
+          <>
+            <TeammateViewHeader />
+            <Messages messages={displayedMessages} tools={tools} commands={renderCommands} verbose={verbose} toolJSX={toolJSX} toolUseConfirmQueue={toolUseConfirmQueue} inProgressToolUseIDs={viewedTeammateTask ? viewedTeammateTask.inProgressToolUseIDs ?? new Set() : inProgressToolUseIDs} isMessageSelectorVisible={isMessageSelectorVisible} conversationId={conversationId} screen={screen} streamingToolUses={streamingToolUses} showAllInTranscript={showAllInTranscript} agentDefinitions={agentDefinitions} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingText={isLoading && !viewedAgentTask ? visibleStreamingText : null} isBriefOnly={viewedAgentTask ? false : isBriefOnly} unseenDivider={viewedAgentTask ? undefined : unseenDivider} scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined} trackStickyPrompt={isFullscreenEnvEnabled() ? true : undefined} cursor={cursor} setCursor={setCursor} cursorNavRef={cursorNavRef} />
+            <AwsAuthStatusBox />
+            {/* Hide the processing placeholder while a modal is showing —
                   it would sit at the last visible transcript row right above
                   the ▔ divider, showing "❯ /config" as redundant clutter
                   (the modal IS the /config UI). Outside modals it stays so
                   the user sees their input echoed while Claude processes. */}
-        {!disabled && placeholderText && !centeredModal && <UserTextMessage param={{
-          text: placeholderText,
-          type: 'text'
-        }} addMargin={true} verbose={verbose} />}
-        {toolJSX && !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) && !toolJsxCentered && <Box flexDirection="column" width="100%">
-          {toolJSX.jsx}
-        </Box>}
-        {feature('WEB_BROWSER_TOOL') ? WebBrowserPanelModule && <WebBrowserPanelModule.WebBrowserPanel /> : null}
-        <Box flexGrow={1} />
-        {showSpinner && <SpinnerWithVerb mode={streamMode} spinnerTip={spinnerTip} responseLengthRef={responseLengthRef} overrideMessage={spinnerMessage} spinnerSuffix={stopHookSpinnerSuffix} verbose={verbose} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} pauseStartTimeRef={pauseStartTimeRef} overrideColor={spinnerColor} overrideShimmerColor={spinnerShimmerColor} hasActiveTools={inProgressToolUseIDs.size > 0} leaderIsIdle={!isLoading} />}
-        {/* Permanently mounted: it observes the isLoading transition to flash
+            {!disabled && placeholderText && !centeredModal && <UserTextMessage param={{
+              text: placeholderText,
+              type: 'text'
+            }} addMargin={true} verbose={verbose} />}
+            {toolJSX && !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) && !toolJsxCentered && <Box flexDirection="column" width="100%">
+              {toolJSX.jsx}
+            </Box>}
+            {feature('WEB_BROWSER_TOOL') ? WebBrowserPanelModule && <WebBrowserPanelModule.WebBrowserPanel /> : null}
+            <Box flexGrow={1} />
+            {showSpinner && <SpinnerWithVerb mode={streamMode} spinnerTip={spinnerTip} responseLengthRef={responseLengthRef} overrideMessage={spinnerMessage} spinnerSuffix={stopHookSpinnerSuffix ?? activeToolSpinnerSuffix} verbose={verbose} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} pauseStartTimeRef={pauseStartTimeRef} overrideColor={spinnerColor} overrideShimmerColor={spinnerShimmerColor} hasActiveTools={inProgressToolUseIDs.size > 0} leaderIsIdle={!isLoading} />}
+            {/* Permanently mounted: it observes the isLoading transition to flash
             `✓ Done` for ~1.5s. Suppressed wherever another element owns the
             row or the user's attention. */}
-        <CompletionFlash turnActive={isLoading || userInputOnProcessing !== undefined} suppressed={isBriefOnly || hasRunningTeammates || hasActivePrompt || viewedAgentTask !== undefined} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} />
-        {feature('RESUME_COMPACT_PROMPT')
-          ? compactProgressRatio !== null
-            ? <CompactProgressBar ratio={compactProgressRatio} />
-            : null
-          : null}
-        {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
-        {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
-      </>} bottom={<Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
-        {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
-        <Box flexDirection="column" flexGrow={1}>
-          {permissionStickyFooter}
-          {/* Immediate local-jsx commands (/btw, /sandbox, /assistant,
+            <CompletionFlash turnActive={isLoading || userInputOnProcessing !== undefined} suppressed={isBriefOnly || hasRunningTeammates || hasActivePrompt || viewedAgentTask !== undefined} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} />
+            {compactProgressRatio !== null && feature('RESUME_COMPACT_PROMPT') && <CompactProgressBar ratio={compactProgressRatio} />}
+            {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
+            {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
+          </>
+        }
+        bottom={
+          <Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
+            {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
+            <Box flexDirection="column" flexGrow={1}>
+              {permissionStickyFooter}
+              {/* Immediate local-jsx commands (/btw, /sandbox, /assistant,
                   /issue) render here, NOT inside scrollable. They stay mounted
                   while the main conversation streams behind them, so ScrollBox
                   relayouts on each new message would drag them around. bottom
@@ -5333,404 +4844,405 @@ export function REPL({
                   stays in scrollable: the main loop is paused so no jiggle,
                   and their tall content (DiffDetailView renders up to 400
                   lines with no internal scroll) needs the outer ScrollBox. */}
-          {toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered && <Box flexDirection="column" width="100%">
-            {toolJSX.jsx}
-          </Box>}
-          {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
-            <TaskListV2 tasks={tasksV2} isStandalone={true} />
-          </Box>}
-          {focusedInputDialog === 'sandbox-permission' && <SandboxPermissionRequest key={sandboxPermissionRequestQueue[0]!.hostPattern.host} hostPattern={sandboxPermissionRequestQueue[0]!.hostPattern} onUserResponse={(response: {
-            allow: boolean;
-            persistToSettings: boolean;
-          }) => {
-            const {
-              allow,
-              persistToSettings
-            } = response;
-            const currentRequest = sandboxPermissionRequestQueue[0];
-            if (!currentRequest) return;
-            const approvedHost = currentRequest.hostPattern.host;
-            if (persistToSettings) {
-              const update = {
-                type: 'addRules' as const,
-                rules: [{
-                  toolName: WEB_FETCH_TOOL_NAME,
-                  ruleContent: `domain:${approvedHost}`
-                }],
-                behavior: (allow ? 'allow' : 'deny') as 'allow' | 'deny',
-                destination: 'localSettings' as const
-              };
-              setAppState(prev => ({
-                ...prev,
-                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-              }));
-              persistPermissionUpdate(update);
+              {toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered && <Box flexDirection="column" width="100%">
+                {toolJSX.jsx}
+              </Box>}
+              {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
+                <TaskListV2 tasks={tasksV2} isStandalone={true} />
+              </Box>}
+              {focusedInputDialog === 'sandbox-permission' && <SandboxPermissionRequest key={sandboxPermissionRequestQueue[0]!.hostPattern.host} hostPattern={sandboxPermissionRequestQueue[0]!.hostPattern} onUserResponse={(response: {
+                allow: boolean;
+                persistToSettings: boolean;
+              }) => {
+                const {
+                  allow,
+                  persistToSettings
+                } = response;
+                const currentRequest = sandboxPermissionRequestQueue[0];
+                if (!currentRequest) return;
+                const approvedHost = currentRequest.hostPattern.host;
+                if (persistToSettings) {
+                  const update = {
+                    type: 'addRules' as const,
+                    rules: [{
+                      toolName: WEB_FETCH_TOOL_NAME,
+                      ruleContent: `domain:${approvedHost}`
+                    }],
+                    behavior: (allow ? 'allow' : 'deny') as 'allow' | 'deny',
+                    destination: 'localSettings' as const
+                  };
+                  setAppState(prev => ({
+                    ...prev,
+                    toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
+                  }));
+                  persistPermissionUpdate(update);
 
-              // Immediately update sandbox in-memory config to prevent race conditions
-              // where pending requests slip through before settings change is detected
-              SandboxManager.refreshConfig();
-            }
-
-            // Resolve ALL pending requests for the same host (not just the first one)
-            // This handles the case where multiple parallel requests came in for the same domain
-            setSandboxPermissionRequestQueue(queue => {
-              queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
-              return queue.filter(item => item.hostPattern.host !== approvedHost);
-            });
-
-            // Clean up bridge subscriptions and cancel remote prompts
-            // for this host since the local user already responded.
-            const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
-            if (cleanups) {
-              for (const fn of cleanups) {
-                fn();
-              }
-              sandboxBridgeCleanupRef.current.delete(approvedHost);
-            }
-          }} />}
-          {focusedInputDialog === 'prompt' && <PromptDialog key={promptQueue[0]!.request.prompt} title={promptQueue[0]!.title} toolInputSummary={promptQueue[0]!.toolInputSummary} request={promptQueue[0]!.request} onRespond={selectedKey => {
-            const item = promptQueue[0];
-            if (!item) return;
-            item.resolve({
-              prompt_response: item.request.prompt,
-              selected: selectedKey
-            });
-            setPromptQueue(([, ...tail]) => tail);
-          }} onAbort={() => {
-            const item = promptQueue[0];
-            if (!item) return;
-            item.reject(new Error('Prompt cancelled by user'));
-            setPromptQueue(([, ...tail]) => tail);
-          }} />}
-          {/* Show pending indicator on worker while waiting for leader approval */}
-          {pendingWorkerRequest && <WorkerPendingPermission toolName={pendingWorkerRequest.toolName} description={pendingWorkerRequest.description} />}
-          {/* Show pending indicator for sandbox permission on worker side */}
-          {pendingSandboxRequest && <WorkerPendingPermission toolName="Network Access" description={`Waiting for leader to approve network access to ${pendingSandboxRequest.host}`} />}
-          {/* Worker sandbox permission requests from swarm workers */}
-          {focusedInputDialog === 'worker-sandbox-permission' && <SandboxPermissionRequest key={workerSandboxPermissions.queue[0]!.requestId} hostPattern={{
-            host: workerSandboxPermissions.queue[0]!.host,
-            port: undefined
-          } as NetworkHostPattern} onUserResponse={(response: {
-            allow: boolean;
-            persistToSettings: boolean;
-          }) => {
-            const {
-              allow,
-              persistToSettings
-            } = response;
-            const currentRequest = workerSandboxPermissions.queue[0];
-            if (!currentRequest) return;
-            const approvedHost = currentRequest.host;
-
-            // Send response via mailbox to the worker
-            void sendSandboxPermissionResponseViaMailbox(currentRequest.workerName, currentRequest.requestId, approvedHost, allow, teamContext?.teamName);
-            if (persistToSettings && allow) {
-              const update = {
-                type: 'addRules' as const,
-                rules: [{
-                  toolName: WEB_FETCH_TOOL_NAME,
-                  ruleContent: `domain:${approvedHost}`
-                }],
-                behavior: 'allow' as const,
-                destination: 'localSettings' as const
-              };
-              setAppState(prev => ({
-                ...prev,
-                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-              }));
-              persistPermissionUpdate(update);
-              SandboxManager.refreshConfig();
-            }
-
-            // Remove from queue
-            setAppState(prev => ({
-              ...prev,
-              workerSandboxPermissions: {
-                ...prev.workerSandboxPermissions,
-                queue: prev.workerSandboxPermissions.queue.slice(1)
-              }
-            }));
-          }} />}
-          {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
-            const currentRequest = elicitation.queue[0];
-            if (!currentRequest) return;
-            // Call respond callback to resolve Promise
-            currentRequest.respond({
-              action,
-              content
-            });
-            // For URL accept, keep in queue for phase 2
-            const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
-            if (!isUrlAccept) {
-              setAppState(prev => ({
-                ...prev,
-                elicitation: {
-                  queue: prev.elicitation.queue.slice(1)
+                  // Immediately update sandbox in-memory config to prevent race conditions
+                  // where pending requests slip through before settings change is detected
+                  SandboxManager.refreshConfig();
                 }
-              }));
-            }
-          }} onWaitingDismiss={action => {
-            const currentRequest = elicitation.queue[0];
-            // Remove from queue
-            setAppState(prev => ({
-              ...prev,
-              elicitation: {
-                queue: prev.elicitation.queue.slice(1)
-              }
-            }));
-            currentRequest?.onWaitingDismiss?.(action);
-          }} />}
-          {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
-            setShowCostDialog(false);
-            setHaveShownCostDialog(true);
-            saveGlobalConfig(current => ({
-              ...current,
-              hasAcknowledgedCostThreshold: true
-            }));
-            logEvent('tengu_cost_threshold_acknowledged', {});
-          }} />}
-          {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
-            const pending = idleReturnPending;
-            setIdleReturnPending(null);
-            logEvent('tengu_idle_return_action', {
-              action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              idleMinutes: Math.round(pending.idleMinutes),
-              messageCount: messagesRef.current.length,
-              totalInputTokens: getTotalInputTokens()
-            });
-            if (action === 'dismiss') {
-              setInputValue(pending.input);
-              return;
-            }
-            if (action === 'never') {
-              saveGlobalConfig(current => {
-                if (current.idleReturnDismissed) return current;
-                return {
+
+                // Resolve ALL pending requests for the same host (not just the first one)
+                // This handles the case where multiple parallel requests came in for the same domain
+                setSandboxPermissionRequestQueue(queue => {
+                  queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
+                  return queue.filter(item => item.hostPattern.host !== approvedHost);
+                });
+
+                // Clean up bridge subscriptions and cancel remote prompts
+                // for this host since the local user already responded.
+                const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
+                if (cleanups) {
+                  for (const fn of cleanups) {
+                    fn();
+                  }
+                  sandboxBridgeCleanupRef.current.delete(approvedHost);
+                }
+              }} />}
+              {focusedInputDialog === 'prompt' && <PromptDialog key={promptQueue[0]!.request.prompt} title={promptQueue[0]!.title} toolInputSummary={promptQueue[0]!.toolInputSummary} request={promptQueue[0]!.request} onRespond={selectedKey => {
+                const item = promptQueue[0];
+                if (!item) return;
+                item.resolve({
+                  prompt_response: item.request.prompt,
+                  selected: selectedKey
+                });
+                setPromptQueue(([, ...tail]) => tail);
+              }} onAbort={() => {
+                const item = promptQueue[0];
+                if (!item) return;
+                item.reject(new Error('Prompt cancelled by user'));
+                setPromptQueue(([, ...tail]) => tail);
+              }} />}
+              {/* Show pending indicator on worker while waiting for leader approval */}
+              {pendingWorkerRequest && <WorkerPendingPermission toolName={pendingWorkerRequest.toolName} description={pendingWorkerRequest.description} />}
+              {/* Show pending indicator for sandbox permission on worker side */}
+              {pendingSandboxRequest && <WorkerPendingPermission toolName="Network Access" description={`Waiting for leader to approve network access to ${pendingSandboxRequest.host}`} />}
+              {/* Worker sandbox permission requests from swarm workers */}
+              {focusedInputDialog === 'worker-sandbox-permission' && <SandboxPermissionRequest key={workerSandboxPermissions.queue[0]!.requestId} hostPattern={{
+                host: workerSandboxPermissions.queue[0]!.host,
+                port: undefined
+              } as NetworkHostPattern} onUserResponse={(response: {
+                allow: boolean;
+                persistToSettings: boolean;
+              }) => {
+                const {
+                  allow,
+                  persistToSettings
+                } = response;
+                const currentRequest = workerSandboxPermissions.queue[0];
+                if (!currentRequest) return;
+                const approvedHost = currentRequest.host;
+
+                // Send response via mailbox to the worker
+                void sendSandboxPermissionResponseViaMailbox(currentRequest.workerName, currentRequest.requestId, approvedHost, allow, teamContext?.teamName);
+                if (persistToSettings && allow) {
+                  const update = {
+                    type: 'addRules' as const,
+                    rules: [{
+                      toolName: WEB_FETCH_TOOL_NAME,
+                      ruleContent: `domain:${approvedHost}`
+                    }],
+                    behavior: 'allow' as const,
+                    destination: 'localSettings' as const
+                  };
+                  setAppState(prev => ({
+                    ...prev,
+                    toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
+                  }));
+                  persistPermissionUpdate(update);
+                  SandboxManager.refreshConfig();
+                }
+
+                // Remove from queue
+                setAppState(prev => ({
+                  ...prev,
+                  workerSandboxPermissions: {
+                    ...prev.workerSandboxPermissions,
+                    queue: prev.workerSandboxPermissions.queue.slice(1)
+                  }
+                }));
+              }} />}
+              {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
+                const currentRequest = elicitation.queue[0];
+                if (!currentRequest) return;
+                // Call respond callback to resolve Promise
+                currentRequest.respond({
+                  action,
+                  content
+                });
+                // For URL accept, keep in queue for phase 2
+                const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
+                if (!isUrlAccept) {
+                  setAppState(prev => ({
+                    ...prev,
+                    elicitation: {
+                      queue: prev.elicitation.queue.slice(1)
+                    }
+                  }));
+                }
+              }} onWaitingDismiss={action => {
+                const currentRequest = elicitation.queue[0];
+                // Remove from queue
+                setAppState(prev => ({
+                  ...prev,
+                  elicitation: {
+                    queue: prev.elicitation.queue.slice(1)
+                  }
+                }));
+                currentRequest?.onWaitingDismiss?.(action);
+              }} />}
+              {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
+                setShowCostDialog(false);
+                setHaveShownCostDialog(true);
+                saveGlobalConfig(current => ({
                   ...current,
-                  idleReturnDismissed: true
+                  hasAcknowledgedCostThreshold: true
+                }));
+                logEvent('tengu_cost_threshold_acknowledged', {});
+              }} />}
+              {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
+                const pending = idleReturnPending;
+                setIdleReturnPending(null);
+                logEvent('tengu_idle_return_action', {
+                  action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                  idleMinutes: Math.round(pending.idleMinutes),
+                  messageCount: messagesRef.current.length,
+                  totalInputTokens: getTotalInputTokens()
+                });
+                if (action === 'dismiss') {
+                  setInputValue(pending.input);
+                  return;
+                }
+                if (action === 'never') {
+                  saveGlobalConfig(current => {
+                    if (current.idleReturnDismissed) return current;
+                    return {
+                      ...current,
+                      idleReturnDismissed: true
+                    };
+                  });
+                }
+                if (action === 'clear') {
+                  resetAutoCompactTracking();
+                  const {
+                    clearConversation
+                  } = await import('../commands/clear/conversation.js');
+                  await clearConversation({
+                    setMessages,
+                    readFileState: readFileState.current,
+                    discoveredSkillNames: discoveredSkillNamesRef.current,
+                    loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
+                    getAppState: () => store.getState(),
+                    setAppState,
+                    setConversationId
+                  });
+                  haikuTitleAttemptedRef.current = false;
+                  setHaikuTitle(undefined);
+                  bashTools.current.clear();
+                  bashToolsProcessedIdx.current = 0;
+                }
+                skipIdleCheckRef.current = true;
+                void onSubmitRef.current(pending.input, {
+                  setCursorOffset: () => { },
+                  clearBuffer: () => { },
+                  resetHistory: () => { }
+                });
+              }} />}
+              {focusedInputDialog === 'resume-compact' && resumeCompactPending && <ResumeCompactPrompt tokenCount={resumeCompactPending.tokenCount} model={resumeCompactPending.model} onDone={async choice => {
+                const pending = resumeCompactPending;
+                setResumeCompactPending(null);
+                logEvent('tengu_resume_compact_prompt', {
+                  action: (choice === 'yes' ? 'accept' : 'decline') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+                  tokenCount: pending.tokenCount,
+                });
+                if (choice === 'yes') {
+                  skipIdleCheckRef.current = true;
+                  void onSubmitRef.current('/compact', {
+                    setCursorOffset: () => { },
+                    clearBuffer: () => { },
+                    resetHistory: () => { }
+                  });
+                }
+              }} />}
+              {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
+              {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
+                setShowEffortCallout(false);
+                if (selection !== 'dismiss') {
+                  setAppState(prev => ({
+                    ...prev,
+                    effortValue: selection
+                  }));
+                }
+              }} />}
+              {focusedInputDialog === 'remote-callout' && <RemoteCallout onDone={selection => {
+                setAppState(prev => {
+                  if (!prev.showRemoteCallout) return prev;
+                  return {
+                    ...prev,
+                    showRemoteCallout: false,
+                    ...(selection === 'enable' && {
+                      replBridgeEnabled: true,
+                      replBridgeExplicit: true,
+                      replBridgeOutboundOnly: false
+                    })
+                  };
+                });
+              }} />}
+
+              {exitFlow}
+
+              {focusedInputDialog === 'plugin-hint' && hintRecommendation && <PluginHintMenu pluginName={hintRecommendation.pluginName} pluginDescription={hintRecommendation.pluginDescription} marketplaceName={hintRecommendation.marketplaceName} sourceCommand={hintRecommendation.sourceCommand} onResponse={handleHintResponse} />}
+
+              {focusedInputDialog === 'lsp-recommendation' && lspRecommendation && <LspRecommendationMenu pluginName={lspRecommendation.pluginName} pluginDescription={lspRecommendation.pluginDescription} fileExtension={lspRecommendation.fileExtension} onResponse={handleLspResponse} />}
+
+              {focusedInputDialog === 'desktop-upsell' && <DesktopUpsellStartup onDone={() => setShowDesktopUpsellStartup(false)} />}
+
+              {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
+
+              {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
+                const blurb = ultraplanLaunchPending.blurb;
+                setAppState(prev => prev.ultraplanLaunchPending ? {
+                  ...prev,
+                  ultraplanLaunchPending: undefined
+                } : prev);
+                if (choice === 'cancel') return;
+                // Command's onDone used display:'skip', so add the
+                // echo here — gives immediate feedback before the
+                // ~5s teleportToRemote resolves.
+                setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
+                const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
+                // Defer the second message if a query is mid-turn
+                // so it lands after the assistant reply, not
+                // between the user's prompt and the reply.
+                const appendWhenIdle = (msg: string) => {
+                  if (!queryGuard.isActive) {
+                    appendStdout(msg);
+                    return;
+                  }
+                  const unsub = queryGuard.subscribe(() => {
+                    if (queryGuard.isActive) return;
+                    unsub();
+                    // Skip if the user stopped ultraplan while we
+                    // were waiting — avoids a stale "Monitoring
+                    // <url>" message for a session that's gone.
+                    if (!store.getState().ultraplanSessionUrl) return;
+                    appendStdout(msg);
+                  });
                 };
-              });
-            }
-            if (action === 'clear') {
-              resetAutoCompactTracking();
-              const {
-                clearConversation
-              } = await import('../commands/clear/conversation.js');
-              await clearConversation({
-                setMessages,
-                readFileState: readFileState.current,
-                discoveredSkillNames: discoveredSkillNamesRef.current,
-                loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
-                getAppState: () => store.getState(),
-                setAppState,
-                setConversationId
-              });
-              haikuTitleAttemptedRef.current = false;
-              setHaikuTitle(undefined);
-              bashTools.current.clear();
-              bashToolsProcessedIdx.current = 0;
-            }
-            skipIdleCheckRef.current = true;
-            void onSubmitRef.current(pending.input, {
-              setCursorOffset: () => { },
-              clearBuffer: () => { },
-              resetHistory: () => { }
-            });
-          }} />}
-          {focusedInputDialog === 'resume-compact' && resumeCompactPending && <ResumeCompactPrompt tokenCount={resumeCompactPending.tokenCount} model={resumeCompactPending.model} onDone={async choice => {
-            const pending = resumeCompactPending;
-            setResumeCompactPending(null);
-            logEvent('tengu_resume_compact_prompt', {
-              action: (choice === 'yes' ? 'accept' : 'decline') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              tokenCount: pending.tokenCount,
-            });
-            if (choice === 'yes') {
-              skipIdleCheckRef.current = true;
-              void onSubmitRef.current('/compact', {
-                setCursorOffset: () => { },
-                clearBuffer: () => { },
-                resetHistory: () => { }
-              });
-            }
-          }} />}
-          {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
-          {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
-            setShowEffortCallout(false);
-            if (selection !== 'dismiss') {
-              setAppState(prev => ({
-                ...prev,
-                effortValue: selection
-              }));
-            }
-          }} />}
-          {focusedInputDialog === 'remote-callout' && <RemoteCallout onDone={selection => {
-            setAppState(prev => {
-              if (!prev.showRemoteCallout) return prev;
-              return {
-                ...prev,
-                showRemoteCallout: false,
-                ...(selection === 'enable' && {
-                  replBridgeEnabled: true,
-                  replBridgeExplicit: true,
-                  replBridgeOutboundOnly: false
-                })
-              };
-            });
-          }} />}
+                void launchUltraplan({
+                  blurb,
+                  getAppState: () => store.getState(),
+                  setAppState,
+                  signal: createAbortController().signal,
+                  disconnectedBridge: opts?.disconnectedBridge,
+                  onSessionReady: appendWhenIdle
+                }).then(appendStdout).catch(logError);
+              }} /> : null}
 
-          {exitFlow}
+              {mrRender()}
 
-          {focusedInputDialog === 'plugin-hint' && hintRecommendation && <PluginHintMenu pluginName={hintRecommendation.pluginName} pluginDescription={hintRecommendation.pluginDescription} marketplaceName={hintRecommendation.marketplaceName} sourceCommand={hintRecommendation.sourceCommand} onResponse={handleHintResponse} />}
+              {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && !isShuttingDown() && <>
+                {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
+                {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} message="How well did Claude use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
+                {/* Frustration-triggered transcript sharing prompt */}
+                {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => { }} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
+                {showIssueFlagBanner && <IssueFlagBanner />}
+                { }
+                <PromptInput debug={debug} ideSelection={ideSelection} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={renderCommands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
+                  // Works during isLoading — edit cancels first; uuid selection survives appends.
+                  feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
+                <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
+              </>}
+              {cursor &&
+                // inputValue is REPL state; typed text survives the round-trip.
+                <MessageActionsBar cursor={cursor} />}
+              {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={async (message: UserMessage) => {
+                await fileHistoryRewind((updater: (prev: FileHistoryState) => FileHistoryState) => {
+                  setAppState(prev => ({
+                    ...prev,
+                    fileHistory: updater(prev.fileHistory)
+                  }));
+                }, message.uuid);
+              }} onSummarize={async (message: UserMessage, feedback?: string, direction: PartialCompactDirection = 'from') => {
+                // Project snipped messages so the compact model
+                // doesn't summarize content that was intentionally removed.
+                const compactMessages = getMessagesAfterCompactBoundary(messages);
+                const messageIndex = compactMessages.indexOf(message);
+                if (messageIndex === -1) {
+                  // Selected a snipped or pre-compact message that the
+                  // selector still shows (REPL keeps full history for
+                  // scrollback). Surface why nothing happened instead
+                  // of silently no-oping.
+                  setMessages(prev => [...prev, createSystemMessage('That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.', 'warning')]);
+                  return;
+                }
+                const newAbortController = createAbortController();
+                const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
+                const appState = context.getAppState();
+                const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
+                const systemPrompt = buildEffectiveSystemPrompt({
+                  mainThreadAgentDefinition: undefined,
+                  toolUseContext: context,
+                  customSystemPrompt: context.options.customSystemPrompt,
+                  defaultSystemPrompt: defaultSysPrompt,
+                  appendSystemPrompt: context.options.appendSystemPrompt
+                });
+                const [userContext, systemContext] = await Promise.all([getUserContext(), getSystemContext()]);
+                const result = await partialCompactConversation(compactMessages, messageIndex, context, {
+                  systemPrompt,
+                  userContext,
+                  systemContext,
+                  toolUseContext: context,
+                  forkContextMessages: compactMessages
+                }, feedback, direction);
+                const kept = result.messagesToKeep ?? [];
+                const ordered = direction === 'up_to' ? [...result.summaryMessages, ...kept] : [...kept, ...result.summaryMessages];
+                const postCompact = [result.boundaryMarker, ...ordered, ...result.attachments, ...result.hookResults];
+                // Fullscreen 'from' keeps scrollback; 'up_to' must not
+                // (old[0] unchanged + grown array means incremental
+                // useLogMessages path, so boundary never persisted).
+                // Find by uuid since old is raw REPL history and snipped
+                // entries can shift the projected messageIndex.
+                if (isFullscreenEnvEnabled() && direction === 'from') {
+                  setMessages(old => {
+                    const rawIdx = old.findIndex(m => m.uuid === message.uuid);
+                    return [...old.slice(0, rawIdx === -1 ? 0 : rawIdx), ...postCompact];
+                  });
+                } else {
+                  setMessages(postCompact);
+                }
+                // Partial compact bypasses handleMessageFromStream — clear
+                // the auto-compact breaker and context-blocked flag.
+                setAutoCompactTrackingForSession(getSessionId(), undefined);
+                if (feature('PROACTIVE') || feature('KAIROS')) {
+                  proactiveModule?.setContextBlocked(false);
+                }
+                setConversationId(randomUUID());
+                runPostCompactCleanup(context.options.querySource);
+                if (direction === 'from') {
+                  const r = textForResubmit(message);
+                  if (r) {
+                    setInputValue(r.text);
+                    setInputMode(r.mode);
+                  }
+                }
 
-          {focusedInputDialog === 'lsp-recommendation' && lspRecommendation && <LspRecommendationMenu pluginName={lspRecommendation.pluginName} pluginDescription={lspRecommendation.pluginDescription} fileExtension={lspRecommendation.fileExtension} onResponse={handleLspResponse} />}
-
-          {focusedInputDialog === 'desktop-upsell' && <DesktopUpsellStartup onDone={() => setShowDesktopUpsellStartup(false)} />}
-
-          {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
-
-          {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
-            const blurb = ultraplanLaunchPending.blurb;
-            setAppState(prev => prev.ultraplanLaunchPending ? {
-              ...prev,
-              ultraplanLaunchPending: undefined
-            } : prev);
-            if (choice === 'cancel') return;
-            // Command's onDone used display:'skip', so add the
-            // echo here — gives immediate feedback before the
-            // ~5s teleportToRemote resolves.
-            setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
-            const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
-            // Defer the second message if a query is mid-turn
-            // so it lands after the assistant reply, not
-            // between the user's prompt and the reply.
-            const appendWhenIdle = (msg: string) => {
-              if (!queryGuard.isActive) {
-                appendStdout(msg);
-                return;
-              }
-              const unsub = queryGuard.subscribe(() => {
-                if (queryGuard.isActive) return;
-                unsub();
-                // Skip if the user stopped ultraplan while we
-                // were waiting — avoids a stale "Monitoring
-                // <url>" message for a session that's gone.
-                if (!store.getState().ultraplanSessionUrl) return;
-                appendStdout(msg);
-              });
-            };
-            void launchUltraplan({
-              blurb,
-              getAppState: () => store.getState(),
-              setAppState,
-              signal: createAbortController().signal,
-              disconnectedBridge: opts?.disconnectedBridge,
-              onSessionReady: appendWhenIdle
-            }).then(appendStdout).catch(logError);
-          }} /> : null}
-
-          {mrRender()}
-
-          {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && !isShuttingDown() && <>
-            {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
-            {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} message="How well did Claude use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-            {/* Frustration-triggered transcript sharing prompt */}
-            {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => { }} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-            {showIssueFlagBanner && <IssueFlagBanner />}
-            { }
-            <PromptInput debug={debug} ideSelection={ideSelection} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={renderCommands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
-              // Works during isLoading — edit cancels first; uuid selection survives appends.
-              feature('MESSAGE_ACTIONS') ? isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
-            <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
-          </>}
-          {cursor &&
-            // inputValue is REPL state; typed text survives the round-trip.
-            <MessageActionsBar cursor={cursor} />}
-          {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={async (message: UserMessage) => {
-            await fileHistoryRewind((updater: (prev: FileHistoryState) => FileHistoryState) => {
-              setAppState(prev => ({
-                ...prev,
-                fileHistory: updater(prev.fileHistory)
-              }));
-            }, message.uuid);
-          }} onSummarize={async (message: UserMessage, feedback?: string, direction: PartialCompactDirection = 'from') => {
-            // Project snipped messages so the compact model
-            // doesn't summarize content that was intentionally removed.
-            const compactMessages = getMessagesAfterCompactBoundary(messages);
-            const messageIndex = compactMessages.indexOf(message);
-            if (messageIndex === -1) {
-              // Selected a snipped or pre-compact message that the
-              // selector still shows (REPL keeps full history for
-              // scrollback). Surface why nothing happened instead
-              // of silently no-oping.
-              setMessages(prev => [...prev, createSystemMessage('That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.', 'warning')]);
-              return;
-            }
-            const newAbortController = createAbortController();
-            const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
-            const appState = context.getAppState();
-            const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
-            const systemPrompt = buildEffectiveSystemPrompt({
-              mainThreadAgentDefinition: undefined,
-              toolUseContext: context,
-              customSystemPrompt: context.options.customSystemPrompt,
-              defaultSystemPrompt: defaultSysPrompt,
-              appendSystemPrompt: context.options.appendSystemPrompt
-            });
-            const [userContext, systemContext] = await Promise.all([getUserContext(), getSystemContext()]);
-            const result = await partialCompactConversation(compactMessages, messageIndex, context, {
-              systemPrompt,
-              userContext,
-              systemContext,
-              toolUseContext: context,
-              forkContextMessages: compactMessages
-            }, feedback, direction);
-            const kept = result.messagesToKeep ?? [];
-            const ordered = direction === 'up_to' ? [...result.summaryMessages, ...kept] : [...kept, ...result.summaryMessages];
-            const postCompact = [result.boundaryMarker, ...ordered, ...result.attachments, ...result.hookResults];
-            // Fullscreen 'from' keeps scrollback; 'up_to' must not
-            // (old[0] unchanged + grown array means incremental
-            // useLogMessages path, so boundary never persisted).
-            // Find by uuid since old is raw REPL history and snipped
-            // entries can shift the projected messageIndex.
-            if (isFullscreenEnvEnabled() && direction === 'from') {
-              setMessages(old => {
-                const rawIdx = old.findIndex(m => m.uuid === message.uuid);
-                return [...old.slice(0, rawIdx === -1 ? 0 : rawIdx), ...postCompact];
-              });
-            } else {
-              setMessages(postCompact);
-            }
-            // Partial compact bypasses handleMessageFromStream — clear
-            // the auto-compact breaker and context-blocked flag.
-            setAutoCompactTrackingForSession(getSessionId(), undefined);
-            if (proactiveModule) {
-              proactiveModule?.setContextBlocked(false);
-            }
-            setConversationId(randomUUID());
-            runPostCompactCleanup(context.options.querySource);
-            if (direction === 'from') {
-              const r = textForResubmit(message);
-              if (r) {
-                setInputValue(r.text);
-                setInputMode(r.mode);
-              }
-            }
-
-            // Show notification with ctrl+o hint
-            const historyShortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
-            addNotification({
-              key: 'summarize-ctrl-o-hint',
-              text: `Conversation summarized (${historyShortcut} for history)`,
-              priority: 'medium',
-              timeoutMs: 8000
-            });
-          }} onRestoreMessage={handleRestoreMessage} onClose={() => {
-            setIsMessageSelectorVisible(false);
-            setMessageSelectorPreselect(undefined);
-          }} />}
-        </Box>
-        {isBuddyEnabled() && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
-      </Box>} />
+                // Show notification with ctrl+o hint
+                const historyShortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
+                addNotification({
+                  key: 'summarize-ctrl-o-hint',
+                  text: `Conversation summarized (${historyShortcut} for history)`,
+                  priority: 'medium',
+                  timeoutMs: 8000
+                });
+              }} onRestoreMessage={handleRestoreMessage} onClose={() => {
+                setIsMessageSelectorVisible(false);
+                setMessageSelectorPreselect(undefined);
+              }} />}
+            </Box>
+            {isBuddyEnabled() && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
+          </Box>
+        } />
     </MCPConnectionManager>
   </KeybindingSetup>;
   if (isFullscreenEnvEnabled()) {

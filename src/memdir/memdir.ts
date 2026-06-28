@@ -452,7 +452,7 @@ export async function loadMemoryPrompt(): Promise<string | null> {
     teamMemPaths?.isTeamMemoryEnabled()
   ) {
     const autoDir = getAutoMemPath()
-    const teamDir = teamMemPaths!.getTeamMemPath()
+    const teamDir = teamMemPaths.getTeamMemPath()
     // Harness guarantees these directories exist so the model can write
     // without checking. The prompt text reflects this ("already exists").
     // Only creating teamDir is sufficient: getTeamMemPath() is defined as

@@ -1,255 +1,1003 @@
-(base) PS C:\Users\moham\Documents\MyProjects\ThirdParties\openclaude\webui> bun run dev
-$ node ./node_modules/vite/bin/vite.js
+1 import memoize from 'lodash-es/memoize.js'
+                      ~~~~~~~~~~~~~~~~~~~~~~
 
-  VITE v6.4.3  ready in 26823 ms
+../src/utils/worktree.ts:249:15 - error TS2550: Property 'replaceAll' does not exist on type 'string'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2021' or later.
 
-  ➜  Local:   http://localhost:5175/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-3:56:51 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ide.ts
-43 |      throw new Error("IDE socket checks are not available in the browser web UI");
-44 |    }
-45 |    const { createConnection } = await import(NET_PACKAGE);
-   |                                              ^^^^^^^^^^^
-46 |    return createConnection(options);
-47 |  }
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+249   return slug.replaceAll('/', '+')
+                  ~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/ide.ts
-3:56:55 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/client.ts
-108|  ].join("/");
-109|  async function createStdioClientTransport(options) {
-110|    const { StdioClientTransport } = await import(MCP_STDIO_CLIENT_TRANSPORT_PACKAGE);
-   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-111|    return new StdioClientTransport(options);
-112|  }
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+../src/utils/xaiCredentials.ts:107:39 - error TS7053: Element implicitly has an 'any' type because expression of type '"xai"' can't be used to index type 'SecureStorageData'.
+  Property 'xai' does not exist on type 'SecureStorageData'.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/client.ts
-3:56:55 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/client.ts
-573|          const { createChromeContext } = await import("../../utils/claudeInChrome/mcpServer.js");
-574|          const chromeMcpPackage = "@ant/claude-for-chrome-mcp";
-575|          const { createClaudeForChromeMcpServer } = await import(chromeMcpPackage);
-   |                                                                  ^^^^^^^^^^^^^^^^
-576|          const { createLinkedTransportPair } = await import("./InProcessTransport.js");
-577|          const computerUseServer = await createComputerUseMcpServerForCli();
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+107     return normalizeXaiCredentialBlob(data?.[XAI_STORAGE_KEY])
+                                          ~~~~~~~~~~~~~~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/mcp/client.ts
-3:56:56 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/tokenEstimation.ts
-396|        }
-397|      };
-398|      const { CountTokensCommand } = await import(AWS_BEDROCK_RUNTIME_PACKAGE);
-   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-399|      const input = {
-400|        modelId,
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+../src/utils/xaiCredentials.ts:119:39 - error TS7053: Element implicitly has an 'any' type because expression of type '"xai"' can't be used to index type 'SecureStorageData'.
+  Property 'xai' does not exist on type 'SecureStorageData'.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/services/tokenEstimation.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/plugins/mcpbHandler.ts
-196|  }
-197|  async function generateMcpConfig(manifest, extractedPath, userConfig = {}) {
-198|    const { getMcpConfigForManifest } = await import(MCPB_PACKAGE);
-   |                                                     ^^^^^^^^^^^^
-199|    const mcpConfig = await getMcpConfigForManifest({
-200|      manifest,
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+119     return normalizeXaiCredentialBlob(data?.[XAI_STORAGE_KEY])
+                                          ~~~~~~~~~~~~~~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/plugins/mcpbHandler.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/proxy.ts
-218|    }
-219|    const [{ NodeHttpHandler }, { defaultProvider }] = await Promise.all([
-220|      import(SMITHY_NODE_HTTP_HANDLER_PACKAGE),
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-221|      import(AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE)
-222|    ]);
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+shared/react-jsx-runtime.browser.ts:1:15 - error TS7016: Could not find a declaration file for module '../node_modules/react/jsx-runtime.js'. 'C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/webui/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/proxy.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/proxy.ts
-219|    const [{ NodeHttpHandler }, { defaultProvider }] = await Promise.all([
-220|      import(SMITHY_NODE_HTTP_HANDLER_PACKAGE),
-221|      import(AWS_CREDENTIAL_PROVIDER_NODE_PACKAGE)
-   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-222|    ]);
-223|    const agent = createHttpsProxyAgent(proxyUrl);
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+1 export * from '../node_modules/react/jsx-runtime.js'
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/proxy.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-20 |  export const getBedrockInferenceProfiles = memoize(async function() {
-21 |    const client = await createBedrockClient();
-22 |    const { ListInferenceProfilesCommand } = await import(AWS_BEDROCK_CLIENT_PACKAGE);
-   |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-23 |    const allProfiles = [];
-24 |    let nextToken;
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+shared/react.browser.ts:1:24 - error TS7016: Could not find a declaration file for module '../node_modules/react/index.js'. 'C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/webui/node_modules/react/index.js' implicitly has an 'any' type.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-45 |  }
-46 |  async function createBedrockClient() {
-47 |    const { BedrockClient } = await import(AWS_BEDROCK_CLIENT_PACKAGE);
-   |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-48 |    const region = getAWSRegion();
-49 |    const skipAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH);
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+1 import * as React from '../node_modules/react/index.js'
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-55 |      ...await getAWSClientProxyConfig(),
-56 |      ...skipAuth && {
-57 |        requestHandler: new (await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)).NodeHttpHandler(),
-   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-58 |        httpAuthSchemes: [
-59 |          {
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+shared/react.browser.ts:3:15 - error TS7016: Could not find a declaration file for module '../node_modules/react/index.js'. 'C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/webui/node_modules/react/index.js' implicitly has an 'any' type.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-60 |            schemeId: "smithy.api#noAuth",
-61 |            identityProvider: () => async () => ({}),
-62 |            signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner()
-   |                                      ^^^^^^^^^^^^^^^^^^^
-63 |          }
-64 |        ],
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+3 export * from '../node_modules/react/index.js'
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-79 |  }
-80 |  export async function createBedrockRuntimeClient() {
-81 |    const { BedrockRuntimeClient } = await import(AWS_BEDROCK_RUNTIME_PACKAGE);
-   |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-82 |    const region = getAWSRegion();
-83 |    const skipAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH);
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-91 |        // BedrockRuntimeClient defaults to HTTP/2 without fallback
-92 |        // proxy servers may not support this, so we explicitly force HTTP/1.1
-93 |        requestHandler: new (await import(SMITHY_NODE_HTTP_HANDLER_PACKAGE)).NodeHttpHandler(),
-   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-94 |        httpAuthSchemes: [
-95 |          {
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
+Found 5798 errors in 964 files.
 
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-96 |            schemeId: "smithy.api#noAuth",
-97 |            identityProvider: () => async () => ({}),
-98 |            signer: new (await import(SMITHY_CORE_PACKAGE)).NoAuthSigner()
-   |                                      ^^^^^^^^^^^^^^^^^^^
-99 |          }
-100|        ],
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:56:58 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-117|    try {
-118|      const client = await createBedrockClient();
-119|      const { GetInferenceProfileCommand } = await import(AWS_BEDROCK_CLIENT_PACKAGE);
-   |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-120|      const command = new GetInferenceProfileCommand({
-121|        inferenceProfileIdentifier: profileId
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/model/bedrock.ts
-3:57:00 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/dxt/helpers.ts
-3  |  const MCPB_PACKAGE = "@anthropic-ai/mcpb";
-4  |  export async function validateManifest(manifestJson) {
-5  |    const { McpbManifestSchema } = await import(MCPB_PACKAGE);
-   |                                                ^^^^^^^^^^^^
-6  |    const parseResult = McpbManifestSchema.safeParse(manifestJson);
-7  |    if (!parseResult.success) {
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/dxt/helpers.ts
-3:57:00 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/bash/registry.ts
-6  |    if (command.startsWith("-") && command !== "-") return null;
-7  |    try {
-8  |      const module = await import(`@withfig/autocomplete/build/${command}.js`);
-   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-9  |      return module.default || module;
-10 |    } catch {
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/utils/bash/registry.ts
-3:57:01 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/init.ts
-95 |          const upstreamproxyModuleId = ["../upstreamproxy", "/upstreamproxy.js"].join("");
-96 |          const subprocessEnvModuleId = ["../utils", "/subprocessEnv.js"].join("");
-97 |          const { initUpstreamProxy, getUpstreamProxyEnv } = await import(upstreamproxyModuleId);
-   |                                                                          ^^^^^^^^^^^^^^^^^^^^^
-98 |          const { registerUpstreamProxyEnvFn } = await import(subprocessEnvModuleId);
-99 |          registerUpstreamProxyEnvFn(getUpstreamProxyEnv);
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/init.ts
-3:57:01 AM [vite] (client) warning: 
-C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/init.ts
-96 |          const subprocessEnvModuleId = ["../utils", "/subprocessEnv.js"].join("");
-97 |          const { initUpstreamProxy, getUpstreamProxyEnv } = await import(upstreamproxyModuleId);
-98 |          const { registerUpstreamProxyEnvFn } = await import(subprocessEnvModuleId);
-   |                                                              ^^^^^^^^^^^^^^^^^^^^^
-99 |          registerUpstreamProxyEnvFn(getUpstreamProxyEnv);
-100|          await initUpstreamProxy();
-The above dynamic import cannot be analyzed by Vite.
-See https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations for supported dynamic import formats. If this is intended to be left as-is, you can use the /* @vite-ignore */ comment inside the import() call to suppress this warning.
-
-  Plugin: vite:import-analysis
-  File: C:/Users/moham/Documents/MyProjects/ThirdParties/openclaude/src/entrypoints/init.ts
+Errors  Files
+     1  ../src/__tests__/doctorContextWarnings.test.ts:26
+     1  ../src/bootstrap/state.ts:2
+     1  ../src/bridge/bridgeUI.ts:2
+     2  ../src/bridge/inboundAttachments.ts:148
+     1  ../src/bridge/remoteBridgeCore.ts:655
+     1  ../src/bridge/replBridgeTransport.ts:1
+     1  ../src/bridge/trustedDevice.ts:2
+    10  ../src/buddy/CompanionSprite.tsx:3
+     1  ../src/buddy/sprites.ts:457
+     4  ../src/buddy/useBuddyNotification.tsx:2
+     7  ../src/cli/handlers/plugins.ts:192
+     1  ../src/cli/handlers/util.tsx:56
+   226  ../src/cli/print.ts:8
+     1  ../src/cli/remoteIO.ts:1
+    16  ../src/cli/structuredIO.ts:7
+     1  ../src/cli/transports/ccrClient.test.ts:2
+     1  ../src/cli/transports/ccrClient.ts:5
+     1  ../src/cli/transports/HybridTransport.test.ts:2
+     1  ../src/cli/transports/HybridTransport.ts:2
+     1  ../src/cli/transports/SSETransport.ts:2
+     1  ../src/cli/transports/Transport.ts:1
+     3  ../src/cli/transports/WebSocketTransport.ts:1
+    16  ../src/cli/update.ts:2
+    24  ../src/commands.ts:3
+     1  ../src/commands/add-dir/add-dir.tsx:3
+     1  ../src/commands/agents/agents.tsx:6
+     1  ../src/commands/assistant/assistant.ts:4
+    21  ../src/commands/bridge/bridge.tsx:3
+     8  ../src/commands/btw/btw.tsx:3
+     9  ../src/commands/chrome/chrome.tsx:2
+     1  ../src/commands/compact/compact.ts:3
+     1  ../src/commands/context/context.tsx:39
+    11  ../src/commands/copy/copy.tsx:6
+     1  ../src/commands/doctor/doctor.test.tsx:2
+     5  ../src/commands/effort/effort.tsx:124
+     2  ../src/commands/exit/exit.tsx:2
+     8  ../src/commands/fast/fast.tsx:3
+     2  ../src/commands/feedback/feedback.tsx:18
+     2  ../src/commands/goal/goal.test.ts:70
+    25  ../src/commands/ide/ide.tsx:4
+     3  ../src/commands/install-github-app/ApiKeyStep.tsx:2
+     3  ../src/commands/install-github-app/CheckExistingSecretStep.tsx:2
+     3  ../src/commands/install-github-app/ChooseRepoStep.tsx:2
+     3  ../src/commands/install-github-app/CreatingStep.tsx:13
+     3  ../src/commands/install-github-app/ErrorStep.tsx:10
+     3  ../src/commands/install-github-app/ExistingWorkflowStep.tsx:3
+    38  ../src/commands/install-github-app/install-github-app.tsx:2
+     1  ../src/commands/install-github-app/InstallAppStep.tsx:11
+     8  ../src/commands/install-github-app/OAuthFlowStep.tsx:1
+     1  ../src/commands/install-github-app/setupGitHubActions.test.ts:2
+     3  ../src/commands/install-github-app/setupGitHubActions.ts:4
+     1  ../src/commands/install-github-app/SuccessStep.tsx:10
+     5  ../src/commands/install-github-app/WarningsStep.tsx:12
+     7  ../src/commands/install.tsx:4
+     2  ../src/commands/login/login.tsx:40
+     4  ../src/commands/logo/logo.tsx:19
+     1  ../src/commands/logout/logout.tsx:66
+     7  ../src/commands/mcp/mcp.tsx:2
+     3  ../src/commands/memory/memory.tsx:20
+    14  ../src/commands/mobile/mobile.tsx:2
+     4  ../src/commands/model/model.tsx:592
+     8  ../src/commands/onboard-github/onboard-github.tsx:2
+     1  ../src/commands/passes/passes.tsx:7
+     2  ../src/commands/plan/plan.tsx:14
+     5  ../src/commands/plugin/AddMarketplace.tsx:2
+    10  ../src/commands/plugin/BrowseMarketplace.tsx:3
+    11  ../src/commands/plugin/DiscoverPlugins.tsx:4
+    27  ../src/commands/plugin/ManageMarketplaces.tsx:4
+    27  ../src/commands/plugin/ManagePlugins.tsx:6
+     1  ../src/commands/plugin/plugin.tsx:4
+     1  ../src/commands/plugin/pluginDetailsHelpers.tsx:79
+    11  ../src/commands/plugin/PluginOptionsDialog.tsx:3
+     5  ../src/commands/plugin/PluginOptionsFlow.tsx:63
+    26  ../src/commands/plugin/PluginSettings.tsx:4
+     1  ../src/commands/plugin/UnifiedInstalledCell.tsx:11
+     3  ../src/commands/plugin/usePagination.ts:1
+     2  ../src/commands/plugin/ValidatePlugin.tsx:4
+     1  ../src/commands/privacy-settings/privacy-settings.tsx:7
+    20  ../src/commands/provider/provider.tsx:190
+     4  ../src/commands/rate-limit-options/rate-limit-options.tsx:2
+     1  ../src/commands/remote-env/remote-env.tsx:4
+     4  ../src/commands/remote-setup/remote-setup.tsx:3
+     6  ../src/commands/replay/replay.tsx:44
+     8  ../src/commands/replay/ReplayTimeline.tsx:52
+     1  ../src/commands/request-size/request-size.test.ts:2
+     1  ../src/commands/request-size/request-size.tsx:20
+    19  ../src/commands/resume/resume.tsx:64
+     1  ../src/commands/review/ultrareviewCommand.tsx:43
+     5  ../src/commands/review/UltrareviewOverageDialog.tsx:2
+     9  ../src/commands/session/session.tsx:2
+     1  ../src/commands/skills/skills.tsx:5
+     1  ../src/commands/status/status.tsx:5
+     9  ../src/commands/tag/tag.tsx:15
+     1  ../src/commands/tasks/tasks.tsx:5
+     1  ../src/commands/terminalSetup/terminalSetup.tsx:2
+     2  ../src/commands/theme/theme.tsx:13
+    13  ../src/commands/thinkback/thinkback.tsx:6
+     3  ../src/commands/update/update.tsx:1
+     1  ../src/commands/upgrade/upgrade.tsx:9
+     3  ../src/components/agents/AgentDetail.tsx:27
+     3  ../src/components/agents/AgentDetailDialog.tsx:13
+    15  ../src/components/agents/AgentEditor.tsx:4
+     3  ../src/components/agents/agentFileUtils.ts:3
+     1  ../src/components/agents/AgentNavigationFooter.tsx:8
+     3  ../src/components/agents/AgentRouteSelector.tsx:2
+    29  ../src/components/agents/AgentsList.tsx:5
+     1  ../src/components/agents/AgentsMenu.test.tsx:136
+    30  ../src/components/agents/AgentsMenu.tsx:4
+     5  ../src/components/agents/ColorPicker.tsx:3
+     9  ../src/components/agents/generateAgent.ts:2
+     1  ../src/components/agents/ModelSelector.tsx:11
+     1  ../src/components/agents/new-agent-creation/CreateAgentWizard.tsx:2
+     2  ../src/components/agents/new-agent-creation/wizard-steps/ColorStep.tsx:2
+     7  ../src/components/agents/new-agent-creation/wizard-steps/ConfirmStep.tsx:2
+     6  ../src/components/agents/new-agent-creation/wizard-steps/ConfirmStepWrapper.tsx:2
+     4  ../src/components/agents/new-agent-creation/wizard-steps/DescriptionStep.tsx:2
+     4  ../src/components/agents/new-agent-creation/wizard-steps/GenerateStep.tsx:2
+     2  ../src/components/agents/new-agent-creation/wizard-steps/LocationStep.tsx:3
+     2  ../src/components/agents/new-agent-creation/wizard-steps/MemoryStep.tsx:2
+     2  ../src/components/agents/new-agent-creation/wizard-steps/MethodStep.tsx:2
+     2  ../src/components/agents/new-agent-creation/wizard-steps/ModelStep.tsx:2
+     3  ../src/components/agents/new-agent-creation/wizard-steps/PromptStep.tsx:2
+     2  ../src/components/agents/new-agent-creation/wizard-steps/ToolsStep.tsx:2
+     3  ../src/components/agents/new-agent-creation/wizard-steps/TypeStep.tsx:2
+     1  ../src/components/agents/new-agent-creation/wizard-steps/wizardSteps.test.tsx:4
+    54  ../src/components/agents/ToolSelector.tsx:3
+     1  ../src/components/agents/types.ts:1
+     3  ../src/components/agents/utils.ts:1
+     3  ../src/components/App.tsx:1
+     1  ../src/components/AutoModeOptInDialog.tsx:3
+     6  ../src/components/AutoUpdater.tsx:2
+     6  ../src/components/AutoUpdaterWrapper.tsx:19
+     6  ../src/components/AwsAuthStatusBox.tsx:2
+     4  ../src/components/BaseTextInput.tsx:22
+     1  ../src/components/BashModeProgress.tsx:13
+    23  ../src/components/BridgeDialog.tsx:3
+     4  ../src/components/BuiltinStatusLine.tsx:3
+     2  ../src/components/BypassPermissionsModeDialog.tsx:3
+     3  ../src/components/ClaudeCodeHint/PluginHintMenu.tsx:19
+     7  ../src/components/ClaudeInChromeOnboarding.tsx:3
+     1  ../src/components/ClaudeMdExternalIncludesDialog.tsx:4
+     1  ../src/components/CompactProgressBar.tsx:17
+     1  ../src/components/CompactSummary.tsx:14
+     1  ../src/components/ConfigurableShortcutHint.tsx:33
+     8  ../src/components/ConsoleOAuthFlow.tsx:1
+    47  ../src/components/ContextVisualization.tsx:49
+    10  ../src/components/CoordinatorAgentStatus.tsx:34
+     2  ../src/components/CtrlOToExpand.tsx:3
+     1  ../src/components/CustomSelect/option-map.ts:1
+    10  ../src/components/CustomSelect/select-input-option.tsx:2
+     2  ../src/components/CustomSelect/select-option.tsx:2
+    32  ../src/components/CustomSelect/select.tsx:3
+     2  ../src/components/CustomSelect/SelectMulti.tsx:58
+     7  ../src/components/CustomSelect/use-multi-select-state.ts:1
+     1  ../src/components/CustomSelect/use-select-input.ts:1
+     6  ../src/components/CustomSelect/use-select-navigation.ts:2
+     2  ../src/components/CustomSelect/use-select-state.ts:1
+     5  ../src/components/design-system/Byline.tsx:2
+     1  ../src/components/design-system/Divider.tsx:66
+     2  ../src/components/design-system/FullWidthRow.tsx:5
+    11  ../src/components/design-system/FuzzyPicker.tsx:3
+     1  ../src/components/design-system/KeyboardShortcutHint.tsx:39
+     2  ../src/components/design-system/ListItem.tsx:3
+     1  ../src/components/design-system/LoadingState.tsx:48
+     1  ../src/components/design-system/Pane.tsx:33
+     1  ../src/components/design-system/ProgressBar.tsx:27
+     6  ../src/components/design-system/Ratchet.tsx:2
+     2  ../src/components/design-system/StatusIcon.tsx:72
+    18  ../src/components/design-system/Tabs.tsx:2
+     3  ../src/components/design-system/ThemedBox.tsx:1
+     3  ../src/components/design-system/ThemedText.tsx:1
+     1  ../src/components/design-system/ThemeProvider.test.tsx:22
+     5  ../src/components/design-system/ThemeProvider.tsx:2
+     5  ../src/components/DesktopHandoff.tsx:2
+     7  ../src/components/DesktopUpsell/DesktopUpsellStartup.tsx:3
+     7  ../src/components/DiagnosticsDisplay.tsx:17
+     4  ../src/components/diff/DiffDetailView.tsx:4
+    13  ../src/components/diff/DiffDialog.tsx:3
+     6  ../src/components/diff/DiffFileList.tsx:3
+     9  ../src/components/EffortCallout.tsx:2
+     1  ../src/components/EffortPicker.tsx:1
+     3  ../src/components/ExitFlow.tsx:2
+     3  ../src/components/ExportDialog.tsx:1
+     4  ../src/components/FallbackToolUseErrorMessage.tsx:4
+     7  ../src/components/Feedback.tsx:4
+     3  ../src/components/FeedbackSurvey/FeedbackSurvey.tsx:3
+     3  ../src/components/FeedbackSurvey/FeedbackSurveyView.tsx:22
+     3  ../src/components/FeedbackSurvey/TranscriptSharePrompt.tsx:20
+     2  ../src/components/FeedbackSurvey/useDebouncedDigitInput.ts:1
+     9  ../src/components/FeedbackSurvey/useFeedbackSurvey.tsx:1
+     7  ../src/components/FeedbackSurvey/useMemorySurvey.tsx:1
+    17  ../src/components/FeedbackSurvey/usePostCompactSurvey.tsx:2
+     3  ../src/components/FeedbackSurvey/useSurveyState.tsx:2
+     7  ../src/components/FileEditToolDiff.tsx:4
+     7  ../src/components/FileEditToolUpdatedMessage.tsx:18
+     3  ../src/components/FileEditToolUseRejectedMessage.tsx:5
+     1  ../src/components/FilePathLink.tsx:17
+    18  ../src/components/FullscreenLayout.tsx:3
+    16  ../src/components/GlobalSearchDialog.tsx:4
+    11  ../src/components/grove/Grove.tsx:2
+     6  ../src/components/HelpV2/Commands.tsx:3
+     7  ../src/components/HelpV2/HelpV2.tsx:3
+     9  ../src/components/HighlightedCode.tsx:3
+     3  ../src/components/HighlightedCode/Fallback.tsx:3
+     9  ../src/components/HistorySearchDialog.tsx:2
+    12  ../src/components/hooks/HooksConfigMenu.tsx:15
+     3  ../src/components/hooks/PromptDialog.tsx:15
+     5  ../src/components/hooks/SelectEventMode.tsx:14
+     6  ../src/components/hooks/SelectHookMode.tsx:11
+     6  ../src/components/hooks/SelectMatcherMode.tsx:10
+     1  ../src/components/hooks/ViewHookMode.tsx:18
+     6  ../src/components/IdeAutoConnectDialog.tsx:2
+     2  ../src/components/IdeOnboardingDialog.tsx:3
+     1  ../src/components/IdeStatusIndicator.tsx:12
+     2  ../src/components/IdleReturnDialog.tsx:13
+     2  ../src/components/InvalidConfigDialog.tsx:25
+     2  ../src/components/InvalidSettingsDialog.tsx:18
+     6  ../src/components/KeybindingWarnings.tsx:43
+     2  ../src/components/LanguagePicker.tsx:3
+     3  ../src/components/LogoPicker.tsx:36
+     4  ../src/components/LogoV2/AnimatedAsterisk.tsx:2
+     3  ../src/components/LogoV2/AnimatedClawd.tsx:2
+     4  ../src/components/LogoV2/ChannelsNotice.tsx:9
+     4  ../src/components/LogoV2/Clawd.tsx:73
+     4  ../src/components/LogoV2/CondensedLogo.tsx:3
+     7  ../src/components/LogoV2/EmergencyTip.tsx:2
+     5  ../src/components/LogoV2/Feed.tsx:16
+     6  ../src/components/LogoV2/FeedColumn.tsx:11
+     1  ../src/components/LogoV2/GuestPassesUpsell.tsx:2
+    17  ../src/components/LogoV2/LogoV2.tsx:14
+     2  ../src/components/LogoV2/Opus1mMergeNotice.tsx:2
+     2  ../src/components/LogoV2/OverageCreditUpsell.tsx:3
+     2  ../src/components/LogoV2/VoiceModeNotice.tsx:3
+     2  ../src/components/LogoV2/WelcomeV2.tsx:3
+    30  ../src/components/LogSelector.tsx:203
+     3  ../src/components/LspRecommendation/LspRecommendationMenu.tsx:17
+     5  ../src/components/ManagedSettingsSecurityDialog/ManagedSettingsSecurityDialog.tsx:15
+     7  ../src/components/Markdown.tsx:3
+     1  ../src/components/mcp/CapabilitiesSection.tsx:10
+    20  ../src/components/mcp/ElicitationDialog.tsx:4
+     5  ../src/components/mcp/MCPAgentServerMenu.tsx:2
+    20  ../src/components/mcp/MCPListPanel.tsx:3
+    13  ../src/components/mcp/McpParsingWarnings.tsx:2
+     3  ../src/components/mcp/MCPReconnect.tsx:3
+     5  ../src/components/mcp/MCPRemoteServerMenu.tsx:2
+    14  ../src/components/mcp/MCPSettings.tsx:2
+     2  ../src/components/mcp/MCPStdioServerMenu.tsx:2
+     1  ../src/components/mcp/MCPToolDetailView.tsx:209
+     7  ../src/components/mcp/MCPToolListView.tsx:31
+     4  ../src/components/MCPServerApprovalDialog.tsx:3
+    13  ../src/components/MCPServerDesktopImportDialog.tsx:2
+     7  ../src/components/MCPServerMultiselectDialog.tsx:2
+    13  ../src/components/memory/MemoryFileSelector.tsx:7
+     1  ../src/components/memory/MemoryUpdateNotification.tsx:21
+     1  ../src/components/MemoryUsageIndicator.tsx:2
+     5  ../src/components/Message.tsx:105
+     8  ../src/components/messageActions.tsx:3
+     2  ../src/components/MessageModel.tsx:10
+     5  ../src/components/MessageResponse.tsx:3
+     3  ../src/components/MessageRow.tsx:175
+    28  ../src/components/Messages.tsx:5
+     1  ../src/components/messages/AdvisorMessage.tsx:20
+     1  ../src/components/messages/AssistantRedactedThinkingMessage.tsx:7
+     4  ../src/components/messages/AssistantTextMessage.tsx:3
+     1  ../src/components/messages/AssistantThinkingMessage.tsx:19
+     8  ../src/components/messages/AssistantToolUseMessage.tsx:3
+    18  ../src/components/messages/AttachmentMessage.tsx:3
+     8  ../src/components/messages/CollapsedReadSearchContent.tsx:4
+     1  ../src/components/messages/GroupedToolUseContent.tsx:19
+     2  ../src/components/messages/HighlightedThinkingText.tsx:4
+     3  ../src/components/messages/HookProgressMessage.tsx:3
+     1  ../src/components/messages/nullRenderingAttachments.ts:1
+     3  ../src/components/messages/PlanApprovalMessage.tsx:17
+    10  ../src/components/messages/RateLimitMessage.tsx:2
+     3  ../src/components/messages/ShutdownMessage.tsx:12
+     6  ../src/components/messages/SystemAPIErrorMessage.tsx:3
+    19  ../src/components/messages/SystemTextMessage.tsx:6
+     2  ../src/components/messages/TaskAssignmentMessage.tsx:12
+     1  ../src/components/messages/teamMemCollapsed.tsx:20
+     1  ../src/components/messages/UserAgentNotificationMessage.tsx:23
+     1  ../src/components/messages/UserBashInputMessage.tsx:10
+     1  ../src/components/messages/UserBashOutputMessage.tsx:6
+     1  ../src/components/messages/UserChannelMessage.tsx:26
+     1  ../src/components/messages/UserCommandMessage.tsx:12
+     1  ../src/components/messages/UserCrossSessionMessage.tsx:19
+     1  ../src/components/messages/UserGitHubWebhookMessage.tsx:19
+     1  ../src/components/messages/UserImageMessage.tsx:20
+     3  ../src/components/messages/UserLocalCommandOutputMessage.tsx:13
+     3  ../src/components/messages/UserMemoryInputMessage.tsx:2
+     1  ../src/components/messages/UserPlanMessage.tsx:9
+     2  ../src/components/messages/UserPromptMessage.tsx:3
+     3  ../src/components/messages/UserResourceUpdateMessage.tsx:61
+     8  ../src/components/messages/UserTeammateMessage.tsx:61
+     1  ../src/components/messages/UserTextMessage.tsx:29
+     3  ../src/components/messages/UserToolResultMessage/RejectedPlanMessage.tsx:3
+     2  ../src/components/messages/UserToolResultMessage/UserToolCanceledMessage.tsx:2
+     1  ../src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx:23
+     1  ../src/components/messages/UserToolResultMessage/UserToolRejectMessage.tsx:21
+     1  ../src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx:23
+     6  ../src/components/messages/UserToolResultMessage/UserToolSuccessMessage.tsx:4
+     4  ../src/components/messages/UserToolResultMessage/utils.tsx:3
+    30  ../src/components/MessageSelector.tsx:6
+     2  ../src/components/MessageTimestamp.tsx:10
+    19  ../src/components/ModelPicker.tsx:2
+     8  ../src/components/NativeAutoUpdater.tsx:2
+     2  ../src/components/NotebookEditToolUseRejectedMessage.tsx:4
+     2  ../src/components/OffscreenFreeze.tsx:1
+     7  ../src/components/Onboarding.tsx:2
+    10  ../src/components/OutputStylePicker.tsx:3
+     3  ../src/components/PackageManagerAutoUpdater.tsx:3
+     5  ../src/components/Passes/Passes.tsx:2
+    42  ../src/components/permissions/AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.tsx:3
+     9  ../src/components/permissions/AskUserQuestionPermissionRequest/PreviewBox.tsx:2
+     4  ../src/components/permissions/AskUserQuestionPermissionRequest/PreviewQuestionView.tsx:2
+    13  ../src/components/permissions/AskUserQuestionPermissionRequest/QuestionNavigationBar.tsx:3
+    15  ../src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx:3
+     4  ../src/components/permissions/AskUserQuestionPermissionRequest/SubmitQuestionsView.tsx:21
+     2  ../src/components/permissions/AskUserQuestionPermissionRequest/use-multiple-choice-state.ts:1
+     1  ../src/components/permissions/baseShellToolUseOptions.tsx:2
+     7  ../src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx:4
+    16  ../src/components/permissions/ComputerUseApproval/ComputerUseApproval.tsx:7
+     3  ../src/components/permissions/EnterPlanModePermissionRequest/EnterPlanModePermissionRequest.tsx:12
+    25  ../src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx:4
+     3  ../src/components/permissions/FallbackPermissionRequest.tsx:1
+     4  ../src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx:4
+     6  ../src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx:2
+     1  ../src/components/permissions/FilePermissionDialog/permissionOptions.tsx:3
+     6  ../src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts:1
+     2  ../src/components/permissions/FilesystemPermissionRequest/FilesystemPermissionRequest.tsx:19
+     3  ../src/components/permissions/FileWritePermissionRequest/FileWritePermissionRequest.tsx:3
+     4  ../src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx:3
+    14  ../src/components/permissions/hooks.ts:2
+     2  ../src/components/permissions/MonitorPermissionRequest/MonitorPermissionRequest.tsx:2
+     2  ../src/components/permissions/NotebookEditPermissionRequest/NotebookEditPermissionRequest.tsx:12
+     7  ../src/components/permissions/NotebookEditPermissionRequest/NotebookEditToolDiff.tsx:4
+    14  ../src/components/permissions/PermissionDecisionDebugInfo.tsx:5
+     4  ../src/components/permissions/PermissionDialog.tsx:9
+     4  ../src/components/permissions/PermissionExplanation.tsx:2
+     4  ../src/components/permissions/PermissionPrompt.tsx:1
+     6  ../src/components/permissions/PermissionRequest.tsx:4
+     2  ../src/components/permissions/PermissionRequestTitle.tsx:8
+     2  ../src/components/permissions/PermissionRuleExplanation.tsx:68
+     5  ../src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx:1
+     1  ../src/components/permissions/ReviewArtifactPermissionRequest/ReviewArtifactPermissionRequest.tsx:9
+     6  ../src/components/permissions/rules/AddPermissionRules.tsx:3
+    17  ../src/components/permissions/rules/AddWorkspaceDirectory.tsx:4
+     1  ../src/components/permissions/rules/PermissionModeTab.tsx:1
+     1  ../src/components/permissions/rules/PermissionRuleDescription.tsx:9
+     3  ../src/components/permissions/rules/PermissionRuleInput.tsx:4
+    42  ../src/components/permissions/rules/PermissionRuleList.tsx:6
+    13  ../src/components/permissions/rules/RecentDenialsTab.tsx:3
+     3  ../src/components/permissions/rules/RemoveWorkspaceDirectory.tsx:3
+     7  ../src/components/permissions/rules/WorkspaceTab.tsx:4
+     5  ../src/components/permissions/SandboxPermissionRequest.tsx:3
+    14  ../src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx:3
+     4  ../src/components/permissions/SharedShellPermissionRequest.tsx:1
+     4  ../src/components/permissions/SkillPermissionRequest/SkillPermissionRequest.tsx:1
+     1  ../src/components/permissions/useShellPermissionFeedback.ts:1
+     3  ../src/components/permissions/WebFetchPermissionRequest/WebFetchPermissionRequest.tsx:1
+     1  ../src/components/permissions/WorkerBadge.tsx:15
+     1  ../src/components/permissions/WorkerPendingPermission.tsx:16
+     1  ../src/components/PromptInput/HistorySearchInput.tsx:11
+     2  ../src/components/PromptInput/inputModes.ts:1
+     2  ../src/components/PromptInput/inputPaste.ts:1
+    14  ../src/components/PromptInput/Notifications.tsx:4
+    89  ../src/components/PromptInput/PromptInput.tsx:5
+     5  ../src/components/PromptInput/PromptInputFooter.tsx:3
+    21  ../src/components/PromptInput/PromptInputFooterLeftSide.tsx:11
+     2  ../src/components/PromptInput/PromptInputFooterSuggestions.tsx:2
+     3  ../src/components/PromptInput/PromptInputHelpMenu.tsx:4
+     7  ../src/components/PromptInput/PromptInputModeIndicator.tsx:4
+     1  ../src/components/PromptInput/PromptInputQueuedCommands.test.tsx:9
+     8  ../src/components/PromptInput/PromptInputQueuedCommands.tsx:3
+     2  ../src/components/PromptInput/PromptInputStashNotice.tsx:4
+     6  ../src/components/PromptInput/SandboxPromptFooterHint.tsx:3
+     9  ../src/components/PromptInput/ShimmeredInput.tsx:15
+     3  ../src/components/PromptInput/useMaybeTruncateInput.ts:1
+     7  ../src/components/PromptInput/usePromptInputPlaceholder.ts:2
+     2  ../src/components/PromptInput/useShowFastIconHint.ts:1
+     2  ../src/components/PromptInput/useSwarmBanner.ts:52
+     2  ../src/components/PromptInput/VoiceIndicator.tsx:24
+    63  ../src/components/ProviderManager.tsx:240
+    26  ../src/components/QuickOpenDialog.tsx:4
+     3  ../src/components/RemoteCallout.tsx:1
+    13  ../src/components/RemoteEnvironmentDialog.tsx:5
+    14  ../src/components/ResumeTask.tsx:1
+     2  ../src/components/sandbox/SandboxConfigTab.tsx:42
+     6  ../src/components/sandbox/SandboxDependenciesTab.tsx:9
+     4  ../src/components/sandbox/SandboxDoctorSection.tsx:40
+     3  ../src/components/sandbox/SandboxOverridesTab.tsx:14
+     3  ../src/components/sandbox/SandboxSettings.tsx:22
+    10  ../src/components/SandboxViolationExpandedView.tsx:3
+     3  ../src/components/ScrollKeybindingHandler.tsx:1
+     1  ../src/components/SearchBox.tsx:14
+     6  ../src/components/SentryErrorBoundary.ts:4
+     4  ../src/components/SessionBackgroundHint.tsx:3
+     8  ../src/components/SessionPreview.tsx:3
+     1  ../src/components/SessionSummary.tsx:25
+     6  ../src/components/Settings/CodexUsage.tsx:2
+    51  ../src/components/Settings/Config.tsx:7
+     6  ../src/components/Settings/MiniMaxUsage.tsx:2
+     4  ../src/components/Settings/Settings.tsx:4
+    14  ../src/components/Settings/Status.tsx:4
+     1  ../src/components/Settings/UnsupportedUsage.tsx:12
+    10  ../src/components/Settings/Usage.tsx:3
+     3  ../src/components/shell/ExpandShellOutputContext.tsx:3
+     3  ../src/components/shell/OutputLine.tsx:3
+     2  ../src/components/shell/ShellProgressMessage.tsx:19
+     1  ../src/components/shell/ShellTimeDisplay.tsx:9
+     5  ../src/components/ShowInIDEPrompt.tsx:25
+    10  ../src/components/skills/SkillsMenu.tsx:2
+    18  ../src/components/Spinner.tsx:5
+     6  ../src/components/Spinner/CompletionFlash.tsx:2
+     3  ../src/components/Spinner/FlashingChar.tsx:12
+     4  ../src/components/Spinner/GlimmerMessage.tsx:23
+     1  ../src/components/Spinner/ShimmerChar.tsx:12
+     8  ../src/components/Spinner/SpinnerAnimationRow.tsx:4
+     2  ../src/components/Spinner/SpinnerGlyph.tsx:22
+     5  ../src/components/Spinner/TeammateSpinnerLine.tsx:2
+     5  ../src/components/Spinner/TeammateSpinnerTree.tsx:21
+     1  ../src/components/Spinner/useShimmerAnimation.ts:1
+     1  ../src/components/Spinner/useStalledAnimation.ts:1
+     8  ../src/components/Stats.tsx:6
+    13  ../src/components/StatusLine.tsx:3
+     9  ../src/components/StatusNotices.tsx:24
+     2  ../src/components/StructuredDiff.tsx:4
+    10  ../src/components/StructuredDiff/Fallback.tsx:4
+     1  ../src/components/StructuredDiffList.tsx:23
+     9  ../src/components/TaskListV2.tsx:34
+     7  ../src/components/tasks/AsyncAgentDetailDialog.tsx:2
+     7  ../src/components/tasks/BackgroundTask.tsx:3
+    52  ../src/components/tasks/BackgroundTasksDialog.tsx:4
+    33  ../src/components/tasks/BackgroundTaskStatus.tsx:4
+     7  ../src/components/tasks/DreamDetailDialog.tsx:3
+     7  ../src/components/tasks/InProcessTeammateDetailDialog.tsx:2
+     3  ../src/components/tasks/MonitorMcpDetailDialog.tsx:11
+    18  ../src/components/tasks/RemoteSessionDetailDialog.tsx:3
+     9  ../src/components/tasks/RemoteSessionProgress.tsx:2
+    13  ../src/components/tasks/ShellDetailDialog.tsx:2
+     7  ../src/components/tasks/ShellProgress.tsx:2
+     6  ../src/components/tasks/taskStatusUtils.tsx:6
+     3  ../src/components/tasks/WorkflowDetailDialog.tsx:11
+     1  ../src/components/TeammateViewHeader.tsx:94
+    34  ../src/components/teams/TeamsDialog.tsx:5
+     3  ../src/components/teams/TeamStatus.tsx:14
+     7  ../src/components/TeleportError.tsx:2
+     4  ../src/components/TeleportProgress.tsx:4
+     7  ../src/components/TeleportRepoMismatchDialog.tsx:2
+     6  ../src/components/TeleportResumeWrapper.tsx:2
+     2  ../src/components/TeleportStash.tsx:2
+     2  ../src/components/TextInput.test.tsx:165
+     2  ../src/components/TextInput.tsx:3
+     7  ../src/components/ThemePicker.tsx:21
+     4  ../src/components/ThinkingToggle.tsx:3
+     3  ../src/components/TokenWarning.tsx:4
+     1  ../src/components/ToolUseLoader.tsx:11
+     9  ../src/components/TrustDialog/TrustDialog.tsx:4
+     4  ../src/components/TrustDialog/utils.ts:1
+     7  ../src/components/ui/OrderedList.tsx:2
+     4  ../src/components/ui/OrderedListItem.tsx:2
+    22  ../src/components/ui/TreeSelect.tsx:110
+     2  ../src/components/useCodexOAuthFlow.ts:58
+     2  ../src/components/useXaiOAuthFlow.ts:57
+     9  ../src/components/ValidationErrorsList.tsx:2
+     2  ../src/components/VimTextInput.tsx:13
+    18  ../src/components/VirtualMessageList.tsx:2
+     1  ../src/components/wizard/useWizard.ts:1
+     2  ../src/components/wizard/WizardDialogLayout.tsx:2
+     1  ../src/components/wizard/WizardNavigationFooter.tsx:1
+    14  ../src/components/wizard/WizardProvider.tsx:2
+     5  ../src/components/WorkflowMultiselectDialog.tsx:2
+     5  ../src/components/WorktreeExitDialog.tsx:1
+     1  ../src/constants/common.ts:1
+     4  ../src/constants/outputStyles.ts:2
+     1  ../src/constants/promptIdentity.test.ts:9
+     6  ../src/constants/prompts.ts:31
+     1  ../src/context.ts:2
+     3  ../src/context/fpsMetrics.tsx:2
+     4  ../src/context/mailbox.tsx:2
+     4  ../src/context/modalContext.tsx:2
+    18  ../src/context/notifications.tsx:2
+     7  ../src/context/overlayContext.tsx:16
+     8  ../src/context/promptOverlayContext.tsx:22
+     4  ../src/context/QueuedMessageContext.tsx:10
+    14  ../src/context/stats.tsx:2
+     5  ../src/context/voice.tsx:2
+     1  ../src/costHook.ts:1
+     1  ../src/dialogLaunchers.tsx:141
+     2  ../src/entrypoints/init.ts:5
+     1  ../src/entrypoints/mcp.ts:18
+     4  ../src/hooks/fileSuggestions.test.ts:28
+     9  ../src/hooks/fileSuggestions.ts:2
+     3  ../src/hooks/notifs/useAutoModeUnavailableNotification.ts:2
+     3  ../src/hooks/notifs/useCanSwitchToExistingSubscription.tsx:2
+     5  ../src/hooks/notifs/useDeprecationWarningNotification.tsx:2
+    13  ../src/hooks/notifs/useFastModeNotification.tsx:2
+    12  ../src/hooks/notifs/useIDEStatusIndicator.tsx:2
+     3  ../src/hooks/notifs/useInstallMessages.tsx:1
+     6  ../src/hooks/notifs/useLspInitializationNotification.tsx:31
+     7  ../src/hooks/notifs/useMcpConnectivityStatus.tsx:4
+     3  ../src/hooks/notifs/useModelMigrationNotifications.tsx:1
+     3  ../src/hooks/notifs/useNpmDeprecationNotification.tsx:1
+     7  ../src/hooks/notifs/usePluginAutoupdateNotification.tsx:3
+     5  ../src/hooks/notifs/usePluginInstallationStatus.tsx:3
+    11  ../src/hooks/notifs/useRateLimitWarningNotification.tsx:3
+     4  ../src/hooks/notifs/useSettingsErrors.tsx:2
+     2  ../src/hooks/notifs/useStartupNotification.ts:1
+     2  ../src/hooks/notifs/useTeammateShutdownNotification.ts:1
+     1  ../src/hooks/toolPermission/handlers/interactiveHandler.ts:4
+     2  ../src/hooks/toolPermission/PermissionContext.ts:6
+     2  ../src/hooks/toolPermission/permissionLogging.ts:8
+     9  ../src/hooks/unifiedSuggestions.ts:3
+     1  ../src/hooks/useAfterFirstRender.ts:1
+     3  ../src/hooks/useApiKeyVerification.ts:1
+     5  ../src/hooks/useArrowKeyHistory.tsx:1
+     5  ../src/hooks/useAssistantHistory.ts:3
+     2  ../src/hooks/useAwaySummary.ts:2
+     2  ../src/hooks/useBackgroundTaskNavigation.ts:1
+    13  ../src/hooks/useCancelRequest.ts:7
+    11  ../src/hooks/useCanUseTool.tsx:5
+     3  ../src/hooks/useClaudeCodeHintRecommendation.tsx:26
+     2  ../src/hooks/useClipboardImageHint.ts:1
+     3  ../src/hooks/useCommandKeybindings.tsx:12
+     1  ../src/hooks/useCommandQueue.ts:1
+     2  ../src/hooks/useCopyOnSelect.ts:1
+     4  ../src/hooks/useDeferredHookMessages.ts:1
+     3  ../src/hooks/useDiffData.ts:2
+     7  ../src/hooks/useDiffInIDE.ts:3
+     4  ../src/hooks/useDirectConnect.ts:1
+     3  ../src/hooks/useDoublePress.ts:4
+     3  ../src/hooks/useEffectEventCompat.ts:1
+     2  ../src/hooks/useElapsedTime.ts:1
+     3  ../src/hooks/useExitOnCtrlCD.ts:1
+     2  ../src/hooks/useFileHistorySnapshotInit.ts:1
+     1  ../src/hooks/useGlobalKeybindings.tsx:8
+     5  ../src/hooks/useHistorySearch.ts:2
+     3  ../src/hooks/useIdeAtMentioned.ts:1
+     1  ../src/hooks/useIdeConnectionStatus.ts:1
+     4  ../src/hooks/useIDEIntegration.tsx:2
+     2  ../src/hooks/useIdeLogging.ts:1
+     3  ../src/hooks/useIdeSelection.ts:1
+     3  ../src/hooks/useInboxPoller.ts:2
+     5  ../src/hooks/useInputBuffer.ts:1
+     2  ../src/hooks/useIssueFlagBanner.ts:1
+     3  ../src/hooks/useLogMessages.ts:2
+     5  ../src/hooks/useLspPluginRecommendation.tsx:54
+     4  ../src/hooks/useMailboxBridge.ts:1
+     3  ../src/hooks/useMainLoopModel.ts:1
+     6  ../src/hooks/useManagePlugins.ts:1
+     2  ../src/hooks/useMergedClients.ts:1
+     2  ../src/hooks/useMergedCommands.ts:1
+     1  ../src/hooks/useMergedTools.ts:2
+     3  ../src/hooks/useMinDisplayTime.ts:1
+     1  ../src/hooks/useNotifyAfterTimeout.ts:1
+     9  ../src/hooks/usePasteHandler.ts:3
+     4  ../src/hooks/usePluginRecommendationBase.tsx:26
+     5  ../src/hooks/usePromptsFromClaudeInChrome.tsx:3
+     2  ../src/hooks/usePromptSuggestion.ts:1
+     4  ../src/hooks/usePrStatus.ts:1
+     2  ../src/hooks/useQueueProcessor.ts:1
+     4  ../src/hooks/useRemoteSession.ts:1
+     5  ../src/hooks/useReplBridge.tsx:2
+     2  ../src/hooks/useScheduledTasks.ts:1
+     2  ../src/hooks/useSearchInput.ts:1
+     3  ../src/hooks/useSessionBackgrounding.ts:10
+     2  ../src/hooks/useSettingsChange.ts:1
+     2  ../src/hooks/useSkillsChange.ts:1
+     4  ../src/hooks/useSSHSession.ts:13
+     1  ../src/hooks/useSwarmInitialization.ts:10
+     2  ../src/hooks/useTasksV2.ts:2
+     1  ../src/hooks/useTeammateViewAutoExit.ts:1
+     8  ../src/hooks/useTeleportResume.tsx:2
+     5  ../src/hooks/useTerminalSize.ts:1
+     6  ../src/hooks/useTextInput.ts:1
+     2  ../src/hooks/useTimeout.ts:1
+     2  ../src/hooks/useTurnDiffs.ts:2
+     8  ../src/hooks/useTypeahead.tsx:2
+     2  ../src/hooks/useUpdateNotification.ts:1
+     2  ../src/hooks/useVimInput.ts:1
+     7  ../src/hooks/useVirtualScroll.ts:1
+    13  ../src/hooks/useVoice.ts:9
+     1  ../src/hooks/useVoiceEnabled.ts:1
+    13  ../src/hooks/useVoiceIntegration.tsx:3
+     1  ../src/i18n/index.ts:27
+     2  ../src/ink.ts:1
+     3  ../src/ink/Ansi.tsx:69
+     1  ../src/ink/bidi.ts:17
+     2  ../src/ink/browser-dom.ts:1
+     4  ../src/ink/components/AlternateScreen.tsx:2
+     1  ../src/ink/components/App.test.tsx:37
+    57  ../src/ink/components/App.tsx:1
+     1  ../src/ink/components/AppContext.ts:1
+    12  ../src/ink/components/Box.tsx:3
+    13  ../src/ink/components/Button.tsx:2
+     4  ../src/ink/components/ClockContext.tsx:2
+     1  ../src/ink/components/CursorDeclarationContext.ts:1
+     4  ../src/ink/components/Link.tsx:2
+     1  ../src/ink/components/Newline.tsx:16
+     2  ../src/ink/components/NoSelect.tsx:2
+     2  ../src/ink/components/RawAnsi.tsx:30
+     9  ../src/ink/components/ScrollBox.tsx:1
+     1  ../src/ink/components/StdinContext.ts:1
+     4  ../src/ink/components/TerminalFocusContext.tsx:2
+     1  ../src/ink/components/TerminalSizeContext.tsx:1
+     3  ../src/ink/components/Text.tsx:1
+     1  ../src/ink/events/dispatcher.ts:5
+     3  ../src/ink/hooks/use-animation-frame.ts:1
+     1  ../src/ink/hooks/use-app.ts:1
+     4  ../src/ink/hooks/use-declared-cursor.ts:1
+     1  ../src/ink/hooks/use-input.test.ts:4
+     2  ../src/ink/hooks/use-input.ts:1
+     4  ../src/ink/hooks/use-interval.ts:1
+     3  ../src/ink/hooks/use-search-highlight.ts:1
+     9  ../src/ink/hooks/use-selection.ts:1
+     1  ../src/ink/hooks/use-stdin.ts:1
+     3  ../src/ink/hooks/use-tab-status.ts:1
+     1  ../src/ink/hooks/use-terminal-focus.ts:1
+     2  ../src/ink/hooks/use-terminal-title.ts:1
+     4  ../src/ink/hooks/use-terminal-viewport.ts:1
+    14  ../src/ink/ink.tsx:3
+     3  ../src/ink/layout/yoga.ts:14
+     3  ../src/ink/output.ts:365
+    12  ../src/ink/reconciler.ts:4
+     3  ../src/ink/render-to-screen.ts:1
+     1  ../src/ink/renderer.ts:1
+     2  ../src/ink/root.ts:1
+     1  ../src/ink/selection.ts:337
+     1  ../src/ink/terminal.ts:1
+     3  ../src/ink/termio/osc.ts:39
+     4  ../src/ink/useTerminalNotification.ts:1
+     3  ../src/integrations/discoveryService.test.ts:173
+     3  ../src/interactiveHelpers.tsx:4
+     1  ../src/keybindings/defaultBindings.ts:2
+    15  ../src/keybindings/KeybindingContext.tsx:2
+    12  ../src/keybindings/KeybindingProviderSetup.tsx:10
+     2  ../src/keybindings/resolver.ts:73
+     2  ../src/keybindings/useKeybinding.ts:1
+     2  ../src/keybindings/useShortcutDisplay.ts:1
+    52  ../src/main.tsx:25
+     1  ../src/memdir/paths.ts:1
+     1  ../src/migrations/migrateAutoUpdatesToSettings.ts:1
+     1  ../src/migrations/migrateBypassPermissionsAcceptedToSettings.ts:1
+     1  ../src/migrations/migrateEnableAllProjectMcpServersToSettings.ts:1
+     1  ../src/migrations/resetAutoModeOptInForDefaultOffer.ts:2
+     1  ../src/migrations/resetProToOpusDefault.ts:1
+     6  ../src/outputStyles/loadOutputStylesDir.ts:1
+     1  ../src/projectOnboardingState.ts:1
+     8  ../src/query.ts:29
+     2  ../src/query/goalContinuation.test.ts:97
+     2  ../src/query/providerMaxTokensCapRetry.test.ts:75
+     1  ../src/query/stopHooks.ts:519
+    12  ../src/QueryEngine.ts:4
+     1  ../src/remote/SessionsWebSocket.ts:165
+     1  ../src/schemas/hooks.ts:11
+    42  ../src/screens/Doctor.tsx:4
+   171  ../src/screens/REPL.tsx:27
+    10  ../src/screens/ResumeConversation.tsx:5
+     2  ../src/services/analytics/growthbook.ts:44
+     2  ../src/services/analytics/metadata.ts:10
+     1  ../src/services/api/authRouting.ts:5
+     2  ../src/services/api/bootstrap.ts:2
+     1  ../src/services/api/claude.lifecycle.test.ts:48
+    31  ../src/services/api/claude.ts:27
+     6  ../src/services/api/client.ts:11
+     8  ../src/services/api/errors.ts:10
+     5  ../src/services/api/fetchWithProxyRetry.test.ts:90
+     7  ../src/services/api/grove.ts:2
+    10  ../src/services/api/logging.ts:15
+   218  ../src/services/api/openaiShim.test.ts:129
+    10  ../src/services/api/promptCacheBreakDetection.test.ts:228
+     9  ../src/services/api/promptCacheBreakDetection.ts:6
+     1  ../src/services/api/providerConfig.ts:20
+     3  ../src/services/api/sessionIngress.ts:233
+     6  ../src/services/api/withRetry.test.ts:234
+     7  ../src/services/api/withRetry.ts:8
+     1  ../src/services/claudeAiLimits.ts:3
+     2  ../src/services/claudeAiLimitsHook.ts:1
+     9  ../src/services/compact/apiMicrocompact.ts:1
+     1  ../src/services/compact/autoCompact.ts:2
+     4  ../src/services/compact/compact.test.ts:375
+     9  ../src/services/compact/compact.ts:3
+     1  ../src/services/compact/compactWarningHook.ts:1
+     4  ../src/services/compact/microCompact.ts:383
+     2  ../src/services/compact/sessionMemoryCompact.ts:370
+     1  ../src/services/contextCollapse/spawnCtxAgent.test.ts:140
+     1  ../src/services/diagnosticTracking.ts:2
+     2  ../src/services/extractMemories/extractMemories.ts:353
+     1  ../src/services/goal/controller.test.ts:224
+     1  ../src/services/goal/controller.ts:57
+     1  ../src/services/lsp/config.ts:28
+     8  ../src/services/lsp/LSPDiagnosticRegistry.test.ts:132
+     9  ../src/services/mcp/claudeai.ts:2
+    10  ../src/services/mcp/client.ts:38
+     4  ../src/services/mcp/config.ts:3
+     1  ../src/services/mcp/doctor.test.ts:4
+     5  ../src/services/mcp/MCPConnectionManager.tsx:2
+    25  ../src/services/mcp/useManageMCPConnections.ts:3
+     1  ../src/services/mcp/vscodeSdkMcp.ts:1
+     2  ../src/services/oauth/auth-code-listener.analytics.test.ts:45
+     1  ../src/services/oauth/auth-code-listener.ts:1
+     1  ../src/services/oauth/client.ts:6
+     5  ../src/services/oauth/getOauthProfile.ts:2
+     1  ../src/services/oauth/index.ts:1
+     1  ../src/services/plugins/pluginOperations.ts:347
+     2  ../src/services/PromptSuggestion/speculation.ts:893
+     1  ../src/services/SessionMemory/sessionMemory.ts:8
+     3  ../src/services/settingsSync/index.ts:15
+     1  ../src/services/teamMemorySync/index.ts:594
+     5  ../src/services/tips/tipRegistry.ts:2
+     3  ../src/services/tokenEstimation.ts:6
+     2  ../src/services/tools/StreamingToolExecutor.test.ts:50
+     1  ../src/services/tools/StreamingToolExecutor.ts:6
+     2  ../src/services/tools/toolExecution.ts:10
+     2  ../src/services/tools/toolHooks.ts:4
+    12  ../src/services/vcr.ts:4
+     3  ../src/services/voiceStreamSTT.ts:15
+     5  ../src/setup.ts:8
+     2  ../src/skills/bundled/debug.ts:2
+     1  ../src/skills/bundled/keybindings.ts:28
+     1  ../src/skills/bundled/updateConfig.ts:19
+     4  ../src/skills/loadSkillsDir.test.ts:42
+     1  ../src/skills/loadSkillsDir.ts:3
+     9  ../src/state/AppState.tsx:2
+     2  ../src/state/AppStateStore.ts:1
+     1  ../src/tasks.ts:29
+     2  ../src/tasks/LocalMainSessionTask.ts:190
+     4  ../src/tasks/RemoteAgentTask/RemoteAgentTask.tsx:390
+     1  ../src/test/fixtures/queryEngineGoalStatus.fixture.ts:48
+     1  ../src/tools.ts:77
+    35  ../src/tools/AgentTool/AgentTool.tsx:3
+     2  ../src/tools/AgentTool/agentToolUtils.ts:365
+    10  ../src/tools/AgentTool/built-in/claudeCodeGuideAgent.ts:1
+     9  ../src/tools/AgentTool/built-in/exploreAgent.ts:1
+     9  ../src/tools/AgentTool/built-in/planAgent.ts:1
+     6  ../src/tools/AgentTool/built-in/verificationAgent.ts:1
+     5  ../src/tools/AgentTool/loadAgentsDir.test.ts:91
+     8  ../src/tools/AgentTool/loadAgentsDir.ts:2
+     3  ../src/tools/AgentTool/runAgent.ts:4
+    32  ../src/tools/AgentTool/UI.tsx:4
+     8  ../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx:4
+     1  ../src/tools/BashTool/bashPermissions.test.ts:23
+     1  ../src/tools/BashTool/bashSecurity.ts:1
+     2  ../src/tools/BashTool/BashTool.tsx:5
+     2  ../src/tools/BashTool/BashToolResultMessage.tsx:3
+     1  ../src/tools/BashTool/shouldUseSandbox.ts:1
+     8  ../src/tools/BashTool/UI.tsx:31
+     6  ../src/tools/BashTool/utils.ts:7
+     2  ../src/tools/BriefTool/UI.tsx:72
+     6  ../src/tools/EnterPlanModeTool/UI.tsx:2
+     2  ../src/tools/EnterWorktreeTool/UI.tsx:7
+     8  ../src/tools/ExitPlanModeTool/UI.tsx:2
+     2  ../src/tools/ExitWorktreeTool/UI.tsx:7
+     3  ../src/tools/FileEditTool/FileEditTool.ts:2
+    12  ../src/tools/FileEditTool/UI.tsx:5
+    10  ../src/tools/FileEditTool/utils.ts:2
+     3  ../src/tools/FileReadTool/limits.ts:15
+     5  ../src/tools/FileReadTool/UI.tsx:3
+     1  ../src/tools/FileWriteTool/FileWriteTool.ts:2
+    13  ../src/tools/FileWriteTool/UI.tsx:6
+     2  ../src/tools/GlobTool/UI.tsx:3
+     1  ../src/tools/GrepTool/UI.tsx:16
+     2  ../src/tools/ListMcpResourcesTool/UI.tsx:11
+     2  ../src/tools/LSPTool/formatters.ts:60
+     2  ../src/tools/LSPTool/UI.tsx:61
+     3  ../src/tools/McpAuthTool/McpAuthTool.ts:1
+    10  ../src/tools/MCPTool/UI.tsx:45
+     1  ../src/tools/NotebookEditTool/NotebookEditTool.ts:6
+     7  ../src/tools/NotebookEditTool/UI.tsx:3
+     2  ../src/tools/PowerShellTool/PowerShellTool.tsx:5
+     7  ../src/tools/PowerShellTool/UI.tsx:26
+     2  ../src/tools/ReadMcpResourceTool/UI.tsx:10
+     1  ../src/tools/SkillTool/prompt.ts:1
+    30  ../src/tools/SkillTool/SkillTool.ts:3
+     8  ../src/tools/SkillTool/UI.tsx:3
+     1  ../src/tools/TaskOutputTool/TaskOutputTool.tsx:353
+     1  ../src/tools/ToolSearchTool/ToolSearchTool.ts:2
+     2  ../src/tools/utils.ts:6
+     1  ../src/tools/WebBrowserTool/WebBrowserPanel.tsx:5
+     2  ../src/tools/WebFetchTool/utils.ts:92
+     1  ../src/tools/WebSearchTool/prompt.ts:1
+     3  ../src/tools/WebSearchTool/WebSearchTool.ts:5
+     1  ../src/tools/WorkflowTool/WorkflowPermissionRequest.tsx:9
+     6  ../src/types/hooks.ts:9
+     2  ../src/types/logs.ts:2
+     2  ../src/upstreamproxy/relay.ts:31
+     7  ../src/utils/abortController.ts:40
+     2  ../src/utils/analyzeContext.ts:6
+    14  ../src/utils/api.ts:6
+     1  ../src/utils/argumentSubstitution.ts:136
+    14  ../src/utils/attachments.ts:5
+     2  ../src/utils/attribution.ts:330
+     5  ../src/utils/auth.ts:4
+     1  ../src/utils/authPortable.ts:2
+     3  ../src/utils/autoRunIssue.tsx:3
+     2  ../src/utils/autoUpdater.ts:6
+     2  ../src/utils/background/remote/preconditions.ts:2
+     1  ../src/utils/background/remote/remoteSession.ts:1
+     3  ../src/utils/bash/commands.ts:2
+     1  ../src/utils/bash/heredoc.ts:699
+     1  ../src/utils/bash/ParsedCommand.ts:1
+     2  ../src/utils/bash/parser.ts:226
+     3  ../src/utils/bash/shellCompletion.ts:1
+     2  ../src/utils/bash/shellQuote.ts:10
+     1  ../src/utils/bash/ShellSnapshot.ts:5
+     1  ../src/utils/betas.test.ts:275
+     5  ../src/utils/betas.ts:2
+     1  ../src/utils/caCerts.ts:1
+     1  ../src/utils/classifierApprovalsHook.ts:7
+     9  ../src/utils/claudeInChrome/toolRendering.tsx:17
+     6  ../src/utils/claudemd.ts:31
+     6  ../src/utils/combinedAbortSignal.test.ts:40
+     2  ../src/utils/commitAttribution.ts:282
+     2  ../src/utils/computerUse/toolRendering.tsx:47
+     1  ../src/utils/computerUse/wrapper.tsx:325
+     9  ../src/utils/config.ts:3
+     9  ../src/utils/conversationRecovery.hooks.test.ts:143
+     3  ../src/utils/conversationRecovery.test.ts:284
+     5  ../src/utils/conversationRecovery.ts:4
+     3  ../src/utils/Cursor.ts:161
+     3  ../src/utils/debug.ts:2
+     1  ../src/utils/debugFilter.ts:1
+     2  ../src/utils/deepLink/registerProtocol.ts:19
+     1  ../src/utils/desktopDeepLink.ts:3
+     1  ../src/utils/diagnostics/issueReport.test.ts:104
+     4  ../src/utils/diff.ts:2
+     1  ../src/utils/editor.ts:1
+     1  ../src/utils/effort.codex.test.ts:15
+     3  ../src/utils/effort.ts:5
+     1  ../src/utils/env.test.ts:117
+     1  ../src/utils/env.ts:1
+     1  ../src/utils/envDynamic.ts:3
+     1  ../src/utils/envUtils.ts:1
+     2  ../src/utils/exampleCommands.ts:1
+     7  ../src/utils/execFileNoThrow.ts:54
+     1  ../src/utils/exportRenderer.tsx:1
+     2  ../src/utils/fastMode.test.ts:3
+     2  ../src/utils/fastMode.ts:2
+     2  ../src/utils/file.ts:15
+    18  ../src/utils/fileHistory.ts:18
+     2  ../src/utils/fileOperationAnalytics.ts:1
+     1  ../src/utils/fileRead.ts:94
+     1  ../src/utils/fileReadCache.ts:50
+     1  ../src/utils/formatBriefTimestamp.ts:69
+     1  ../src/utils/fullscreen.ts:90
+     1  ../src/utils/git.ts:4
+     1  ../src/utils/gitDiff.ts:521
+     1  ../src/utils/globalPackageManager.ts:1
+     2  ../src/utils/gracefulShutdown.ts:3
+     2  ../src/utils/handlePromptSubmit.ts:2
+     5  ../src/utils/highlightMatch.test.tsx:9
+     4  ../src/utils/highlightMatch.tsx:9
+     1  ../src/utils/hookChains.ts:4
+    11  ../src/utils/hooks.ts:58
+     1  ../src/utils/hooks/AsyncHookRegistry.ts:5
+     1  ../src/utils/hooks/execAgentHook.ts:2
+     1  ../src/utils/hooks/execHttpHook.ts:2
+     1  ../src/utils/hooks/execPromptHook.ts:2
+     1  ../src/utils/hooks/hookEvents.ts:9
+     3  ../src/utils/hooks/hooksConfigManager.ts:1
+     1  ../src/utils/hooks/hooksSettings.ts:2
+     2  ../src/utils/hooks/registerFrontmatterHooks.ts:1
+     2  ../src/utils/hooks/registerSkillHooks.ts:1
+    11  ../src/utils/hooks/sessionHooks.ts:1
+     6  ../src/utils/ide.ts:3
+     2  ../src/utils/imports.ts:2
+     2  ../src/utils/incrementalTokenCounter.ts:157
+     6  ../src/utils/intl.ts:10
+     2  ../src/utils/listSessionsImpl.ts:132
+     2  ../src/utils/lockfile.ts:12
+     2  ../src/utils/log.ts:5
+     3  ../src/utils/markdownConfigLoader.scaling.test.ts:87
+     2  ../src/utils/markdownConfigLoader.ts:4
+     3  ../src/utils/mcpWebSocketTransport.ts:6
+    32  ../src/utils/messages.ts:17
+     7  ../src/utils/messages/mappers.ts:3
+     4  ../src/utils/messages/systemInit.ts:3
+     1  ../src/utils/model/bedrock.ts:1
+     1  ../src/utils/model/check1mAccess.ts:1
+     1  ../src/utils/model/modelStrings.ts:4
+     1  ../src/utils/model/modelSupportOverrides.ts:1
+     2  ../src/utils/modelCost.ts:2
+     1  ../src/utils/mtls.ts:3
+     1  ../src/utils/nativeInstaller/download.ts:14
+     1  ../src/utils/nativeInstaller/installer.ts:36
+     1  ../src/utils/nativeInstaller/packageManagers.ts:6
+     4  ../src/utils/openclaudePaths.test.ts:338
+     2  ../src/utils/permissions/bypassPermissionsKillswitch.test.ts:3
+     8  ../src/utils/permissions/bypassPermissionsKillswitch.ts:2
+     5  ../src/utils/permissions/filesystem.ts:4
+     1  ../src/utils/permissions/pathValidation.ts:1
+     2  ../src/utils/permissions/PermissionPromptToolResultSchema.ts:1
+     1  ../src/utils/permissions/permissionSetup.ts:46
+     5  ../src/utils/plans.ts:3
+     1  ../src/utils/platform.ts:2
+     1  ../src/utils/plugins/gitAvailability.ts:8
+     4  ../src/utils/plugins/loadPluginAgents.ts:1
+     7  ../src/utils/plugins/loadPluginCommands.ts:1
+     4  ../src/utils/plugins/loadPluginHooks.ts:1
+     2  ../src/utils/plugins/loadPluginOutputStyles.ts:1
+     1  ../src/utils/plugins/marketplaceHelpers.ts:1
+     5  ../src/utils/plugins/marketplaceManager.ts:23
+     2  ../src/utils/plugins/pluginLoader.test.ts:288
+     2  ../src/utils/plugins/pluginLoader.ts:47
+     1  ../src/utils/plugins/pluginOptionsStorage.ts:15
+     1  ../src/utils/plugins/reconciler.ts:10
+     8  ../src/utils/plugins/refresh.ts:107
+     6  ../src/utils/preflightChecks.tsx:3
+     7  ../src/utils/processUserInput/processBashCommand.tsx:4
+    13  ../src/utils/processUserInput/processSlashCommand.tsx:4
+     4  ../src/utils/processUserInput/processTextPrompt.ts:3
+     3  ../src/utils/processUserInput/processUserInput.ts:8
+     1  ../src/utils/promptCategory.ts:1
+     4  ../src/utils/providerProfile.test.ts:172
+     1  ../src/utils/providerProfiles.test.ts:1115
+     1  ../src/utils/proxy.ts:9
+     1  ../src/utils/queryContext.ts:136
+     3  ../src/utils/queryHelpers.ts:2
+     2  ../src/utils/readEditContext.ts:87
+     1  ../src/utils/releaseNotes.ts:4
+     1  ../src/utils/renderOptions.ts:86
+     1  ../src/utils/replayIndex.test.ts:5
+     1  ../src/utils/replayIndex.ts:3
+     1  ../src/utils/replayIndexBuilder.ts:8
+     5  ../src/utils/ripgrep.ts:4
+     5  ../src/utils/sandbox/sandbox-adapter.ts:18
+     1  ../src/utils/secureStorage/macOsKeychainHelpers.ts:18
+     3  ../src/utils/semver.ts:9
+    11  ../src/utils/sessionStorage.ts:18
+     7  ../src/utils/sessionTitle.test.ts:206
+     1  ../src/utils/settings/managedPath.ts:1
+     1  ../src/utils/settings/settings.ts:2
+     1  ../src/utils/settings/validateEditTool.ts:1
+     1  ../src/utils/settings/validation.ts:1
+     2  ../src/utils/Shell.ts:4
+     1  ../src/utils/slowOperations.ts:10
+     1  ../src/utils/startupProfiler.ts:13
+     4  ../src/utils/staticRender.tsx:3
+     4  ../src/utils/stats.ts:4
+    12  ../src/utils/status.test.ts:48
+     2  ../src/utils/status.tsx:36
+     3  ../src/utils/statusNoticeDefinitions.tsx:39
+    15  ../src/utils/streamlinedTransform.ts:11
+    11  ../src/utils/suggestions/directoryCompletion.ts:3
+     2  ../src/utils/swarm/inProcessRunner.ts:1468
+    13  ../src/utils/swarm/It2SetupPrompt.tsx:2
+     1  ../src/utils/swarm/spawnInProcess.ts:16
+     4  ../src/utils/teleport.tsx:5
+     2  ../src/utils/teleport/api.ts:3
+     2  ../src/utils/teleport/environments.ts:2
+     1  ../src/utils/teleport/gitBundle.ts:16
+     3  ../src/utils/tokens.ts:111
+     2  ../src/utils/toolPool.ts:2
+     1  ../src/utils/toolSearch.ts:9
+     2  ../src/utils/ultraplan/ccrSession.ts:99
+     1  ../src/utils/unaryLogging.ts:4
+     1  ../src/utils/user.ts:2
+     1  ../src/utils/uuid.ts:2
+     1  ../src/utils/version.ts:4
+     1  ../src/utils/warningHandler.ts:5
+     1  ../src/utils/windowsPaths.ts:1
+     1  ../src/utils/worktree.ts:249
+     2  ../src/utils/xaiCredentials.ts:107
+     1  shared/react-jsx-runtime.browser.ts:1
+     2  shared/react.browser.ts:1

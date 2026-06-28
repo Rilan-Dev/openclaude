@@ -1,9 +1,9 @@
 import { c as _c } from "react-compiler-runtime";
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { type ReactNode } from 'react';
 import { Mailbox } from '../utils/mailbox.js';
-const MailboxContext = createContext<Mailbox | undefined>(undefined);
+const MailboxContext = React.createContext<Mailbox | undefined>(undefined);
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 export function MailboxProvider(t0) {
   const $ = _c(3);
@@ -29,7 +29,7 @@ export function MailboxProvider(t0) {
   return t2;
 }
 export function useMailbox() {
-  const mailbox = useContext(MailboxContext);
+  const mailbox = React.useContext(MailboxContext);
   if (!mailbox) {
     throw new Error("useMailbox must be used within a MailboxProvider");
   }

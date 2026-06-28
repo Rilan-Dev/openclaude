@@ -1,5 +1,5 @@
 import { c as _c } from "react-compiler-runtime";
-import React, { type PropsWithChildren, useContext, useInsertionEffect } from 'react';
+import React, { type PropsWithChildren } from 'react';
 import instances from '../instances.js';
 import { DISABLE_MOUSE_TRACKING, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
 import { TerminalWriteContext } from '../useTerminalNotification.js';
@@ -37,8 +37,8 @@ export function AlternateScreen(t0) {
     mouseTracking: t1
   } = t0;
   const mouseTracking = t1 === undefined ? true : t1;
-  const size = useContext(TerminalSizeContext);
-  const writeRaw = useContext(TerminalWriteContext);
+  const size = React.useContext(TerminalSizeContext);
+  const writeRaw = React.useContext(TerminalWriteContext);
   let t2;
   let t3;
   if ($[0] !== mouseTracking || $[1] !== writeRaw) {
@@ -64,7 +64,7 @@ export function AlternateScreen(t0) {
     t2 = $[2];
     t3 = $[3];
   }
-  useInsertionEffect(t2, t3);
+  React.useInsertionEffect(t2, t3);
   const t4 = size?.rows ?? 24;
   let t5;
   if ($[4] !== children || $[5] !== t4) {

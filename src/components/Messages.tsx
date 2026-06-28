@@ -43,6 +43,7 @@ import { OffscreenFreeze } from './OffscreenFreeze.js';
 import type { ToolUseConfirm } from './permissions/PermissionRequest.js';
 import { StatusNotices } from './StatusNotices.js';
 import type { JumpHandle } from './VirtualMessageList.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 
 // Memoed logo header: this box is the FIRST sibling before all MessageRows
 // in main-screen mode. If it becomes dirty on every Messages re-render,
@@ -679,7 +680,7 @@ const MessagesImpl = ({
     searchTextCache.current.set(msg_9, lowered);
     return lowered;
   }, [tools, lookups_0]);
-  return <>
+  const transcript = <>
       {/* Logo */}
       {!hideLogo && !(renderRange && renderRange[0] > 0) && <LogoHeader agentDefinitions={agentDefinitions} />}
 
@@ -723,6 +724,12 @@ const MessagesImpl = ({
       }} addMargin={false} isTranscriptMode={true} verbose={verbose} hideInTranscript={false} />
         </Box>}
     </>;
+
+  if (isBrowserRuntime()) {
+    return <div className="repl-browserTranscript">{transcript}</div>;
+  }
+
+  return transcript;
 };
 
 /** Key for click-to-expand: tool_use_id where available (so tool_use + its

@@ -318,7 +318,7 @@ export function browserTextStyle(t0: {
   }
 }
 
-function parsedKeyFromBrowserEvent(
+export function parsedKeyFromBrowserEvent(
   event: globalThis.KeyboardEvent,
 ): ParsedKey {
   const key = browserKeyName(event.key)

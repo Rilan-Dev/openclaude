@@ -4,6 +4,7 @@ import { Box, Text } from '../ink.js';
 import { useAppState } from '../state/AppState.js';
 import { getViewedTeammateTask } from '../state/selectors.js';
 import { toInkColor } from '../utils/ink.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
 import { OffscreenFreeze } from './OffscreenFreeze.js';
 
@@ -26,6 +27,20 @@ export function TeammateViewHeader() {
     t0 = $[1];
   }
   const nameColor = t0;
+  if (isBrowserRuntime()) {
+    return <div className="repl-browserTeammateHeader">
+      <div className="repl-browserTeammateHeaderTop">
+        <span className="repl-browserTeammateHeaderPrefix">Viewing</span>
+        <span className="repl-browserTeammateHeaderName" style={nameColor ? {
+          color: nameColor
+        } : undefined}>@{viewedTeammate.identity.agentName}</span>
+        <span className="repl-browserTeammateHeaderHint">
+          <KeyboardShortcutHint shortcut="esc" action="return" />
+        </span>
+      </div>
+      <div className="repl-browserTeammateHeaderPrompt">{viewedTeammate.prompt}</div>
+    </div>;
+  }
   let t1;
   if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = <Text>Viewing </Text>;

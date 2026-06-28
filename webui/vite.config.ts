@@ -11,7 +11,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const webuiRoot = __dirname
 const repoRoot = path.resolve(__dirname, '..')
 
 export default defineConfig(({ mode }) => {
@@ -105,18 +104,10 @@ export default defineConfig(({ mode }) => {
           find: '@web',
           replacement: path.resolve(__dirname, 'src'),
         },
-        {
-          find: 'react-dom-client-browser',
-          replacement: path.join(
-            webuiRoot,
-            'node_modules/react-dom/cjs/react-dom-client.development.js',
-          ),
-        },
       ],
     },
 
     optimizeDeps: {
-      include: ['react', 'react-dom-client-browser'],
       exclude: [
         ...excludedBrowserAliases,
         'bun:bundle',
@@ -128,6 +119,10 @@ export default defineConfig(({ mode }) => {
         '@ant/claude-for-chrome-mcp',
         '@anthropic-ai/sandbox-runtime',
       ],
+      esbuildOptions: {
+        plugins: [
+        ],
+      },
     },
 
     server: {

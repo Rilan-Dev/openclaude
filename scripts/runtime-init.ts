@@ -1,42 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { loadLocalCodexAuthEnv } from './provider-env.ts'
 
-function run(
-  command: string,
-  args: string[],
-  options: {
-    cwd?: string
-    env?: NodeJS.ProcessEnv
-  } = {},
-): Promise<number> {
-  return new Promise(resolve => {
-    const child = spawn(command, args, {
-      cwd: options.cwd ?? process.cwd(),
-      env: options.env ?? process.env,
-      stdio: 'inherit',
-    })
-
-    child.on('close', code => resolve(code ?? 1))
-    child.on('error', () => resolve(1))
-  })
-}
-
-function readRenderModeFromDotEnv(): string | undefined {
-  for (const filePath of ['.env', 'webui/.env']) {
-    try {
-      const raw = readFileSync(filePath, 'utf8')
-      const match = raw.match(/^\s*OPENCLAUDE_RENDER_MODE\s*=\s*(.+)\s*$/m)
-      if (!match?.[1]) continue
-      return match[1].trim().replace(/^['"]|['"]$/g, '')
-    } catch {
-      // Try the next file.
-    }
-  }
-
-  return undefined
-}
+export type OpenClaudeRenderMode = 'terminal' | 'web'
 
 const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 
@@ -45,20 +11,51 @@ type CodexBrowserAuth = {
   accountId?: string
 }
 
-function resolveCodexAuthPath(): string | undefined {
+function readRenderModeFromDotEnv(): OpenClaudeRenderMode | undefined {
+  for (const filePath of ['.env', 'webui/.env']) {
+    try {
+      const raw = readFileSync(filePath, 'utf8')
+      const match = raw.match(/^\s*OPENCLAUDE_RENDER_MODE\s*=\s*(.+)\s*$/m)
+      if (!match?.[1]) continue
+      const value = match[1].trim().replace(/^['"]|['"]$/g, '')
+      if (value === 'web' || value === 'terminal') {
+        return value
+      }
+    } catch {
+      // Try the next file.
+    }
+  }
+
+  return undefined
+}
+
+function resolveOpenClaudeRenderMode(): OpenClaudeRenderMode {
+  const explicit = process.env.OPENCLAUDE_RENDER_MODE?.trim().toLowerCase()
+  if (explicit === 'web' || explicit === 'terminal') {
+    return explicit
+  }
+
+  return readRenderModeFromDotEnv() ?? 'terminal'
+}
+
+function resolveCodexAuthPath(): string {
   const explicit = process.env.CODEX_AUTH_JSON_PATH?.trim()
   if (explicit) return explicit
 
   const codexHome = process.env.CODEX_HOME?.trim()
   if (codexHome) return join(codexHome, 'auth.json')
 
-  const fallback = join(process.cwd(), '.openai-codex-auth.json')
-  return fallback
+  return join(process.cwd(), '.openai-codex-auth.json')
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) return false
+  const normalized = value.trim().toLowerCase()
+  return normalized !== '' && normalized !== '0' && normalized !== 'false' && normalized !== 'no'
 }
 
 function readCodexAuthFromDisk(): CodexBrowserAuth | undefined {
   const authPath = resolveCodexAuthPath()
-  if (!authPath) return undefined
 
   try {
     const raw = readFileSync(authPath, 'utf8')
@@ -88,27 +85,6 @@ function readCodexAuthFromDisk(): CodexBrowserAuth | undefined {
   }
 }
 
-function normalizeUpstreamBaseUrl(raw: string | undefined): URL {
-  const fallback = 'https://api.openai.com/v1'
-  const candidate = raw?.trim() || fallback
-  try {
-    return new URL(candidate)
-  } catch {
-    return new URL(fallback)
-  }
-}
-
-function isTruthyEnv(value: string | undefined): boolean {
-  if (!value) return false
-  const normalized = value.trim().toLowerCase()
-  return (
-    normalized !== '' &&
-    normalized !== '0' &&
-    normalized !== 'false' &&
-    normalized !== 'no'
-  )
-}
-
 function applyBrowserCodexRuntimeEnv(): void {
   const auth = readCodexAuthFromDisk()
   if (!auth?.accessToken) return
@@ -120,13 +96,20 @@ function applyBrowserCodexRuntimeEnv(): void {
     return
   }
 
-  const explicit = normalizeUpstreamBaseUrl(process.env.OPENAI_BASE_URL)
+  const currentBaseUrl = (process.env.OPENAI_BASE_URL ?? '').trim() || 'https://api.openai.com/v1'
+  let baseUrl: URL
+  try {
+    baseUrl = new URL(currentBaseUrl)
+  } catch {
+    baseUrl = new URL('https://api.openai.com/v1')
+  }
+
   const isDefaultOpenAIUpstream =
-    explicit.origin === 'https://api.openai.com' &&
-    explicit.pathname.replace(/\/+$/, '') === '/v1'
+    baseUrl.origin === 'https://api.openai.com' &&
+    baseUrl.pathname.replace(/\/+$/, '') === '/v1'
   const isCodexUpstream =
-    explicit.origin === 'https://chatgpt.com' &&
-    explicit.pathname.replace(/\/+$/, '') === '/backend-api/codex'
+    baseUrl.origin === 'https://chatgpt.com' &&
+    baseUrl.pathname.replace(/\/+$/, '') === '/backend-api/codex'
 
   if (!isDefaultOpenAIUpstream && !isCodexUpstream) {
     return
@@ -148,38 +131,22 @@ function applyBrowserCodexRuntimeEnv(): void {
   }
 }
 
-async function main(): Promise<void> {
+export function initializeOpenClaudeRuntime(): {
+  renderMode: OpenClaudeRenderMode
+  isWebRuntime: boolean
+} {
   loadLocalCodexAuthEnv()
 
-  const renderMode =
-    process.env.OPENCLAUDE_RENDER_MODE?.trim().toLowerCase() ??
-    readRenderModeFromDotEnv()?.trim().toLowerCase()
+  const renderMode = resolveOpenClaudeRenderMode()
+  process.env.OPENCLAUDE_RENDER_MODE = renderMode
 
-  if (renderMode === 'web') {
-    const buildCode = await run(process.execPath, ['run', 'build'])
-    if (buildCode !== 0) {
-      process.exitCode = buildCode
-      return
-    }
-
+  const isWebRuntime = renderMode === 'web'
+  if (isWebRuntime) {
     applyBrowserCodexRuntimeEnv()
-
-    process.exitCode = await run(process.execPath, [
-      'run',
-      '--cwd',
-      'webui',
-      'dev',
-    ])
-    return
   }
 
-  const buildCode = await run(process.execPath, ['run', 'build'])
-  if (buildCode !== 0) {
-    process.exitCode = buildCode
-    return
+  return {
+    renderMode,
+    isWebRuntime,
   }
-
-  process.exitCode = await run('node', ['bin/openclaude'])
 }
-
-void main()

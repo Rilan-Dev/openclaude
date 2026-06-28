@@ -41,9 +41,14 @@ import {
 } from '../utils/permissions/filesystem.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
 import { setShellIfWindows } from '../utils/windowsPaths.js'
+import { isBrowserRuntime } from '../utils/imports.js'
 
 
 export const init = memoize(async (): Promise<void> => {
+  if (isBrowserRuntime()) {
+    return
+  }
+
   const initStartTime = Date.now()
   logForDiagnosticsNoPII('info', 'init_started')
   profileCheckpoint('init_function_start')

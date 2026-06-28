@@ -12,16 +12,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["../src/*"],
       "@web/*": ["./src/*"],
-      "react": ["./shared/react.browser.ts"],
-      "react/jsx-runtime": ["./shared/react-jsx-runtime.browser.ts"],
-      "react/jsx-dev-runtime": ["./shared/react-jsx-dev-runtime.browser.ts"],
-      "react-dom": ["./shared/react-dom.browser.ts"],
-      "react-dom/client": ["./shared/react-dom-client.browser.ts"],
-      "react-dom/server": ["./shared/react-dom-server.browser.ts"],
       "bun:bundle": ["../src/optionalModules.d.ts"]
     }
   },

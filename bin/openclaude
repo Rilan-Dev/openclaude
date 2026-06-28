@@ -18,6 +18,7 @@ const distPath = join(__dirname, '..', 'dist', 'cli.mjs')
 const HEAP_RELAUNCHED_ENV = 'OPENCLAUDE_HEAP_RELAUNCHED'
 const DISABLE_HEAP_RELAUNCH_ENV = 'OPENCLAUDE_DISABLE_HEAP_RELAUNCH'
 const HEAP_SIZE_ENV = 'OPENCLAUDE_NODE_MAX_OLD_SPACE_SIZE_MB'
+const DEV_FLAG = '--dev'
 const DEFAULT_HEAP_SIZE_MB = 8192
 
 function hasNodeFlag(args, flag) {
@@ -51,7 +52,11 @@ function getHeapSizeMb() {
     : DEFAULT_HEAP_SIZE_MB
 }
 
-function relaunchWithLongSessionHeapIfNeeded() {
+function stripLauncherFlags(args) {
+  return args.filter(arg => arg !== DEV_FLAG && !arg.startsWith('--max-memory=') && arg !== '--max-memory')
+}
+
+function relaunchWithLongSessionHeapIfNeeded(childArgs = stripLauncherFlags(process.argv.slice(2))) {
   if (process.env[DISABLE_HEAP_RELAUNCH_ENV] === '1') return
   if (process.env[HEAP_RELAUNCHED_ENV] === '1') return
   const hasHeapLimit = hasNodeOptionFlag('--max-old-space-size')
@@ -71,10 +76,6 @@ function relaunchWithLongSessionHeapIfNeeded() {
 
   // Strip --max-memory flag before relaunching — it's a launcher-only arg
   // that Commander in the built CLI would reject as unknown.
-  const childArgs = process.argv.slice(2).filter(
-    arg => !arg.startsWith('--max-memory=') && arg !== '--max-memory',
-  )
-
   const result = spawnSync(process.execPath, [
     ...execArgv,
     fileURLToPath(import.meta.url),
@@ -95,7 +96,57 @@ function relaunchWithLongSessionHeapIfNeeded() {
   process.exit(result.status ?? 1)
 }
 
-if (existsSync(distPath)) {
+async function runDev() {
+  const { initializeOpenClaudeRuntime } = await import('../scripts/runtime-init.ts')
+  const { renderMode } = initializeOpenClaudeRuntime()
+  const bunCommand = process.versions.bun ? process.execPath : 'bun'
+
+  // const buildResult = spawnSync(bunCommand, ['run', 'scripts/build.ts'], {
+  //   stdio: 'inherit',
+  //   env: process.env,
+  // })
+
+  // if (buildResult.error) {
+  //   console.error(`openclaude: dev build failed: ${buildResult.error.message}`)
+  //   process.exit(1)
+  // }
+
+  // const buildCode = buildResult.status ?? 1
+  // if (buildCode !== 0) {
+  //   process.exit(buildCode)
+  // }
+
+  if (renderMode === 'web') {
+    const webResult = spawnSync(bunCommand, ['run', '--cwd', 'webui', 'dev'], {
+      stdio: 'inherit',
+      env: process.env,
+    })
+
+    if (webResult.error) {
+      console.error(`openclaude: webui dev failed: ${webResult.error.message}`)
+      process.exit(1)
+    }
+
+    process.exit(webResult.status ?? 1)
+  }
+
+  const childArgs = stripLauncherFlags(process.argv.slice(2))
+  const cliResult = spawnSync('node', ['bin/openclaude', ...childArgs], {
+    stdio: 'inherit',
+    env: process.env,
+  })
+
+  if (cliResult.error) {
+    console.error(`openclaude: failed to launch CLI for dev mode: ${cliResult.error.message}`)
+    process.exit(1)
+  }
+
+  process.exit(cliResult.status ?? 1)
+}
+
+if (process.argv.includes(DEV_FLAG)) {
+  await runDev()
+} else if (existsSync(distPath)) {
   relaunchWithLongSessionHeapIfNeeded()
   await import(pathToFileURL(distPath).href)
 } else {

@@ -6,6 +6,7 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import type { MemoryFileInfo } from '../utils/claudemd.js';
 import { getMemoryFiles } from '../utils/claudemd.js';
 import { getGlobalConfig } from '../utils/config.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { getActiveNotices, type StatusNoticeContext } from '../utils/statusNoticeDefinitions.js';
 import { assembleToolPool } from '../tools.js';
 import { checkLocalModelContextLoad, isActiveProviderLocalModel, type LocalModelContextWarning } from '../utils/statusNoticeLocalModel.js';
@@ -100,6 +101,11 @@ export function StatusNotices(t0) {
   const activeNotices = getActiveNotices(context);
   if (activeNotices.length === 0) {
     return null;
+  }
+  if (isBrowserRuntime()) {
+    return <div className="repl-browserNoticeStack" role="status" aria-live="polite">
+      {activeNotices.map(notice => <div key={notice.id} className="repl-browserNoticeCard">{notice.render(context)}</div>)}
+    </div>;
   }
   const T0 = Box;
   const t3 = "column";

@@ -164,7 +164,7 @@ export function CollapsedReadSearchContent({
   const toolUseIds = getToolUseIdsFromCollapsedGroup(message);
   const anyError = toolUseIds.some(id => lookups.erroredToolUseIDs.has(id));
   const hasMemoryOps = memorySearchCount > 0 || memoryReadCount > 0 || memoryWriteCount > 0;
-  const hasTeamMemoryOps = feature('TEAMMEM') ? teamMemCollapsed!.checkHasTeamMemOps(message) : false;
+  const hasTeamMemoryOps = feature('TEAMMEM') && teamMemCollapsed != null ? teamMemCollapsed.checkHasTeamMemOps(message) : false;
 
   // Track the max seen counts so they only ever increase. The debounce timer
   // causes extra re-renders at arbitrary times; during a brief "invisible window"
@@ -452,7 +452,7 @@ export function CollapsedReadSearchContent({
         <Text dimColor={!isActiveGroup}>
           {nonMemParts}
           {memParts}
-          {feature('TEAMMEM') ? teamMemCollapsed!.TeamMemCountParts({
+          {feature('TEAMMEM') && teamMemCollapsed != null ? teamMemCollapsed.TeamMemCountParts({
           message,
           isActiveGroup,
           hasPrecedingParts: hasPrecedingNonMem || memParts.length > 0

@@ -54,7 +54,15 @@ const browserPathModule = browserBuiltins as typeof import('path')
 const browserOsModule = browserBuiltins as typeof import('os')
 
 export function isBrowserRuntime(): boolean {
-  return typeof window !== 'undefined' && typeof document !== 'undefined'
+  // Force browser mode when explicitly configured.
+  if (process.env.OPENCLAUDE_RENDER_MODE === "web") {
+    return true;
+  }
+
+  return (
+    typeof window !== "undefined" &&
+    typeof document !== "undefined"
+  );
 }
 
 export type RuntimeRenderMode = 'terminal' | 'web'

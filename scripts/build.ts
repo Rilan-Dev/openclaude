@@ -12,9 +12,11 @@ import { readFileSync } from 'fs'
 import { noTelemetryPlugin } from './no-telemetry-plugin'
 import { CLI_EXTERNALS, SDK_EXTERNALS } from './externals.js'
 import { canonicalStub, collectBundleStubs } from './stubMarkerGuard.js'
+import { initializeOpenClaudeRuntime } from './runtime-init.ts'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 const version = pkg.version
+const { renderMode } = initializeOpenClaudeRuntime()
 
 // Feature flags for the open build.
 // Most Anthropic-internal features stay off; open-build features can be
@@ -140,12 +142,12 @@ result = await Bun.build({
     'MACRO.FEEDBACK_CHANNEL':
       JSON.stringify('https://github.com/Gitlawb/openclaude/issues'),
     'MACRO.PACKAGE_URL': JSON.stringify('@gitlawb/openclaude'),
-    'MACRO.NATIVE_PACKAGE_URL': 'undefined',
-    'MACRO.VERSION_CHANGELOG': 'undefined',
-    'process.env.OPENCLAUDE_RENDER_MODE': JSON.stringify(
-      process.env.OPENCLAUDE_RENDER_MODE ?? 'terminal',
-    ),
-  },
+      'MACRO.NATIVE_PACKAGE_URL': 'undefined',
+      'MACRO.VERSION_CHANGELOG': 'undefined',
+      'process.env.OPENCLAUDE_RENDER_MODE': JSON.stringify(
+        renderMode,
+      ),
+    },
   plugins: [
     noTelemetryPlugin,
     featureFlagPreprocessPlugin,
@@ -1014,5 +1016,18 @@ if (result?.success) {
         '(remove them):',
     )
     for (const s of staleAllowlist) console.warn(`    ${s}`)
+  }
+}
+
+if (renderMode === 'web') {
+  console.log('\nBuilding Web UI...')
+  const webResult = Bun.spawnSync(['bun', 'run', '--cwd', 'webui', 'build'], {
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  if (webResult.exitCode !== 0) {
+    process.exitCode = webResult.exitCode || 1
+  } else {
+    console.log('✓ Built Web UI → webui/dist')
   }
 }

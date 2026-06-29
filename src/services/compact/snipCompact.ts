@@ -97,6 +97,8 @@ export function shouldNudgeForSnips(messages: any[]): boolean {
 export function snipCompactIfNeeded(
   messages: any[],
 ): { messages: any[]; tokensFreed: number; boundaryMessage?: any } {
+  console.log('snipCompactIfNeeded messages ' , messages)
+  console.log('pendingSnipUuids.size === ' , pendingSnipUuids.size)
   if (pendingSnipUuids.size === 0) {
     return { messages, tokensFreed: 0 }
   }
@@ -104,7 +106,9 @@ export function snipCompactIfNeeded(
   // Match pending UUIDs against THIS conversation's messages. UUIDs that belong
   // to another in-process session won't be present here, so they stay pending.
   const uuidsToRemove = new Set<UUID>()
+  console.log('uuidsToRemove, ', uuidsToRemove)
   for (const msg of messages) {
+    console.log('msg = ' , msg)
     const uuid = msg?.uuid as UUID | undefined
     if (uuid && pendingSnipUuids.has(uuid)) uuidsToRemove.add(uuid)
   }

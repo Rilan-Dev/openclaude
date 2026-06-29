@@ -78,54 +78,54 @@ import { isBrowserRuntime } from './utils/imports.js'
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
 const proactive =
-  !isBrowserRuntime() && (feature('PROACTIVE') || feature('KAIROS'))
+ (feature('PROACTIVE') || feature('KAIROS'))
     ? require('./commands/proactive.js').default
     : null
 const briefCommand =
-  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
+ (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? require('./commands/brief.js').default
     : null
-const assistantCommand = !isBrowserRuntime() && feature('KAIROS')
+const assistantCommand = feature('KAIROS')
   ? require('./commands/assistant/index.js').default
   : null
-const bridge = !isBrowserRuntime() && feature('BRIDGE_MODE')
+const bridge = feature('BRIDGE_MODE')
   ? require('./commands/bridge/index.js').default
   : null
 const remoteControlServerCommand =
-  !isBrowserRuntime() && feature('DAEMON') && feature('BRIDGE_MODE')
+ feature('DAEMON') && feature('BRIDGE_MODE')
     ? require('./commands/remoteControlServer/index.js').default
     : null
-const voiceCommand = !isBrowserRuntime() && feature('VOICE_MODE')
+const voiceCommand = feature('VOICE_MODE')
   ? require('./commands/voice/index.js').default
   : null
-const workflowsCmd = !isBrowserRuntime() && feature('WORKFLOW_SCRIPTS')
+const workflowsCmd = feature('WORKFLOW_SCRIPTS')
   ? (
       require('./commands/workflows/index.js') as typeof import('./commands/workflows/index.js')
     ).default
   : null
-const webCmd = !isBrowserRuntime() && feature('CCR_REMOTE_SETUP')
+const webCmd = feature('CCR_REMOTE_SETUP')
   ? (
       require('./commands/remote-setup/index.js') as typeof import('./commands/remote-setup/index.js')
     ).default
   : null
-const clearSkillIndexCache = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
+const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('./services/skillSearch/localSearch.js') as typeof import('./services/skillSearch/localSearch.js')
     ).clearSkillIndexCache
   : null
-const subscribePr = !isBrowserRuntime() && feature('KAIROS_GITHUB_WEBHOOKS')
+const subscribePr = feature('KAIROS_GITHUB_WEBHOOKS')
   ? require('./commands/subscribe-pr.js').default
   : null
-const ultraplan = !isBrowserRuntime() && feature('ULTRAPLAN')
+const ultraplan = feature('ULTRAPLAN')
   ? require('./commands/ultraplan.js').default
   : null
-const torch = !isBrowserRuntime() && feature('TORCH') ? require('./commands/torch.js').default : null
-const peersCmd = !isBrowserRuntime() && feature('UDS_INBOX')
+const torch = feature('TORCH') ? require('./commands/torch.js').default : null
+const peersCmd = feature('UDS_INBOX')
   ? (
       require('./commands/peers/index.js') as typeof import('./commands/peers/index.js')
     ).default
   : null
-const buddy = !isBrowserRuntime() && isBuddyEnabled()
+const buddy = isBuddyEnabled()
   ? (
       require('./commands/buddy/index.js') as typeof import('./commands/buddy/index.js')
     ).default

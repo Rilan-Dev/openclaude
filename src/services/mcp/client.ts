@@ -9,6 +9,7 @@ import {
   SSEClientTransport,
   type SSEClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/sse.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import {
   StreamableHTTPClientTransport,
   type StreamableHTTPClientTransportOptions,
@@ -112,10 +113,9 @@ import {
 import { buildMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import { getLoggingSafeMcpBaseUrl } from './utils.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const fetchMcpSkillsForClient = !isBrowserRuntime() && feature('MCP_SKILLS')
+const fetchMcpSkillsForClient = feature('MCP_SKILLS')
   ? (
     require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js')
   ).fetchMcpSkillsForClient
@@ -143,31 +143,6 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'
-
-type StdioClientTransportLike = Transport & {
-  stderr?: {
-    on(event: 'data', handler: (data: Buffer) => void): void
-    off(event: 'data', handler: (data: Buffer) => void): void
-  }
-  pid?: number
-}
-
-const MCP_STDIO_CLIENT_TRANSPORT_PACKAGE = [
-  '@modelcontextprotocol',
-  'sdk/client/stdio.js',
-].join('/')
-
-async function createStdioClientTransport(options: {
-  command: string
-  args?: string[]
-  env?: Record<string, string>
-  stderr?: 'pipe' | 'inherit'
-}): Promise<StdioClientTransportLike> {
-  const { StdioClientTransport } = await import(
-    /* @vite-ignore */ MCP_STDIO_CLIENT_TRANSPORT_PACKAGE
-  )
-  return new StdioClientTransport(options) as StdioClientTransportLike
-}
 
 /**
  * Custom error class to indicate that an MCP tool call failed due to
@@ -261,18 +236,17 @@ import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
 
 // Lazy: toolRendering.tsx pulls React/ink; only needed when Claude-in-Chrome MCP server is connected
 /* eslint-disable @typescript-eslint/no-require-imports */
-const claudeInChromeToolRendering = !isBrowserRuntime()
-  ? (): typeof import('../../utils/claudeInChrome/toolRendering.js') =>
-      require('../../utils/claudeInChrome/toolRendering.js')
-  : undefined
+const claudeInChromeToolRendering =
+  (): typeof import('../../utils/claudeInChrome/toolRendering.js') =>
+    require('../../utils/claudeInChrome/toolRendering.js')
 // Lazy: wrapper.tsx → hostAdapter.ts → executor.ts pulls both native modules
 // (@ant/computer-use-input + @ant/computer-use-swift). Runtime-gated by
 // GrowthBook tengu_malort_pedway (see gates.ts).
-const computerUseWrapper = !isBrowserRuntime() && feature('CHICAGO_MCP')
+const computerUseWrapper = feature('CHICAGO_MCP')
   ? (): typeof import('../../utils/computerUse/wrapper.js') =>
-      require('../../utils/computerUse/wrapper.js')
+    require('../../utils/computerUse/wrapper.js')
   : undefined
-const isComputerUseMCPServer = !isBrowserRuntime() && feature('CHICAGO_MCP')
+const isComputerUseMCPServer = feature('CHICAGO_MCP')
   ? (
     require('../../utils/computerUse/common.js') as typeof import('../../utils/computerUse/common.js')
   ).isComputerUseMCPServer
@@ -283,7 +257,6 @@ import { dirname, join } from 'path'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
-import { createComputerUseMcpServerForCli } from '../../utils/computerUse/mcpServer.js'
 
 const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min
 
@@ -647,14 +620,6 @@ export function getServerCacheKey(
   return `${name}-${jsonStringify(serverRef)}`
 }
 
-function asMcpNotificationSchema<
-  TClient extends {
-    setNotificationHandler: (...args: any[]) => unknown
-  },
->(client: TClient, schema: unknown): Parameters<TClient['setNotificationHandler']>[0] {
-  return schema as Parameters<TClient['setNotificationHandler']>[0]
-}
-
 /**
  * TODO (ollie): The memoization here increases complexity by a lot, and im not sure it really improves performance
  * Attempts to connect to a single MCP server
@@ -978,19 +943,18 @@ export const connectToServer = memoize(
         const { createChromeContext } = await import(
           '../../utils/claudeInChrome/mcpServer.js'
         )
-        const chromeMcpPackage = '@ant/claude-for-chrome-mcp'
         const { createClaudeForChromeMcpServer } = await import(
-          /* @vite-ignore */ chromeMcpPackage
+          '@ant/claude-for-chrome-mcp'
         )
         const { createLinkedTransportPair } = await import(
           './InProcessTransport.js'
         )
-        const computerUseServer = await createComputerUseMcpServerForCli()
-        inProcessServer = computerUseServer
-
+        const context = createChromeContext(serverRef.env)
+        inProcessServer = createClaudeForChromeMcpServer(context)
         const [clientTransport, serverTransport] = createLinkedTransportPair()
-        await computerUseServer.connect(serverTransport)
+        await inProcessServer.connect(serverTransport)
         transport = clientTransport
+        logMCPDebug(name, `In-process Chrome MCP server started`)
       } else if (
         feature('CHICAGO_MCP') &&
         (serverRef.type === 'stdio' || !serverRef.type) &&
@@ -1022,7 +986,7 @@ export const connectToServer = memoize(
           serverRef.args ?? [],
           process.env.CLAUDE_CODE_SHELL_PREFIX,
         )
-        transport = await createStdioClientTransport({
+        transport = new StdioClientTransport({
           command: finalCommand,
           args: finalArgs,
           env: {
@@ -1041,7 +1005,7 @@ export const connectToServer = memoize(
       let stderrHandler: ((data: Buffer) => void) | undefined
       let stderrOutput = ''
       if (serverRef.type === 'stdio' || !serverRef.type) {
-        const stdioTransport = transport as StdioClientTransportLike
+        const stdioTransport = transport as StdioClientTransport
         if (stdioTransport.stderr) {
           stderrHandler = (data: Buffer) => {
             // Cap stderr accumulation to prevent unbounded memory growth
@@ -1130,14 +1094,10 @@ export const connectToServer = memoize(
             name,
             `Connection timeout triggered after ${elapsed}ms (limit: ${getConnectionTimeoutMs()}ms)`,
           )
-
-          const serverToClose = inProcessServer
-          if (serverToClose) {
-            serverToClose.close().catch(() => {})
+          if (inProcessServer) {
+            inProcessServer.close().catch(() => { })
           }
-
-          transport.close().catch(() => {})
-
+          transport.close().catch(() => { })
           reject(
             new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
               `MCP server "${name}" connection timed out after ${getConnectionTimeoutMs()}ms`,
@@ -1501,7 +1461,7 @@ export const connectToServer = memoize(
 
         // Remove stderr event listener to prevent memory leaks
         if (stderrHandler && (serverRef.type === 'stdio' || !serverRef.type)) {
-          const stdioTransport = transport as StdioClientTransportLike
+          const stdioTransport = transport as StdioClientTransport
           stdioTransport.stderr?.off('data', stderrHandler)
         }
 
@@ -1510,7 +1470,7 @@ export const connectToServer = memoize(
         // (especially Docker containers) need explicit SIGINT/SIGTERM signals to trigger graceful shutdown
         if (serverRef.type === 'stdio') {
           try {
-            const stdioTransport = transport as StdioClientTransportLike
+            const stdioTransport = transport as StdioClientTransport
             const childPid = stdioTransport.pid
 
             if (childPid) {

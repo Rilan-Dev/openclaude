@@ -21,7 +21,7 @@ import { PrBadge } from '../PrBadge.js';
 import { ToolUseLoader } from '../ToolUseLoader.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemCollapsed = !isBrowserRuntime() && feature('TEAMMEM') ? require('./teamMemCollapsed.js') as typeof import('./teamMemCollapsed.js') : null;
+const teamMemCollapsed = feature('TEAMMEM') ? require('./teamMemCollapsed.js') as typeof import('./teamMemCollapsed.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 // Hold each ⤿ hint for a minimum duration so fast-completing tool calls

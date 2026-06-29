@@ -85,7 +85,7 @@ import { isSettingSourceEnabled } from './settings/constants.js'
 import { getInitialSettings } from './settings/settings.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemPaths = feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -1199,7 +1199,7 @@ export const getClaudeMds = (
           ? ' (project instructions, checked into the codebase)'
           : file.type === 'Local'
             ? " (user's private project instructions, not checked in)"
-          : !isBrowserRuntime() && feature('TEAMMEM') && file.type === 'TeamMem'
+          : feature('TEAMMEM') && file.type === 'TeamMem'
               ? ' (shared team memory, synced across the organization)'
               : file.type === 'AutoMem'
                 ? " (user's auto-memory, persists across conversations)"

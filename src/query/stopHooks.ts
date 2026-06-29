@@ -40,10 +40,10 @@ import { getAgentName, getTeamName, isTeammate } from '../utils/teammate.js'
 import { isBrowserRuntime } from '../utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const extractMemoriesModule = !isBrowserRuntime() && feature('EXTRACT_MEMORIES')
+const extractMemoriesModule = feature('EXTRACT_MEMORIES')
   ? (require('../services/extractMemories/extractMemories.js') as typeof import('../services/extractMemories/extractMemories.js'))
   : null
-const jobClassifierModule = !isBrowserRuntime() && feature('TEMPLATES')
+const jobClassifierModule = feature('TEMPLATES')
   ? (require('../jobs/classifier.js') as typeof import('../jobs/classifier.js'))
   : null
 

@@ -34,10 +34,10 @@ import { PRIMARY_PROJECT_INSTRUCTION_FILE } from './projectInstructions.js'
 import { isBrowserRuntime } from './imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemPaths = feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
-const ccrAutoConnect = !isBrowserRuntime() && feature('CCR_AUTO_CONNECT')
+const ccrAutoConnect = feature('CCR_AUTO_CONNECT')
   ? (require('../bridge/bridgeEnabled.js') as typeof import('../bridge/bridgeEnabled.js'))
   : null
 

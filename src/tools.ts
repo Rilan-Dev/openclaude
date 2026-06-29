@@ -15,32 +15,29 @@ import { BriefTool } from './tools/BriefTool/BriefTool.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const REPLTool = null
 const SuggestBackgroundPRTool = null
-const SleepTool =
-  !isBrowserRuntime() && (feature('PROACTIVE') || feature('KAIROS'))
+const SleepTool = (feature('PROACTIVE') || feature('KAIROS'))
     ? require('./tools/SleepTool/SleepTool.js').SleepTool
     : null
-const cronTools = !isBrowserRuntime()
-  ? [
+const cronTools = [
       require('./tools/ScheduleCronTool/CronCreateTool.js').CronCreateTool,
       require('./tools/ScheduleCronTool/CronDeleteTool.js').CronDeleteTool,
       require('./tools/ScheduleCronTool/CronListTool.js').CronListTool,
     ]
-  : []
-const RemoteTriggerTool = !isBrowserRuntime() && feature('AGENT_TRIGGERS_REMOTE')
+const RemoteTriggerTool = feature('AGENT_TRIGGERS_REMOTE')
   ? require('./tools/RemoteTriggerTool/RemoteTriggerTool.js').RemoteTriggerTool
   : null
-const MonitorTool = !isBrowserRuntime() && feature('MONITOR_TOOL')
+const MonitorTool = feature('MONITOR_TOOL')
   ? require('./tools/MonitorTool/MonitorTool.js').MonitorTool
   : null
-const SendUserFileTool = !isBrowserRuntime() && feature('KAIROS')
+const SendUserFileTool = feature('KAIROS')
   ? require('./tools/SendUserFileTool/SendUserFileTool.js').SendUserFileTool
   : null
 const PushNotificationTool =
-  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION'))
+  (feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION'))
     ? require('./tools/PushNotificationTool/PushNotificationTool.js')
         .PushNotificationTool
     : null
-const SubscribePRTool = !isBrowserRuntime() && feature('KAIROS_GITHUB_WEBHOOKS')
+const SubscribePRTool = feature('KAIROS_GITHUB_WEBHOOKS')
   ? require('./tools/SubscribePRTool/SubscribePRTool.js').SubscribePRTool
   : null
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
@@ -81,7 +78,7 @@ import { isBrowserRuntime } from './utils/imports.js'
 // Dead code elimination: conditional import for CLAUDE_CODE_VERIFY_PLAN
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const VerifyPlanExecutionTool =
-  !isBrowserRuntime() && process.env.CLAUDE_CODE_VERIFY_PLAN === 'true'
+  process.env.CLAUDE_CODE_VERIFY_PLAN === 'true'
     ? require('./tools/VerifyPlanExecutionTool/VerifyPlanExecutionTool.js')
         .VerifyPlanExecutionTool
     : null
@@ -96,29 +93,29 @@ export {
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional import for OVERFLOW_TEST_TOOL
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const OverflowTestTool = !isBrowserRuntime() && feature('OVERFLOW_TEST_TOOL')
+const OverflowTestTool = feature('OVERFLOW_TEST_TOOL')
   ? require('./tools/OverflowTestTool/OverflowTestTool.js').OverflowTestTool
   : null
-const CtxInspectTool = !isBrowserRuntime() && feature('CONTEXT_COLLAPSE')
+const CtxInspectTool = feature('CONTEXT_COLLAPSE')
   ? require('./tools/CtxInspectTool/CtxInspectTool.js').CtxInspectTool
   : null
-const TerminalCaptureTool = !isBrowserRuntime() && feature('TERMINAL_PANEL')
+const TerminalCaptureTool = feature('TERMINAL_PANEL')
   ? require('./tools/TerminalCaptureTool/TerminalCaptureTool.js')
       .TerminalCaptureTool
   : null
-const WebBrowserTool = !isBrowserRuntime() && feature('WEB_BROWSER_TOOL')
+const WebBrowserTool = feature('WEB_BROWSER_TOOL')
   ? require('./tools/WebBrowserTool/WebBrowserTool.js').WebBrowserTool
   : null
-const coordinatorModeModule = !isBrowserRuntime() && feature('COORDINATOR_MODE')
+const coordinatorModeModule = feature('COORDINATOR_MODE')
   ? (require('./coordinator/coordinatorMode.js') as typeof import('./coordinator/coordinatorMode.js'))
   : null
-const SnipTool = !isBrowserRuntime() && feature('HISTORY_SNIP')
+const SnipTool = feature('HISTORY_SNIP')
   ? require('./tools/SnipTool/SnipTool.js').SnipTool
   : null
-const ListPeersTool = !isBrowserRuntime() && feature('UDS_INBOX')
+const ListPeersTool = feature('UDS_INBOX')
   ? require('./tools/ListPeersTool/ListPeersTool.js').ListPeersTool
   : null
-const WorkflowTool = !isBrowserRuntime() && feature('WORKFLOW_SCRIPTS')
+const WorkflowTool = feature('WORKFLOW_SCRIPTS')
   ? (() => {
       require('./tools/WorkflowTool/bundled/index.js').initBundledWorkflows()
       return require('./tools/WorkflowTool/WorkflowTool.js').WorkflowTool

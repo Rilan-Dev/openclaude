@@ -34,7 +34,7 @@ import { getStartupDangerousPermissionPromptState } from './dangerousModePromptR
 import { loadAllPermissionRulesFromDisk } from './permissionsLoader.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const autoModeStateModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
+const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   ? (require('./autoModeState.js') as typeof import('./autoModeState.js'))
   : null
 

@@ -14,13 +14,11 @@ import {
 } from './services/compact/autoCompact.js'
 import { consumeCompactionRequest } from './utils/memoryPressure.js'
 import { buildPostCompactMessages } from './services/compact/compact.js'
-import { isBrowserRuntime } from './utils/imports.js'
-import { getSnipCompactRuntimeModule } from './services/compact/snipCompactRuntime.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
-const reactiveCompact = !isBrowserRuntime() && feature('REACTIVE_COMPACT')
+const reactiveCompact = feature('REACTIVE_COMPACT')
   ? (require('./services/compact/reactiveCompact.js') as typeof import('./services/compact/reactiveCompact.js'))
   : null
-const contextCollapse = !isBrowserRuntime() && feature('CONTEXT_COLLAPSE')
+const contextCollapse = feature('CONTEXT_COLLAPSE')
   ? (require('./services/contextCollapse/index.js') as typeof import('./services/contextCollapse/index.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -69,10 +67,10 @@ import {
   startRelevantMemoryPrefetch,
 } from './utils/attachments.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
-const skillPrefetch = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
+const skillPrefetch = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('./services/skillSearch/prefetch.js') as typeof import('./services/skillSearch/prefetch.js'))
   : null
-const jobClassifier = !isBrowserRuntime() && feature('TEMPLATES')
+const jobClassifier = feature('TEMPLATES')
   ? (require('./jobs/classifier.js') as typeof import('./jobs/classifier.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -121,8 +119,6 @@ import {
 import { productionDeps, type QueryDeps } from './query/deps.js'
 import type { Terminal, Continue } from './query/transitions.js'
 import { feature } from 'bun:bundle'
-
-
 import {
   getCurrentTurnTokenBudget,
   getTurnOutputTokens,
@@ -130,17 +126,13 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
-  ? getSnipCompactRuntimeModule()
+  ? (require('./services/compact/snipCompact.js') as typeof import('./services/compact/snipCompact.js'))
   : null
 const taskSummaryModule = feature('BG_SESSIONS')
-  ? isBrowserRuntime()
-    ? ({
-        shouldGenerateTaskSummary: () => false,
-        maybeGenerateTaskSummary: () => undefined,
-      } as typeof import('./utils/taskSummary.js'))
-    : (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
+  ? (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 

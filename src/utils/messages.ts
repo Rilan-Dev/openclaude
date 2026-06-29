@@ -13,7 +13,7 @@ import type {
   ToolUseBlock,
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/index.mjs'
-import { randomUUID, type UUID } from './imports.js'
+import { randomUUID, type UUID } from 'crypto'
 import isObject from 'lodash-es/isObject.js'
 import last from 'lodash-es/last.js'
 import {
@@ -30,8 +30,6 @@ import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from '../services/analytics/growthbook.js'
-import { projectSnippedView } from '../services/compact/snipProjection.js'
-import { getSnipCompactRuntimeModule } from '../services/compact/snipCompactRuntime.js'
 import {
   getImageTooLargeErrorMessage,
   getPdfInvalidErrorMessage,
@@ -393,7 +391,6 @@ function baseCreateAssistantMessage({
   isVirtual?: true
   usage?: Usage
 }): AssistantMessage {
-  console.log('baseCreateAssistantMessage Passed')
   return {
     type: 'assistant',
     uuid: randomUUID(),
@@ -840,6 +837,101 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
       }
     }
   })
+}
+
+// Per-element cache for normalizeMessages. The only cross-message state in
+// normalizeMessages is the monotonic isNewChain flag, so each message's
+// normalized output is fully determined by (message identity, entry flag).
+// Caching on the message object keeps output identity stable across calls,
+// which preserves downstream WeakMap caches and React.memo bailouts, and
+// reduces each unchanged message to an O(1) cache hit (reused blocks, no
+// re-splitting or re-allocation) instead of a full renormalization. The call
+// itself still scans the message list and reassembles the output array, so it
+// stays O(n) per render — this is an allocation/object-identity optimization,
+// not an O(1) append. Entries GC together with their messages.
+type NormalizedCacheEntry = {
+  entryFlag: boolean
+  exitFlag: boolean
+  out: NormalizedMessage[]
+}
+const normalizedMessageCache = new WeakMap<Message, NormalizedCacheEntry>()
+
+// Drop-in replacement for normalizeMessages on render hot paths. Reuses each
+// message's previously normalized blocks (preserving object identity) when the
+// incoming isNewChain flag matches the cached run; recomputes only changed or
+// new messages. Messages are treated as immutable, matching the assumptions of
+// the React.memo comparators downstream.
+export function normalizeMessagesCached(
+  messages: Message[],
+): NormalizedMessage[] {
+  const out: NormalizedMessage[] = []
+  let flag = false
+  for (const message of messages) {
+    const cached = normalizedMessageCache.get(message)
+    if (cached && cached.entryFlag === flag) {
+      for (const m of cached.out) {
+        out.push(m)
+      }
+      flag = cached.exitFlag
+      continue
+    }
+    const entryFlag = flag
+    // Reuse normalizeMessages for the actual block-splitting logic so the two
+    // implementations cannot drift. isNewChain only transitions false -> true,
+    // so seeding the single-element run with the current flag is equivalent to
+    // running the whole list: pass a synthetic multi-block predecessor when the
+    // flag is already set.
+    const normalized = normalizeSingleMessageWithFlag(message, entryFlag)
+    normalizedMessageCache.set(message, {
+      entryFlag,
+      exitFlag: normalized.exitFlag,
+      out: normalized.out,
+    })
+    for (const m of normalized.out) {
+      out.push(m)
+    }
+    flag = normalized.exitFlag
+  }
+  return out
+}
+
+function normalizeSingleMessageWithFlag(
+  message: Message,
+  entryFlag: boolean,
+): { out: NormalizedMessage[]; exitFlag: boolean } {
+  const exitFlag =
+    entryFlag ||
+    ((message.type === 'assistant' ||
+      (message.type === 'user' && typeof message.message.content !== 'string')) &&
+      message.message.content.length > 1)
+
+  if (!entryFlag) {
+    return { out: normalizeMessages([message]), exitFlag }
+  }
+
+  // normalizeMessages keys UUID derivation off its internal isNewChain flag;
+  // when the chain flag is already set for this position, every produced block
+  // must get a derived UUID. Recreate that by normalizing the single message
+  // and re-deriving UUIDs the same way the full pass would.
+  switch (message.type) {
+    case 'attachment':
+    case 'progress':
+    case 'system':
+      return { out: [message], exitFlag }
+    default: {
+      const normalized = normalizeMessages([message])
+      return {
+        out: normalized.map(
+          (m, index) =>
+            ({
+              ...m,
+              uuid: deriveUUID(message.uuid, index),
+            }) as NormalizedMessage,
+        ),
+        exitFlag,
+      }
+    }
+  }
 }
 
 type ToolUseRequestMessage = NormalizedAssistantMessage & {
@@ -2112,7 +2204,9 @@ export function normalizeMessagesForAPI(
   // injection (in the user case) and the post-merge sweep below share it.
   let injectSnipTags = false
   if (feature('HISTORY_SNIP') && process.env.NODE_ENV !== 'test') {
-    const { isSnipRuntimeEnabled } = getSnipCompactRuntimeModule()
+    const { isSnipRuntimeEnabled } =
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
     injectSnipTags = isSnipRuntimeEnabled()
   }
 
@@ -2593,7 +2687,9 @@ export function mergeUserMessages(a: UserMessage, b: UserMessage): UserMessage {
     // affects downstream callers (e.g., VCR fixture hashing in SDK harness
     // tests), so this must only fire when snip is actually enabled — not
     // for all ants.
-    const { isSnipRuntimeEnabled } = getSnipCompactRuntimeModule()
+    const { isSnipRuntimeEnabled } =
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
     if (isSnipRuntimeEnabled()) {
       return {
         ...a,
@@ -3236,17 +3332,22 @@ export function handleMessageFromStream(
           const index = message.event.index
           onUpdateLength(delta)
           onStreamingToolUses(_ => {
-            const element = _.find(_ => _.index === index)
-            if (!element) {
-              return _
-            }
-            return [
-              ..._.filter(_ => _ !== element),
-              {
+            // Update in place (preserve array order). The previous
+            // filter-then-append moved the updated tool to the end, which
+            // shuffled concurrently-streaming tools and broke the index-aligned
+            // contentBlock check in the Messages memo comparator.
+            let found = false
+            const next = _.map(element => {
+              if (element.index !== index) {
+                return element
+              }
+              found = true
+              return {
                 ...element,
                 unparsedToolInput: element.unparsedToolInput + delta,
-              },
-            ]
+              }
+            })
+            return found ? next : _
           })
           return
         }
@@ -4331,7 +4432,9 @@ You have exited auto mode. The user may now want to interact more directly. You 
     }
     case 'context_efficiency': {
       if (feature('HISTORY_SNIP')) {
-        const { SNIP_NUDGE_TEXT } = getSnipCompactRuntimeModule()
+        const { SNIP_NUDGE_TEXT } =
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
         return wrapMessagesInSystemReminder([
           createUserMessage({
             content: SNIP_NUDGE_TEXT,
@@ -4825,10 +4928,21 @@ export function findLastCompactBoundaryIndex<
 export function getMessagesAfterCompactBoundary<
   T extends Message | NormalizedMessage,
 >(messages: T[], options?: { includeSnipped?: boolean }): T[] {
-  const boundaryIndex = findLastCompactBoundaryIndex(messages)
-  const sliced = boundaryIndex === -1 ? messages : messages.slice(boundaryIndex)
+  const normalizedMessages = Array.isArray(messages)
+    ? messages
+    : Array.from((messages ?? []) as ArrayLike<T> | Iterable<T>)
+  const boundaryIndex = findLastCompactBoundaryIndex(normalizedMessages)
+  const sliced =
+    boundaryIndex === -1
+      ? normalizedMessages
+      : normalizedMessages.slice(boundaryIndex)
   if (!options?.includeSnipped && feature('HISTORY_SNIP')) {
-    return projectSnippedView(sliced as Message[]) as T[]
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const { projectSnippedView } =
+      require('../services/compact/snipProjection.js') as typeof import('../services/compact/snipProjection.js')
+    /* eslint-enable @typescript-eslint/no-require-imports */
+    const projected = projectSnippedView(sliced as Message[])
+    return Array.isArray(projected) ? (projected as T[]) : sliced
   }
   return sliced
 }

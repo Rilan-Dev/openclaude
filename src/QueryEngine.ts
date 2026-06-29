@@ -2,7 +2,6 @@ import { feature } from 'bun:bundle'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import { randomUUID } from 'crypto'
 import last from 'lodash-es/last.js'
-import * as snipProjection from './services/compact/snipProjection.js'
 import {
   getSessionId,
   isSessionPersistenceDisabled,
@@ -19,7 +18,7 @@ import { EXTERNAL_PERMISSION_MODES } from 'src/types/permissions.js'
 import { accumulateUsage, updateUsage } from 'src/services/api/claude.js'
 import type { NonNullableUsage } from 'src/services/api/logging.js'
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
-import { stripVTControlCharacters as stripAnsi } from './utils/stripVTControlCharacters.js'
+import { stripVTControlCharacters as stripAnsi } from 'node:util'
 import type { Command } from './commands.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import {
@@ -113,19 +112,22 @@ import {
   normalizeMessage,
 } from './utils/queryHelpers.js'
 
-const hasNodeRequire = typeof require === 'function'
-
 // Dead code elimination: conditional import for coordinator mode
-const coordinatorModeModule = feature('COORDINATOR_MODE') && hasNodeRequire
-  ? require('./coordinator/coordinatorMode.js') as typeof import('./coordinator/coordinatorMode.js')
-  : null
+/* eslint-disable @typescript-eslint/no-require-imports */
 const getCoordinatorUserContext: (
   mcpClients: ReadonlyArray<{ name: string }>,
   scratchpadDir?: string,
-) => { [k: string]: string } = coordinatorModeModule?.getCoordinatorUserContext ?? (() => ({}))
+) => { [k: string]: string } = feature('COORDINATOR_MODE')
+  ? require('./coordinator/coordinatorMode.js').getCoordinatorUserContext
+  : () => ({})
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 // Dead code elimination: conditional import for snip compaction
-const snipProjectionModule = feature('HISTORY_SNIP') ? snipProjection : null
+/* eslint-disable @typescript-eslint/no-require-imports */
+const snipProjection = feature('HISTORY_SNIP')
+  ? (require('./services/compact/snipProjection.js') as typeof import('./services/compact/snipProjection.js'))
+  : null
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 export type QueryEngineConfig = {
   cwd: string
@@ -1458,12 +1460,12 @@ export async function* ask({
     ...(feature('HISTORY_SNIP')
       ? {
           snipReplay: (yielded: Message, store: Message[]) => {
-            if (!snipProjectionModule!.isSnipBoundaryMessage(yielded))
+            if (!snipProjection!.isSnipBoundaryMessage(yielded))
               return undefined
             // The pending set was already consumed in query.ts when the
             // boundary was produced, so prune the store by the boundary's own
             // removedUuids. Keep the boundary as the marker for later replays.
-            const projected = snipProjectionModule!.projectSnippedView([
+            const projected = snipProjection!.projectSnippedView([
               ...store,
               yielded,
             ])

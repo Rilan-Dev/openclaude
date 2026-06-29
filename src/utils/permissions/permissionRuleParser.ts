@@ -9,7 +9,7 @@ import type { PermissionRuleValue } from './PermissionRule.js'
 // their strings don't leak into external builds. Static imports always bundle.
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRIEF_TOOL_NAME: string | null =
-  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
+  (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (
         require('../../tools/BriefTool/prompt.js') as typeof import('../../tools/BriefTool/prompt.js')
       ).BRIEF_TOOL_NAME

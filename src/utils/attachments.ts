@@ -94,7 +94,7 @@ import type { DiscoverySignal } from '../services/skillSearch/signals.js'
 // direct surface in THIS file is the maybe() call gated via spread below. The
 // type-only DiscoverySignal import above is erased at compile time.
 /* eslint-disable @typescript-eslint/no-require-imports */
-const skillSearchModules = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
+const skillSearchModules = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? {
       featureCheck:
         require('../services/skillSearch/featureCheck.js') as typeof import('../services/skillSearch/featureCheck.js'),
@@ -102,7 +102,7 @@ const skillSearchModules = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SE
         require('../services/skillSearch/prefetch.js') as typeof import('../services/skillSearch/prefetch.js'),
     }
   : null
-const autoModeStateModule = !isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')
+const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   ? (require('./permissions/autoModeState.js') as typeof import('./permissions/autoModeState.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

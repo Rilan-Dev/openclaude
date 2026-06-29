@@ -27,7 +27,7 @@ import { getDefaultAppState } from './AppStateStore.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const VoiceProvider: React.ComponentType<{
   children: React.ReactNode
-}> = !isBrowserRuntime() && feature('VOICE_MODE')
+}> = feature('VOICE_MODE')
   ? require('../context/voice.js').VoiceProvider
   : ({ children }) => children
 /* eslint-enable @typescript-eslint/no-require-imports */

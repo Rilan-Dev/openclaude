@@ -69,24 +69,24 @@ import {
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
-const getCachedMCConfigForFRC = !isBrowserRuntime() && feature('CACHED_MICROCOMPACT')
+const getCachedMCConfigForFRC = feature('CACHED_MICROCOMPACT')
   ? (
       require('../services/compact/cachedMCConfig.js') as typeof import('../services/compact/cachedMCConfig.js')
     ).getCachedMCConfig
   : null
 
 const proactiveModule =
-  !isBrowserRuntime() && (feature('PROACTIVE') || feature('KAIROS'))
+  (feature('PROACTIVE') || feature('KAIROS'))
     ? require('../proactive/index.js')
     : null
 const BRIEF_PROACTIVE_SECTION: string | null =
-  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
+  (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (
         require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')
       ).BRIEF_PROACTIVE_SECTION
     : null
 const briefToolModule =
-  !isBrowserRuntime() && (feature('KAIROS') || feature('KAIROS_BRIEF'))
+  (feature('KAIROS') || feature('KAIROS_BRIEF'))
     ? (require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js'))
     : null
 const DISCOVER_SKILLS_TOOL_NAME: string | null =
@@ -98,7 +98,7 @@ const DISCOVER_SKILLS_TOOL_NAME: string | null =
   : null
 // Capture the module (not .isSkillSearchEnabled directly) so spyOn() in tests
 // patches what we actually call — a captured function ref would point past the spy.
-const skillSearchFeatureCheck = !isBrowserRuntime() && feature('EXPERIMENTAL_SKILL_SEARCH')
+const skillSearchFeatureCheck = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('../services/skillSearch/featureCheck.js') as typeof import('../services/skillSearch/featureCheck.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

@@ -5,7 +5,7 @@ import { isBrowserRuntime } from '../utils/imports.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from './paths.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemPaths = feature('TEAMMEM')
   ? (require('./teamMemPaths.js') as typeof import('./teamMemPaths.js'))
   : null
 
@@ -104,7 +104,7 @@ export function truncateEntrypointContent(raw: string): EntrypointTruncation {
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPrompts = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemPrompts = feature('TEAMMEM')
   ? (require('./teamMemPrompts.js') as typeof import('./teamMemPrompts.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */

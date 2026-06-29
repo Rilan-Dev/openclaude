@@ -30,13 +30,13 @@ import {
 } from './memoryFileDetection.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const teamMemPaths = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemPaths = feature('TEAMMEM')
   ? (require('../memdir/teamMemPaths.js') as typeof import('../memdir/teamMemPaths.js'))
   : null
-const teamMemWatcher = !isBrowserRuntime() && feature('TEAMMEM')
+const teamMemWatcher = feature('TEAMMEM')
   ? (require('../services/teamMemorySync/watcher.js') as typeof import('../services/teamMemorySync/watcher.js'))
   : null
-const memoryShapeTelemetry = !isBrowserRuntime() && feature('MEMORY_SHAPE_TELEMETRY')
+const memoryShapeTelemetry = feature('MEMORY_SHAPE_TELEMETRY')
   ? (require('../memdir/memoryShapeTelemetry.js') as typeof import('../memdir/memoryShapeTelemetry.js'))
   : null
 

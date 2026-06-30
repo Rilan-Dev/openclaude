@@ -7,6 +7,7 @@ import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
 import { dirname, join } from '../utils/imports.js';
 import { tmpdir } from '../utils/imports.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import figures from 'figures';
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- / n N Esc [ v are bare letters in transcript modal context, same class as g/G/j/k in ScrollKeybindingHandler
 import { useInput } from '../ink.js';
@@ -362,6 +363,22 @@ function TranscriptModeFooter(t0) {
   const toggleShortcut = useShortcutDisplay("app:toggleTranscript", "Global", "ctrl+o");
   const showAllShortcut = useShortcutDisplay("transcript:toggleShowAll", "Transcript", "ctrl+e");
   const t2 = searchBadge ? " \xB7 n/N to navigate" : virtualScroll ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · home/end top/bottom` : suppressShowAll ? "" : ` · ${showAllShortcut} to ${showAllInTranscript ? "collapse" : "show all"}`;
+  if (isBrowserRuntime()) {
+    const primaryHint = searchBadge ? 'n / N to navigate' : virtualScroll ? 'Mouse wheel, arrows, Home / End' : suppressShowAll ? 'Transcript controls minimized' : `${showAllShortcut} to ${showAllInTranscript ? 'collapse' : 'show all'}`;
+    const stateLabel = status ?? (searchBadge ? `${searchBadge.current}/${searchBadge.count} matches` : virtualScroll ? 'Full transcript' : showAllInTranscript ? 'Expanded transcript' : 'Focused transcript');
+    return <div className="repl-webTranscriptFooter" data-search={searchBadge ? 'true' : undefined}>
+      <div className="repl-webTranscriptFooterPulse" aria-hidden="true" />
+      <div className="repl-webTranscriptFooterCopy">
+        <span className="repl-webTranscriptFooterEyebrow">Transcript mode</span>
+        <span className="repl-webTranscriptFooterTitle">Detailed conversation view</span>
+      </div>
+      <div className="repl-webTranscriptFooterActions" aria-label="Transcript shortcuts">
+        <span className="repl-webTranscriptShortcut"><kbd>{toggleShortcut}</kbd><span>toggle</span></span>
+        <span className="repl-webTranscriptShortcut"><kbd>{primaryHint}</kbd></span>
+      </div>
+      <div className="repl-webTranscriptFooterStatus" aria-live="polite">{stateLabel}</div>
+    </div>;
+  }
   let t3;
   if ($[0] !== t2 || $[1] !== toggleShortcut) {
     t3 = <Text dimColor={true}>Showing detailed transcript · {toggleShortcut} to toggle{t2}</Text>;
@@ -545,7 +562,18 @@ function AnimatedTerminalTitle(t0) {
   }
   useEffect(t1, t2);
   const prefix = isAnimating ? TITLE_ANIMATION_FRAMES[frame] ?? TITLE_STATIC_PREFIX : TITLE_STATIC_PREFIX;
-  useTerminalTitle(disabled ? null : noPrefix ? title : `${prefix} ${title}`);
+  const resolvedTitle = disabled ? null : noPrefix ? title : `${prefix} ${title}`;
+  useTerminalTitle(isBrowserRuntime() ? null : resolvedTitle);
+  useEffect(() => {
+    if (!isBrowserRuntime() || resolvedTitle === null) return;
+    const previousTitle = document.title;
+    document.title = resolvedTitle;
+    return () => {
+      if (document.title === resolvedTitle) {
+        document.title = previousTitle;
+      }
+    };
+  }, [resolvedTitle]);
   return null;
 }
 function _temp2(setFrame_0) {

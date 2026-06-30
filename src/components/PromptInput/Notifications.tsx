@@ -23,6 +23,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js';
 import { formatDuration } from '../../utils/format.js';
 import { setEnvHookNotifier } from '../../utils/hooks/fileChangedWatcher.js';
 import { toIDEDisplayName } from '../../utils/ide.js';
+import { isBrowserRuntime } from '../../utils/imports.js';
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js';
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js';
 import { AutoUpdaterWrapper } from '../AutoUpdaterWrapper.js';
@@ -53,6 +54,79 @@ type Props = {
   isInputWrapped?: boolean;
   isNarrow?: boolean;
 };
+
+type WebNotificationTone = 'default' | 'info' | 'success' | 'warning' | 'error';
+
+type WebNotificationItem = {
+  key: string;
+  label: string;
+  detail?: string;
+  tone?: WebNotificationTone;
+};
+
+function jsxToPlainText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return '';
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map(jsxToPlainText).join('');
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: ReactNode; description?: string };
+    return jsxToPlainText(props.children) || props.description || '';
+  }
+  return '';
+}
+
+function notificationToWebItem(notification: Notification): WebNotificationItem {
+  const text = 'jsx' in notification
+    ? jsxToPlainText(notification.jsx)
+    : notification.text;
+  const fallback = notification.key === 'external-editor-hint'
+    ? 'External editor available'
+    : 'Notification';
+  let tone: WebNotificationTone = 'default';
+  if ('text' in notification && notification.color) {
+    tone = notification.color === 'error'
+      ? 'error'
+      : notification.color === 'warning'
+        ? 'warning'
+        : 'info';
+  }
+
+  return {
+    key: notification.key,
+    label: text.trim() || fallback,
+    tone,
+  };
+}
+
+function ideSelectionLabel(ideSelection: IDESelection | undefined): WebNotificationItem | null {
+  if (!ideSelection) return null;
+  if (ideSelection.text && ideSelection.lineCount > 0) {
+    const suffix = ideSelection.lineCount === 1 ? 'line selected' : 'lines selected';
+    return {
+      key: 'ide-selection',
+      label: `${ideSelection.lineCount} ${suffix}`,
+      detail: 'IDE context',
+      tone: 'info',
+    };
+  }
+  if (ideSelection.filePath) {
+    const fileName = ideSelection.filePath.split(/[\\/]/).pop() || ideSelection.filePath;
+    return {
+      key: 'ide-file',
+      label: `In ${fileName}`,
+      detail: 'IDE context',
+      tone: 'info',
+    };
+  }
+  return null;
+}
+
 export function Notifications(t0) {
   const $ = _c(34);
   const {
@@ -268,65 +342,227 @@ function NotificationContent({
 
   // Voice state (VOICE_MODE builds only, runtime-gated by GrowthBook)
   const voiceState = feature('VOICE_MODE') ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-  useVoiceState(s => s.voiceState) : 'idle' as const;
+    // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+    useVoiceState(s => s.voiceState) : 'idle' as const;
   // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
   const voiceEnabled = feature('VOICE_MODE') ? useVoiceEnabled() : false;
   const voiceError = feature('VOICE_MODE') ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-  useVoiceState(s_0 => s_0.voiceError) : null;
+    // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+    useVoiceState(s_0 => s_0.voiceError) : null;
   const isBriefOnly = feature('KAIROS') || feature('KAIROS_BRIEF') ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-  useAppState(s_1 => s_1.isBriefOnly) : false;
+    // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+    useAppState(s_1 => s_1.isBriefOnly) : false;
 
   // When voice is actively recording or processing, replace all
   // notifications with just the voice indicator.
   if (feature('VOICE_MODE') && voiceEnabled && (voiceState === 'recording' || voiceState === 'processing')) {
     return <VoiceIndicator voiceState={voiceState} />;
   }
+
+  if (isBrowserRuntime()) {
+    return <WebNotificationContent
+      ideSelection={ideSelection}
+      notifications={notifications}
+      isInOverageMode={isInOverageMode}
+      isTeamOrEnterprise={isTeamOrEnterprise}
+      apiKeyStatus={apiKeyStatus}
+      debug={debug}
+      verbose={verbose}
+      tokenUsage={tokenUsage}
+      mainLoopModel={mainLoopModel}
+      shouldShowAutoUpdater={shouldShowAutoUpdater}
+      autoUpdaterResult={autoUpdaterResult}
+      isAutoUpdating={isAutoUpdating}
+      apiKeyHelperSlow={apiKeyHelperSlow}
+      voiceError={feature('VOICE_MODE') ? voiceError : null}
+      isBriefOnly={isBriefOnly}
+    />;
+  }
+
   return <>
-      <IdeStatusIndicator ideSelection={ideSelection} mcpClients={mcpClients} />
-      {notifications.current && ('jsx' in notifications.current ? <Text wrap="truncate" key={notifications.current.key}>
-            {notifications.current.jsx}
-          </Text> : <Text color={notifications.current.color} dimColor={!notifications.current.color} wrap="truncate">
-            {notifications.current.text}
-          </Text>)}
-      {isInOverageMode && !isTeamOrEnterprise && <Box>
-          <Text dimColor wrap="truncate">
-            Now using extra usage
-          </Text>
-        </Box>}
-      {apiKeyHelperSlow && <Box>
-          <Text color="warning" wrap="truncate">
-            apiKeyHelper is taking a while{' '}
-          </Text>
-          <Text dimColor wrap="truncate">
-            ({apiKeyHelperSlow})
-          </Text>
-        </Box>}
-      {(apiKeyStatus === 'invalid' || apiKeyStatus === 'missing') && <Box>
-          <Text color="error" wrap="truncate">
-            {isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ? 'Authentication error · Try again' : 'Not logged in · Run /login'}
-          </Text>
-        </Box>}
-      {debug && <Box>
-          <Text color="warning" wrap="truncate">
-            Debug mode
-          </Text>
-        </Box>}
-      {apiKeyStatus !== 'invalid' && apiKeyStatus !== 'missing' && verbose && <Box>
-          <Text dimColor wrap="truncate">
-            {tokenUsage} tokens
-          </Text>
-        </Box>}
-      {!isBriefOnly && <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />}
-      {shouldShowAutoUpdater && <AutoUpdaterWrapper verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} isUpdating={isAutoUpdating} onChangeIsUpdating={onChangeIsUpdating} showSuccessMessage={!isShowingCompactMessage} />}
-      {feature('VOICE_MODE') ? voiceEnabled && voiceError && <Box>
-              <Text color="error" wrap="truncate">
-                {voiceError}
-              </Text>
-            </Box> : null}
-      <MemoryUsageIndicator />
-      <SandboxPromptFooterHint />
-    </>;
+    <IdeStatusIndicator ideSelection={ideSelection} mcpClients={mcpClients} />
+    {notifications.current && ('jsx' in notifications.current ? <Text wrap="truncate" key={notifications.current.key}>
+      {notifications.current.jsx}
+    </Text> : <Text color={notifications.current.color} dimColor={!notifications.current.color} wrap="truncate">
+      {notifications.current.text}
+    </Text>)}
+    {isInOverageMode && !isTeamOrEnterprise && <Box>
+      <Text dimColor wrap="truncate">
+        Now using extra usage
+      </Text>
+    </Box>}
+    {apiKeyHelperSlow && <Box>
+      <Text color="warning" wrap="truncate">
+        apiKeyHelper is taking a while{' '}
+      </Text>
+      <Text dimColor wrap="truncate">
+        ({apiKeyHelperSlow})
+      </Text>
+    </Box>}
+    {(apiKeyStatus === 'invalid' || apiKeyStatus === 'missing') && <Box>
+      <Text color="error" wrap="truncate">
+        {isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ? 'Authentication error · Try again' : 'Not logged in · Run /login'}
+      </Text>
+    </Box>}
+    {debug && <Box>
+      <Text color="warning" wrap="truncate">
+        Debug mode
+      </Text>
+    </Box>}
+    {apiKeyStatus !== 'invalid' && apiKeyStatus !== 'missing' && verbose && <Box>
+      <Text dimColor wrap="truncate">
+        {tokenUsage} tokens
+      </Text>
+    </Box>}
+    {!isBriefOnly && <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />}
+    {shouldShowAutoUpdater && <AutoUpdaterWrapper verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} isUpdating={isAutoUpdating} onChangeIsUpdating={onChangeIsUpdating} showSuccessMessage={!isShowingCompactMessage} />}
+    {feature('VOICE_MODE') ? voiceEnabled && voiceError && <Box>
+      <Text color="error" wrap="truncate">
+        {voiceError}
+      </Text>
+    </Box> : null}
+    <MemoryUsageIndicator />
+    <SandboxPromptFooterHint />
+  </>;
+}
+
+function WebNotificationContent({
+  ideSelection,
+  notifications,
+  isInOverageMode,
+  isTeamOrEnterprise,
+  apiKeyStatus,
+  debug,
+  verbose,
+  tokenUsage,
+  mainLoopModel,
+  shouldShowAutoUpdater,
+  autoUpdaterResult,
+  isAutoUpdating,
+  apiKeyHelperSlow,
+  voiceError,
+  isBriefOnly,
+}: {
+  ideSelection: IDESelection | undefined;
+  notifications: {
+    current: Notification | null;
+    queue: Notification[];
+  };
+  isInOverageMode: boolean;
+  isTeamOrEnterprise: boolean;
+  apiKeyStatus: VerificationStatus;
+  debug: boolean;
+  verbose: boolean;
+  tokenUsage: number;
+  mainLoopModel: string;
+  shouldShowAutoUpdater: boolean;
+  autoUpdaterResult: AutoUpdaterResult | null;
+  isAutoUpdating: boolean;
+  apiKeyHelperSlow: string | null;
+  voiceError: string | null;
+  isBriefOnly: boolean;
+}): ReactNode {
+  const items: WebNotificationItem[] = [];
+  const ideItem = ideSelectionLabel(ideSelection);
+
+  if (ideItem) items.push(ideItem);
+  if (notifications.current) items.push(notificationToWebItem(notifications.current));
+  if (isInOverageMode && !isTeamOrEnterprise) {
+    items.push({
+      key: 'extra-usage',
+      label: 'Using extra usage',
+      detail: 'Billing',
+      tone: 'warning',
+    });
+  }
+  if (apiKeyHelperSlow) {
+    items.push({
+      key: 'api-key-helper-slow',
+      label: `apiKeyHelper is taking a while`,
+      detail: apiKeyHelperSlow,
+      tone: 'warning',
+    });
+  }
+  if (apiKeyStatus === 'invalid' || apiKeyStatus === 'missing') {
+    items.push({
+      key: 'auth-error',
+      label: isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)
+        ? 'Authentication error. Try again'
+        : 'Not logged in. Run /login',
+      tone: 'error',
+    });
+  }
+  if (debug) {
+    items.push({
+      key: 'debug-mode',
+      label: 'Debug mode',
+      tone: 'warning',
+    });
+  }
+  if (apiKeyStatus !== 'invalid' && apiKeyStatus !== 'missing' && verbose) {
+    items.push({
+      key: 'token-usage',
+      label: `${tokenUsage} tokens`,
+      detail: mainLoopModel,
+      tone: 'default',
+    });
+  }
+
+  if (!isBriefOnly) {
+    const tokenWarning = calculateTokenWarningState(tokenUsage, mainLoopModel);
+    if (tokenWarning.isAboveWarningThreshold) {
+      items.push({
+        key: 'token-warning',
+        label: tokenWarning.isAboveErrorThreshold
+          ? `Context low: ${tokenWarning.percentLeft}% remaining`
+          : `${tokenWarning.percentLeft}% until auto-compact`,
+        detail: tokenWarning.isAboveErrorThreshold ? 'Run /compact to continue safely' : undefined,
+        tone: tokenWarning.isAboveErrorThreshold ? 'error' : 'warning',
+      });
+    }
+  }
+
+  if (shouldShowAutoUpdater && (isAutoUpdating || autoUpdaterResult)) {
+    const status = isAutoUpdating
+      ? 'Checking for update'
+      : autoUpdaterResult?.status === 'success'
+        ? 'OpenClaude is up to date'
+        : autoUpdaterResult?.status === 'install_failed' || autoUpdaterResult?.status === 'no_permissions'
+          ? 'Update check failed'
+          : 'Update status ready';
+    items.push({
+      key: 'auto-updater',
+      label: status,
+      tone: autoUpdaterResult?.status === 'install_failed' || autoUpdaterResult?.status === 'no_permissions' ? 'warning' : 'success',
+    });
+  }
+
+  if (voiceError) {
+    items.push({
+      key: 'voice-error',
+      label: voiceError,
+      tone: 'error',
+    });
+  }
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  return <div className="repl-webNotifications" role="status" aria-live="polite">
+    {items.slice(0, 4).map(item => (
+      <div className="repl-webNotification" data-tone={item.tone ?? 'default'} key={item.key}>
+        <span className="repl-webNotificationDot" aria-hidden="true" />
+        <span className="repl-webNotificationText">
+          <span className="repl-webNotificationLabel">{item.label}</span>
+          {item.detail ? <span className="repl-webNotificationDetail">{item.detail}</span> : null}
+        </span>
+      </div>
+    ))}
+    {items.length > 4 ? (
+      <div className="repl-webNotification repl-webNotificationMore" data-tone="default">
+        +{items.length - 4}
+      </div>
+    ) : null}
+  </div>;
 }

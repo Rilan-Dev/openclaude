@@ -1,142 +1,280 @@
-import { c as _c } from "react-compiler-runtime";
-import * as React from 'react';
-import { Ansi, Box, Text, useAnimationFrame } from '../../ink.js';
-import { segmentTextByHighlights, type TextHighlight } from '../../utils/textHighlighting.js';
-import { ShimmerChar } from '../Spinner/ShimmerChar.js';
+import * as React from 'react'
+import { Ansi, Box, Text, useAnimationFrame } from '../../ink.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
+import { stripVTControlCharacters } from '../../utils/stripVTControlCharacters.js'
+import {
+  segmentTextByHighlights,
+  type TextHighlight,
+} from '../../utils/textHighlighting.js'
+import type { Theme } from '../../utils/theme.js'
+import { ShimmerChar } from '../Spinner/ShimmerChar.js'
+
 type Props = {
-  text: string;
-  highlights: TextHighlight[];
-};
-type LinePart = {
-  text: string;
-  highlight: TextHighlight | undefined;
-  start: number;
-};
-export function HighlightedInput(t0) {
-  const $ = _c(23);
-  const {
-    text,
-    highlights
-  } = t0;
-  let lines;
-  if ($[0] !== highlights || $[1] !== text) {
-    const segments = segmentTextByHighlights(text, highlights);
-    lines = [[]];
-    let pos = 0;
-    for (const segment of segments) {
-      const parts = segment.text.split("\n");
-      for (let i = 0; i < parts.length; i++) {
-        if (i > 0) {
-          lines.push([]);
-          pos = pos + 1;
-        }
-        const part = parts[i];
-        if (part.length > 0) {
-          lines[lines.length - 1].push({
-            text: part,
-            highlight: segment.highlight,
-            start: pos
-          });
-        }
-        pos = pos + part.length;
-      }
-    }
-    $[0] = highlights;
-    $[1] = text;
-    $[2] = lines;
-  } else {
-    lines = $[2];
-  }
-  let t1;
-  if ($[3] !== highlights) {
-    t1 = highlights.some(_temp);
-    $[3] = highlights;
-    $[4] = t1;
-  } else {
-    t1 = $[4];
-  }
-  const hasShimmer = t1;
-  let sweepStart = 0;
-  let cycleLength = 1;
-  if (hasShimmer) {
-    let lo = Infinity;
-    let hi = -Infinity;
-    if ($[5] !== hi || $[6] !== highlights || $[7] !== lo) {
-      for (const h_0 of highlights) {
-        if (h_0.shimmerColor) {
-          lo = Math.min(lo, h_0.start);
-          hi = Math.max(hi, h_0.end);
-        }
-      }
-      $[5] = hi;
-      $[6] = highlights;
-      $[7] = lo;
-      $[8] = lo;
-      $[9] = hi;
-    } else {
-      lo = $[8];
-      hi = $[9];
-    }
-    sweepStart = lo - 10;
-    cycleLength = hi - lo + 20;
-  }
-  let t2;
-  if ($[10] !== cycleLength || $[11] !== hasShimmer || $[12] !== lines || $[13] !== sweepStart) {
-    t2 = {
-      lines,
-      hasShimmer,
-      sweepStart,
-      cycleLength
-    };
-    $[10] = cycleLength;
-    $[11] = hasShimmer;
-    $[12] = lines;
-    $[13] = sweepStart;
-    $[14] = t2;
-  } else {
-    t2 = $[14];
-  }
-  const {
-    lines: lines_0,
-    hasShimmer: hasShimmer_0,
-    sweepStart: sweepStart_0,
-    cycleLength: cycleLength_0
-  } = t2;
-  const [ref, time] = useAnimationFrame(hasShimmer_0 ? 50 : null);
-  const glimmerIndex = hasShimmer_0 ? sweepStart_0 + Math.floor(time / 50) % cycleLength_0 : -100;
-  let t3;
-  if ($[15] !== glimmerIndex || $[16] !== lines_0) {
-    let t4;
-    if ($[18] !== glimmerIndex) {
-      t4 = (lineParts, lineIndex) => <Box key={lineIndex}>{lineParts.length === 0 ? <Text> </Text> : lineParts.map((part_0, partIndex) => {
-          if (part_0.highlight?.shimmerColor && part_0.highlight.color) {
-            return <Text key={partIndex}>{part_0.text.split("").map((char, charIndex) => <ShimmerChar key={charIndex} char={char} index={part_0.start + charIndex} glimmerIndex={glimmerIndex} messageColor={part_0.highlight.color} shimmerColor={part_0.highlight.shimmerColor} />)}</Text>;
-          }
-          return <Text key={partIndex} color={part_0.highlight?.color} dimColor={part_0.highlight?.dimColor} inverse={part_0.highlight?.inverse}><Ansi>{part_0.text}</Ansi></Text>;
-        })}</Box>;
-      $[18] = glimmerIndex;
-      $[19] = t4;
-    } else {
-      t4 = $[19];
-    }
-    t3 = lines_0.map(t4);
-    $[15] = glimmerIndex;
-    $[16] = lines_0;
-    $[17] = t3;
-  } else {
-    t3 = $[17];
-  }
-  let t4;
-  if ($[20] !== ref || $[21] !== t3) {
-    t4 = <Box ref={ref} flexDirection="column">{t3}</Box>;
-    $[20] = ref;
-    $[21] = t3;
-    $[22] = t4;
-  } else {
-    t4 = $[22];
-  }
-  return t4;
+  text: string
+  highlights: TextHighlight[]
 }
-function _temp(h) {
-  return h.shimmerColor;
+
+type LinePart = {
+  text: string
+  highlight: TextHighlight | undefined
+  start: number
+}
+
+function buildLineParts(text: string, highlights: TextHighlight[]): LinePart[][] {
+  const segments = segmentTextByHighlights(text, highlights)
+  const lines: LinePart[][] = [[]]
+  let position = 0
+
+  for (const segment of segments) {
+    const parts = segment.text.split('\n')
+
+    for (let index = 0; index < parts.length; index++) {
+      if (index > 0) {
+        lines.push([])
+        position += 1
+      }
+
+      const part = parts[index] ?? ''
+
+      if (part.length > 0) {
+        lines[lines.length - 1]?.push({
+          text: part,
+          highlight: segment.highlight,
+          start: position,
+        })
+      }
+
+      position += part.length
+    }
+  }
+
+  return lines
+}
+
+function getShimmerBounds(highlights: TextHighlight[]): {
+  cycleLength: number
+  sweepStart: number
+} {
+  let low = Infinity
+  let high = -Infinity
+
+  for (const highlight of highlights) {
+    if (!highlight.shimmerColor) {
+      continue
+    }
+
+    low = Math.min(low, highlight.start)
+    high = Math.max(high, highlight.end)
+  }
+
+  return {
+    sweepStart: low - 10,
+    cycleLength: high - low + 20,
+  }
+}
+
+function themeColorToCss(color?: keyof Theme): string | undefined {
+  if (!color) {
+    return undefined
+  }
+
+  const map: Partial<Record<keyof Theme, string>> = {
+    text: '#f8fafc',
+    subtle: '#94a3b8',
+    suggestion: '#60a5fa',
+    warning: '#f59e0b',
+    success: '#22c55e',
+    error: '#ef4444',
+    inverseText: '#0f172a',
+    promptBorder: '#64748b',
+    promptBorderShimmer: '#94a3b8',
+    bashBorder: '#f59e0b',
+    brand: '#fb923c',
+    brandShimmer: '#fdba74',
+    claude: '#fb923c',
+    claudeShimmer: '#fdba74',
+    warningShimmer: '#fbbf24',
+    fastMode: '#fb923c',
+    fastModeShimmer: '#fdba74',
+    rainbow_red: '#ef4444',
+    rainbow_orange: '#f97316',
+    rainbow_yellow: '#facc15',
+    rainbow_green: '#22c55e',
+    rainbow_blue: '#3b82f6',
+    rainbow_indigo: '#6366f1',
+    rainbow_violet: '#a855f7',
+    rainbow_red_shimmer: '#f87171',
+    rainbow_orange_shimmer: '#fb923c',
+    rainbow_yellow_shimmer: '#fde047',
+    rainbow_green_shimmer: '#4ade80',
+    rainbow_blue_shimmer: '#60a5fa',
+    rainbow_indigo_shimmer: '#818cf8',
+    rainbow_violet_shimmer: '#c084fc',
+  }
+
+  return map[color] ?? `var(--openclaude-${String(color)}, #f8fafc)`
+}
+
+function BrowserHighlightedInput({ text, highlights }: Props): React.ReactNode {
+  const lines = React.useMemo(() => buildLineParts(text, highlights), [highlights, text])
+  const hasShimmer = React.useMemo(
+    () => highlights.some(highlight => Boolean(highlight.shimmerColor)),
+    [highlights],
+  )
+  const { cycleLength, sweepStart } = React.useMemo(
+    () => (hasShimmer ? getShimmerBounds(highlights) : { cycleLength: 1, sweepStart: 0 }),
+    [hasShimmer, highlights],
+  )
+  const [tick, setTick] = React.useState(0)
+
+  React.useEffect(() => {
+    if (!hasShimmer) {
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setTick(current => current + 1)
+    }, 50)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [hasShimmer])
+
+  const glimmerIndex = hasShimmer
+    ? sweepStart + (tick % Math.max(cycleLength, 1))
+    : -100
+
+  return (
+    <div
+      data-openclaude-highlighted-input="web"
+      className="repl-highlightedInput"
+    >
+      {lines.map((lineParts, lineIndex) => (
+        <div key={lineIndex} className="repl-highlightedInputLine">
+          {lineParts.length === 0 ? (
+            <span>&nbsp;</span>
+          ) : (
+            lineParts.map((part, partIndex) => {
+              if (part.highlight?.shimmerColor && part.highlight.color) {
+                return (
+                  <span key={partIndex} className="repl-highlightedInputSegment">
+                    {stripVTControlCharacters(part.text)
+                      .split('')
+                      .map((char, charIndex) => {
+                        const index = part.start + charIndex
+                        const isGlint = index === glimmerIndex
+
+                        return (
+                          <span
+                            key={charIndex}
+                            className="repl-highlightedInputChar"
+                            style={{
+                              color: themeColorToCss(
+                                isGlint
+                                  ? part.highlight?.shimmerColor
+                                  : part.highlight?.color,
+                              ),
+                              textShadow: isGlint
+                                ? '0 0 14px rgba(255, 255, 255, 0.16)'
+                                : undefined,
+                              transition:
+                                'color 120ms ease, text-shadow 120ms ease, opacity 120ms ease',
+                            }}
+                          >
+                            {char}
+                          </span>
+                        )
+                      })}
+                  </span>
+                )
+              }
+
+              return (
+                <span
+                  key={partIndex}
+                  className="repl-highlightedInputSegment"
+                  style={{
+                    color: themeColorToCss(part.highlight?.color) ?? '#f8fafc',
+                    opacity: part.highlight?.dimColor ? 0.65 : 1,
+                    background: part.highlight?.inverse ? '#f8fafc' : undefined,
+                    borderRadius: part.highlight?.inverse ? 4 : undefined,
+                    padding: part.highlight?.inverse ? '0 1px' : undefined,
+                  }}
+                >
+                  {stripVTControlCharacters(part.text)}
+                </span>
+              )
+            })
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TerminalHighlightedInput({ text, highlights }: Props): React.ReactNode {
+  const lines = React.useMemo(() => buildLineParts(text, highlights), [highlights, text])
+  const hasShimmer = React.useMemo(
+    () => highlights.some(highlight => Boolean(highlight.shimmerColor)),
+    [highlights],
+  )
+  const { cycleLength, sweepStart } = React.useMemo(
+    () => (hasShimmer ? getShimmerBounds(highlights) : { cycleLength: 1, sweepStart: 0 }),
+    [hasShimmer, highlights],
+  )
+  const [ref, time] = useAnimationFrame(hasShimmer ? 50 : null)
+  const glimmerIndex = hasShimmer
+    ? sweepStart + (Math.floor(time / 50) % Math.max(cycleLength, 1))
+    : -100
+
+  return (
+    <Box ref={ref} flexDirection="column">
+      {lines.map((lineParts, lineIndex) => (
+        <Box key={lineIndex}>
+          {lineParts.length === 0 ? (
+            <Text> </Text>
+          ) : (
+            lineParts.map((part, partIndex) => {
+              if (part.highlight?.shimmerColor && part.highlight.color) {
+                return (
+                  <Text key={partIndex}>
+                    {part.text.split('').map((char, charIndex) => (
+                      <ShimmerChar
+                        key={charIndex}
+                        char={char}
+                        index={part.start + charIndex}
+                        glimmerIndex={glimmerIndex}
+                        messageColor={part.highlight?.color}
+                        shimmerColor={part.highlight?.shimmerColor}
+                      />
+                    ))}
+                  </Text>
+                )
+              }
+
+              return (
+                <Text
+                  key={partIndex}
+                  color={part.highlight?.color}
+                  dimColor={part.highlight?.dimColor}
+                  inverse={part.highlight?.inverse}
+                >
+                  <Ansi>{part.text}</Ansi>
+                </Text>
+              )
+            })
+          )}
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+export function HighlightedInput(props: Props): React.ReactNode {
+  if (isBrowserRuntime()) {
+    return <BrowserHighlightedInput {...props} />
+  }
+
+  return <TerminalHighlightedInput {...props} />
 }

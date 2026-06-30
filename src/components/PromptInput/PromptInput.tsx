@@ -111,6 +111,7 @@ import { ThinkingToggle } from '../ThinkingToggle.js';
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js';
 import { countVisibleBackgroundTasks, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js';
 import { TeamsDialog } from '../teams/TeamsDialog.js';
+import { ClaudeStyleChatInput } from '../ui/claude-style-chat-input.js';
 import VimTextInput from '../VimTextInput.js';
 import { detectModeEntry, getModeFromInput, getValueFromInput } from './inputModes.js';
 import { FOOTER_TEMPORARY_STATUS_TIMEOUT, Notifications } from './Notifications.js';
@@ -2349,50 +2350,107 @@ function PromptInput({
   }
   const textInputElement = isVimModeEnabled() ? <VimTextInput {...baseProps} initialMode={vimMode} onModeChange={setVimMode} /> : <TextInput {...baseProps} />;
   if (isBrowserRuntime()) {
+    const webPromptValue =
+      isSearchingHistory && historyMatch
+        ? getValueFromInput(
+          typeof historyMatch === 'string'
+            ? historyMatch
+            : historyMatch.display,
+        )
+        : input
+
     return (
       <div
-        data-openclaude-web-prompt-shell
+        data-openclaude-web-prompt-composer
+        className="repl-composerShell"
         style={{
           width: '100%',
           boxSizing: 'border-box',
-          padding: '10px 12px 12px',
-          background: 'transparent',
-          color: '#f3eadc',
-          fontFamily:
-            '"IBM Plex Sans", "Aptos", "Segoe UI", system-ui, sans-serif',
+          display: 'grid',
+          gap: '0.9rem',
         }}
       >
         {!isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
 
         <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
 
-        <WebPromptTextareaOnly
-          mode={mode}
-          isLoading={isLoading}
-          input={input}
+        <ClaudeStyleChatInput
+          value={webPromptValue}
           placeholder={typeof placeholder === 'string' ? placeholder : undefined}
-          isSearchingHistory={isSearchingHistory}
-          historyMatch={historyMatch}
-          cursorOffset={cursorOffset}
-          setCursorOffset={setCursorOffset}
-          onChange={onChange}
-          onSubmit={value => {
-            void onSubmit(value)
-          }}
-          onTextPaste={onTextPaste}
-          onImagePaste={onImagePaste}
-          handleNewline={handleNewline}
-          handleUndo={handleUndo}
-          canUndo={canUndo}
-          handleStash={handleStash}
+          disabled={
+            isLoading ||
+            isSearchingHistory ||
+            isModalOverlayActive ||
+            Boolean(footerItemSelected)
+          }
+          isLoading={isLoading}
+          isPasting={isPasting}
+          selectedModel={modelDisplayString(mainLoopModel_)}
+          thinkingEnabled={thinkingEnabled ?? true}
           suggestions={suggestions}
           selectedSuggestion={selectedSuggestion}
-          setSuggestionsState={setSuggestionsState}
           commandArgumentHint={commandArgumentHint}
+          onChange={(value, nextCursorOffset) => {
+            setCursorOffset(nextCursorOffset)
+            onChange(value)
+          }}
+          onCursorChange={setCursorOffset}
+          onSubmit={() => {
+            void onSubmit(webPromptValue)
+          }}
+          onNewline={handleNewline}
+          onUndo={handleUndo}
+          onStash={handleStash}
+          canUndo={canUndo}
+          onExit={onExit}
+          onHistoryUp={handleHistoryUp}
+          onHistoryDown={handleHistoryDown}
+          onPasteText={onTextPaste}
+          onPasteImage={async file => {
+            setIsPasting(true)
+            try {
+              const dataUrl = await readFileAsDataUrl(file)
+              const base64 = dataUrl.includes(',')
+                ? dataUrl.slice(dataUrl.indexOf(',') + 1)
+                : dataUrl
+              onImagePaste(base64, file.type, file.name)
+            } finally {
+              setIsPasting(false)
+            }
+          }}
           onApplySuggestion={applySelectedWebSuggestion}
-          viewingAgentName={viewingAgentName}
-          viewingAgentColor={viewingAgentColor}
-          getBorderColor={getBorderColor}
+          onMoveSuggestion={direction => {
+            setSuggestionsState(prev => {
+              const current =
+                prev.selectedSuggestion >= 0
+                  ? prev.selectedSuggestion
+                  : selectedSuggestion >= 0
+                    ? selectedSuggestion
+                    : direction === 'down'
+                      ? -1
+                      : 0
+
+              return {
+                ...prev,
+                suggestions,
+                selectedSuggestion:
+                  direction === 'down'
+                    ? Math.min(current + 1, suggestions.length - 1)
+                    : Math.max(current - 1, 0),
+                commandArgumentHint,
+              }
+            })
+          }}
+          onClearSuggestions={() => {
+            setSuggestionsState(prev => ({
+              ...prev,
+              suggestions: [],
+              selectedSuggestion: -1,
+              commandArgumentHint: undefined,
+            }))
+          }}
+          onOpenModelPicker={() => setShowModelPicker(true)}
+          onOpenThinkingToggle={() => setShowThinkingToggle(true)}
         />
 
         <PromptInputFooter
@@ -2501,12 +2559,16 @@ type WebPromptTextareaOnlyProps = {
   isLoading: boolean
   input: string
   placeholder: string | undefined
+  focus: boolean
   isSearchingHistory: boolean
   historyMatch: string | { display: string } | undefined
   cursorOffset: number
   setCursorOffset: (offset: number) => void
   onChange: (value: string) => void
   onSubmit: (input: string) => void | Promise<void>
+  onHistoryUp?: () => void
+  onHistoryDown?: () => void
+  onExit?: () => void
   onTextPaste: (text: string) => void
   onImagePaste: (
     image: string,
@@ -2531,6 +2593,9 @@ type WebPromptTextareaOnlyProps = {
   viewingAgentName?: string
   viewingAgentColor?: AgentColorName
   getBorderColor: () => keyof Theme
+  disableCursorMovementForUpDownKeys?: boolean
+  isPasting: boolean
+  setIsPasting: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -2552,6 +2617,18 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
     reader.readAsDataURL(file)
   })
+}
+
+function isCursorOnFirstLine(value: string, cursorOffset: number): boolean {
+  if (cursorOffset <= 0) {
+    return true
+  }
+
+  return value.lastIndexOf('\n', cursorOffset - 1) === -1
+}
+
+function isCursorOnLastLine(value: string, cursorOffset: number): boolean {
+  return value.indexOf('\n', cursorOffset) === -1
 }
 
 function themeColorToWebColor(color?: keyof Theme): string {
@@ -2577,12 +2654,16 @@ function WebPromptTextareaOnly({
   isLoading,
   input,
   placeholder,
+  focus,
   isSearchingHistory,
   historyMatch,
   cursorOffset,
   setCursorOffset,
   onChange,
   onSubmit,
+  onHistoryUp,
+  onHistoryDown,
+  onExit,
   onTextPaste,
   onImagePaste,
   handleNewline,
@@ -2597,8 +2678,12 @@ function WebPromptTextareaOnly({
   viewingAgentName,
   viewingAgentColor,
   getBorderColor,
+  disableCursorMovementForUpDownKeys = false,
+  isPasting,
+  setIsPasting,
 }: WebPromptTextareaOnlyProps): React.ReactNode {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const pasteResetRef = React.useRef<number | null>(null)
 
   const borderColor = themeColorToWebColor(getBorderColor())
 
@@ -2616,9 +2701,48 @@ function WebPromptTextareaOnly({
       )
       : input
 
-  React.useEffect(() => {
-    textareaRef.current?.focus()
+  const modeLabel = mode === 'bash' ? 'Command mode' : 'Prompt mode'
+  const helperText = isLoading
+    ? 'Sending content'
+    : 'Enter to send, Shift+Enter for a new line'
+
+  const clearPasteTimer = React.useCallback(() => {
+    if (pasteResetRef.current !== null) {
+      window.clearTimeout(pasteResetRef.current)
+      pasteResetRef.current = null
+    }
   }, [])
+
+  const settlePasteState = React.useCallback(() => {
+    clearPasteTimer()
+    pasteResetRef.current = window.setTimeout(() => {
+      setIsPasting(false)
+      pasteResetRef.current = null
+    }, 120)
+  }, [clearPasteTimer, setIsPasting])
+
+  React.useEffect(() => {
+    const textarea = textareaRef.current
+
+    if (!textarea) {
+      return
+    }
+
+    if (focus) {
+      textarea.focus()
+      return
+    }
+
+    if (document.activeElement === textarea) {
+      textarea.blur()
+    }
+  }, [focus])
+
+  React.useEffect(() => {
+    return () => {
+      clearPasteTimer()
+    }
+  }, [clearPasteTimer])
 
   React.useEffect(() => {
     const textarea = textareaRef.current
@@ -2661,14 +2785,17 @@ function WebPromptTextareaOnly({
 
       if (imageFile) {
         event.preventDefault()
+        setIsPasting(true)
 
-        void readFileAsDataUrl(imageFile).then(dataUrl => {
-          const base64 = dataUrl.includes(',')
-            ? dataUrl.slice(dataUrl.indexOf(',') + 1)
-            : dataUrl
+        void readFileAsDataUrl(imageFile)
+          .then(dataUrl => {
+            const base64 = dataUrl.includes(',')
+              ? dataUrl.slice(dataUrl.indexOf(',') + 1)
+              : dataUrl
 
-          onImagePaste(base64, imageFile.type, imageFile.name)
-        })
+            onImagePaste(base64, imageFile.type, imageFile.name)
+          })
+          .finally(settlePasteState)
 
         return
       }
@@ -2677,15 +2804,29 @@ function WebPromptTextareaOnly({
 
       if (text) {
         event.preventDefault()
+        setIsPasting(true)
         onTextPaste(text)
+        settlePasteState()
       }
     },
-    [onImagePaste, onTextPaste],
+    [onImagePaste, onTextPaste, setIsPasting, settlePasteState],
   )
 
   const onTextareaKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const hasSuggestions = suggestions.length > 0
+      const currentValue = event.currentTarget.value
+      const currentCursorOffset =
+        event.currentTarget.selectionStart ?? currentValue.length
+
+      const shouldHandleHistoryUp =
+        onHistoryUp &&
+        (disableCursorMovementForUpDownKeys ||
+          isCursorOnFirstLine(currentValue, currentCursorOffset))
+      const shouldHandleHistoryDown =
+        onHistoryDown &&
+        (disableCursorMovementForUpDownKeys ||
+          isCursorOnLastLine(currentValue, currentCursorOffset))
 
       if (hasSuggestions && event.key === 'ArrowDown') {
         event.preventDefault()
@@ -2735,6 +2876,20 @@ function WebPromptTextareaOnly({
         return
       }
 
+      if (event.key === 'ArrowUp' && shouldHandleHistoryUp) {
+        event.preventDefault()
+        event.stopPropagation()
+        onHistoryUp?.()
+        return
+      }
+
+      if (event.key === 'ArrowDown' && shouldHandleHistoryDown) {
+        event.preventDefault()
+        event.stopPropagation()
+        onHistoryDown?.()
+        return
+      }
+
       if (
         hasSuggestions &&
         (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey))
@@ -2770,6 +2925,13 @@ function WebPromptTextareaOnly({
         return
       }
 
+      if (event.key === 'Escape' && currentValue.length === 0) {
+        event.preventDefault()
+        event.stopPropagation()
+        onExit?.()
+        return
+      }
+
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
         submit()
@@ -2802,82 +2964,112 @@ function WebPromptTextareaOnly({
       commandArgumentHint,
       setSuggestionsState,
       onApplySuggestion,
+      onHistoryUp,
+      onHistoryDown,
+      onExit,
       submit,
       handleNewline,
       canUndo,
       handleUndo,
       handleStash,
+      disableCursorMovementForUpDownKeys,
     ],
   )
-
-  const webPromptSymbol = mode === 'bash' ? '!' : '❯'
 
   return (
     <div
       data-openclaude-web-prompt-input
+      data-openclaude-web-prompt-loading={isLoading ? 'true' : undefined}
+      data-openclaude-web-prompt-pasting={isPasting ? 'true' : undefined}
+      className="repl-composerPanel"
       style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        columnGap: 8,
-        rowGap: 0,
         width: '100%',
         boxSizing: 'border-box',
-        borderTop: `1px solid ${borderColor}`,
-        borderBottom: `1px solid ${borderColor}`,
-        padding: '8px 0',
-      }}
+        '--openclaude-composer-accent': borderColor,
+        '--openclaude-composer-glow': teammateColor,
+      } as React.CSSProperties}
     >
-      <div
-        title={viewingAgentName ?? mode}
-        style={{
-          minWidth: 22,
-          paddingTop: 8,
-          color: mode === 'bash' ? '#f59e0b' : teammateColor,
-          fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: 18,
-          fontWeight: 800,
-          lineHeight: 1,
-          opacity: isLoading ? 0.5 : 1,
-          userSelect: 'none',
-        }}
-      >
-        {webPromptSymbol}
+      <div className="repl-composerMeta">
+        <div className="repl-composerMetaCopy">
+          <div className="repl-composerLabel">
+            <span className="repl-composerGlyphChip" title={modeLabel}>
+              <PromptInputModeIndicator
+                mode={mode}
+                isLoading={isLoading}
+                viewingAgentName={viewingAgentName}
+                viewingAgentColor={viewingAgentColor}
+              />
+            </span>
+            <span>{modeLabel}</span>
+          </div>
+          <div className="repl-composerHint">{helperText}</div>
+        </div>
+
+        <div className="repl-composerBadgeRow">
+          {viewingAgentName ? (
+            <span className="repl-composerStatusChip" title={viewingAgentName}>
+              Viewing {viewingAgentName}
+            </span>
+          ) : null}
+          {isLoading ? (
+            <span className="repl-composerStatusChip">Streaming</span>
+          ) : null}
+        </div>
       </div>
 
       <textarea
         ref={textareaRef}
         data-openclaude-web-prompt-textarea
+        className="repl-textarea repl-promptTextarea"
         role="combobox"
+        aria-label="Prompt input"
         aria-autocomplete="list"
         aria-expanded={suggestions.length > 0}
+        aria-haspopup="listbox"
+        aria-describedby={commandArgumentHint ? 'openclaude-prompt-command-hint' : undefined}
         value={visibleValue}
         placeholder={placeholder}
-        readOnly={isLoading}
+        readOnly={isLoading || !focus}
         onChange={onTextareaChange}
         onSelect={onTextareaSelect}
         onKeyDown={onTextareaKeyDown}
         onPaste={onTextareaPaste}
-        rows={Math.min(8, Math.max(1, visibleValue.split('\n').length))}
+        rows={Math.min(10, Math.max(2, visibleValue.split('\n').length))}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        autoComplete="off"
+        enterKeyHint="send"
         style={{
           width: '100%',
           resize: 'none',
           boxSizing: 'border-box',
-          minHeight: 34,
-          maxHeight: 220,
-          padding: '6px 0',
+          minHeight: 112,
+          maxHeight: 260,
+          padding: '0.95rem 1rem 1rem',
           border: 'none',
           outline: 'none',
           background: 'transparent',
           color: '#f8fafc',
-          caretColor: '#f8fafc',
-          fontSize: 15,
-          lineHeight: 1.5,
+          caretColor: '#e0f2fe',
+          fontSize: 15.5,
+          lineHeight: 1.6,
+          letterSpacing: '-0.01em',
           fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            '"Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif',
           opacity: isLoading ? 0.72 : 1,
         }}
       />
+
+      {commandArgumentHint ? (
+        <div
+          id="openclaude-prompt-command-hint"
+          className="repl-textInputHint"
+          title={commandArgumentHint}
+        >
+          Tab applies {commandArgumentHint}
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -665,33 +665,18 @@ class Project {
     }, this.FLUSH_INTERVAL_MS)
   }
 
-private async appendToFile(filePath: string, data: string): Promise<void> {
-  if (isBrowserRuntime()) {
-    return
+  private async appendToFile(filePath: string, data: string): Promise<void> {
+    try {
+      await fsAppendFile(filePath, data, { mode: 0o600 })
+    } catch {
+      // Directory may not exist — some NFS-like filesystems return
+      // unexpected error codes, so don't discriminate on code.
+      await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
+      await fsAppendFile(filePath, data, { mode: 0o600 })
+    }
   }
-
-  try {
-    await fsAppendFile(filePath, data, { mode: 0o600 })
-  } catch {
-    // Directory may not exist — some NFS-like filesystems return
-    // unexpected error codes, so don't discriminate on code.
-    await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
-    await fsAppendFile(filePath, data, { mode: 0o600 })
-  }
-}
 
   private async drainWriteQueue(): Promise<void> {
-    if (isBrowserRuntime()) {
-      for (const [, queue] of this.writeQueues) {
-        const batch = queue.splice(0)
-        for (const { resolve } of batch) {
-          resolve()
-        }
-      }
-      this.writeQueues.clear()
-      return
-    }
-
     for (const [filePath, queue] of this.writeQueues) {
       if (queue.length === 0) {
         continue
@@ -3459,7 +3444,9 @@ export async function searchSessionsByCustomTitle(
 ): Promise<LogOption[]> {
   const { limit, exact } = options || {}
   // Use worktree-aware loading to search across same-repo sessions
-  const worktreePaths = await getWorktreePaths(getOriginalCwd())
+  const worktreePaths = isBrowserRuntime()
+    ? []
+    : await getWorktreePaths(getOriginalCwd())
   const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths)
   // Enrich all logs to access customTitle metadata
   const { logs } = await enrichLogs(allStatLogs, 0, allStatLogs.length)

@@ -24,6 +24,7 @@ import { detectFileEncoding, detectLineEndings, getFileModificationTime, writeTe
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js';
 import { truncate } from '../../utils/format.js';
 import { getFsImplementation } from '../../utils/fsOperations.js';
+import { isBrowserRuntime } from '../../utils/imports.js';
 import { lazySchema } from '../../utils/lazySchema.js';
 import { expandPath } from '../../utils/path.js';
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js';
@@ -631,6 +632,16 @@ export const BashTool = buildTool({
     };
   },
   async call(input: BashToolInput, toolUseContext, _canUseTool?: CanUseToolFn, parentMessage?: AssistantMessage, onProgress?: ToolCallProgress<BashProgress>) {
+    if (isBrowserRuntime()) {
+      return {
+        data: {
+          stdout: '',
+          stderr: 'Shell commands are not available in the browser WebUI. Run this command from the terminal CLI, or connect a server-side execution bridge for WebUI command execution.',
+          interrupted: false
+        }
+      };
+    }
+
     // Handle simulated sed edit - apply directly instead of running sed
     // This ensures what the user previewed is exactly what gets written
     if (input._simulatedSedEdit) {

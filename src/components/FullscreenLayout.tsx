@@ -11,6 +11,7 @@ import { Box, Text } from '../ink.js';
 import type { Message } from '../types/message.js';
 import { openBrowser, openPath } from '../utils/browser.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { plural } from '../utils/stringUtils.js';
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js';
 import PromptInputFooterSuggestions from './PromptInput/PromptInputFooterSuggestions.js';
@@ -335,6 +336,40 @@ export function FullscreenLayout(t0) {
     t7 = $[6];
   }
   useLayoutEffect(_temp3, t7);
+  if (isBrowserRuntime()) {
+    const sticky = hideSticky ? null : stickyPrompt;
+    const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
+    const browserModal = modal != null ? <ModalContext.Provider value={{
+      rows: Math.max(8, terminalRows - MODAL_TRANSCRIPT_PEEK - 1),
+      columns: Math.max(48, columns - 4),
+      scrollRef: modalScrollRef ?? null
+    }}><div className="repl-webModalBackdrop" role="presentation">
+          <div className="repl-webModalPanel" role="dialog" aria-modal="true">
+            <div className="repl-webModalHandle" />
+            {modal}
+          </div>
+        </div></ModalContext.Provider> : null;
+
+    return <PromptOverlayProvider>
+      <div className="repl-webFullscreen" data-has-overlay={overlay ? 'true' : undefined}>
+        <div className="repl-webAurora repl-webAuroraOne" />
+        <div className="repl-webAurora repl-webAuroraTwo" />
+        <main className="repl-webConversationWindow" aria-label="OpenClaude conversation">
+          {headerPrompt ? <WebStickyPromptHeader text={headerPrompt.text} onClick={headerPrompt.scrollTo} /> : null}
+          <section className="repl-webScrollPane">
+            <ScrollChromeContext.Provider value={chromeCtx}>{scrollable}</ScrollChromeContext.Provider>
+            {overlay ? <div className="repl-webInlineOverlay">{overlay}</div> : null}
+          </section>
+          {!hidePill && newMessageCount > 0 && overlay == null ? <WebNewMessagesPill count={newMessageCount} onClick={onPillClick} /> : null}
+          {bottomFloat != null ? <div className="repl-webBottomFloat">{bottomFloat}</div> : null}
+        </main>
+        <footer className="repl-webComposerDock" aria-label="Prompt composer">
+          {bottom}
+        </footer>
+        {browserModal}
+      </div>
+    </PromptOverlayProvider>;
+  }
   if (isFullscreenEnvEnabled()) {
     const sticky = hideSticky ? null : stickyPrompt;
     const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
@@ -488,6 +523,38 @@ function _temp2(url) {
   }
 }
 function _temp() {}
+
+function WebNewMessagesPill({
+  count,
+  onClick,
+}: {
+  count: number;
+  onClick?: () => void;
+}) {
+  const label = count > 0 ? `${count} new ${plural(count, "message")}` : "Jump to bottom";
+  return (
+    <button type="button" className="repl-webNewMessagesPill" onClick={onClick}>
+      <span>{label}</span>
+      <span aria-hidden="true">↓</span>
+    </button>
+  );
+}
+
+function WebStickyPromptHeader({
+  text,
+  onClick,
+}: {
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="repl-webStickyPrompt" onClick={onClick}>
+      <span className="repl-webStickyPromptMarker">Context</span>
+      <span className="repl-webStickyPromptText">{text}</span>
+    </button>
+  );
+}
+
 function NewMessagesPill(t0) {
   const $ = _c(10);
   const {

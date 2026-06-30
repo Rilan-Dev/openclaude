@@ -97,11 +97,26 @@ const ${localName} = Object.assign(new String(${rawName}), {
           output.slice(replacement.end)
       }
 
+      // ESM evaluates imported modules in the textual order their import
+      // statements appear. The original `require('./x')` calls were written as
+      // lazy/deferred precisely to avoid evaluating their targets during the
+      // host module's own init (breaking circular-import cycles). If we hoist
+      // the generated imports ABOVE the file's existing imports, those targets
+      // evaluate first and the cycle returns (e.g. forkSubagent -> coordinator
+      // -> constants/tools -> ToolSearch prompt re-export => TDZ on
+      // TOOL_SEARCH_TOOL_NAME). Emitting the generated imports AFTER the
+      // original code keeps the file's own imports evaluating first, preserving
+      // the original ordering as closely as static imports allow.
+      //
+      // `declarations` (the `?raw` wrappers) are body statements that read the
+      // imported bindings; imports always finish evaluating before any body
+      // runs, so the bindings are populated by the time the declarations
+      // execute. They go before `output` so the local names exist before use.
       return {
         code: [
-          imports.join('\n'),
           declarations.join('\n'),
           output,
+          imports.join('\n'),
         ]
           .filter(Boolean)
           .join('\n\n'),

@@ -106,18 +106,21 @@ export async function launchRepl(
     const [
       { App },
       { REPL },
+      { ChatWindow },
       { AppStateProvider },
       { startDeferredPrefetches },
     ] = await Promise.all([
       import('./components/App.js'),
       import('./screens/REPL.js'),
+      import('./screens/ChatWindow.js'),
       import('./state/AppState.js'),
       import('./main.js'),
     ])
 
     const appElement = (
       <App {...appPropsForApp}>
-        <REPL {...replProps} />
+        {/* <REPL {...replProps} /> */}
+        <ChatWindow {...replProps} />
       </App>
     )
 

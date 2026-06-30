@@ -12,6 +12,7 @@ import { convertEffortValueToLevel, type EffortLevel, getAvailableEffortLevels, 
 import { isModelAllowed } from '../utils/model/modelAllowlist.js';
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
 import { getModelOptions, type ModelOption } from '../utils/model/modelOptions.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
@@ -19,6 +20,7 @@ import { Byline } from './design-system/Byline.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
 import { Pane } from './design-system/Pane.js';
 import { effortLevelToSymbol } from './EffortIndicator.js';
+import { WebSelectList } from './WebSelectList.js';
 export type ModelPickerDiscoveryState = {
   message: string;
   tone?: 'info' | 'success' | 'warning' | 'error';
@@ -319,6 +321,27 @@ export function ModelPicker(t0) {
   }
   const refreshHint = onRefresh ? <ConfigurableShortcutHint action="modelPicker:refresh" context="ModelPicker" fallback="r" description="refresh models" /> : null;
   const discoveryLine = discoveryState ? <Text color={mapDiscoveryToneToColor(discoveryState.tone)}>{discoveryState.message}{refreshHint ? <Text color="subtle"> {" "}· {refreshHint}</Text> : null}</Text> : refreshHint ? <Text dimColor={true}>{refreshHint}</Text> : null;
+  if (isBrowserRuntime()) {
+    const browserOptions = selectOptions.slice(0, visibleCount).map(option => ({
+      value: option.value,
+      label: option.label,
+      description: option.description,
+      disabled: option.disabled
+    }));
+    const effortFooter = <div className="repl-webPickerControlRow">
+        <span className="repl-webPickerEffort" data-enabled={focusedSupportsEffort ? 'true' : 'false'}>
+          <span className="repl-webPickerEffortDot" aria-hidden="true">{effortLevelToSymbol(displayEffort)}</span>
+          {focusedSupportsEffort ? `${capitalize(displayEffort)} effort${displayEffort === focusedDefaultEffort ? ' default' : ''}` : `Effort not supported${focusedModelName ? ` for ${focusedModelName}` : ''}`}
+        </span>
+        {focusedSupportsEffort ? <span className="repl-webPickerSegmented" aria-label="Adjust effort">
+            <button type="button" onClick={() => handleCycleEffort('left')}>Lower</button>
+            <button type="button" onClick={() => handleCycleEffort('right')}>Higher</button>
+          </span> : null}
+        {onRefresh ? <button type="button" className="repl-webPickerGhostButton" onClick={onRefresh}>Refresh</button> : null}
+      </div>;
+    const browserContent = <WebSelectList title="Select model" subtitle={<>{t16}{sessionModel ? <><br />Currently using {modelDisplayString(sessionModel)} for this session. Selecting a model will undo this.</> : null}{discoveryState ? <><br />{discoveryState.message}</> : null}</>} options={browserOptions} selectedValue={initialValue} focusedValue={focusedValue} hiddenCount={hiddenCount} onSelect={handleSelect} onFocus={handleFocus} onCancel={onCancel} footer={effortFooter} />;
+    return isStandaloneCommand ? <div className="repl-commandSurface repl-modelPickerSurface">{browserContent}</div> : browserContent;
+  }
   const t19 = <Box marginBottom={1} flexDirection="column">{t15}{t17}{t18}{discoveryLine}</Box>;
   const t20 = onCancel ?? _temp4;
   let t21;

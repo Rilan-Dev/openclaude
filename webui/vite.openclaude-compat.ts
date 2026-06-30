@@ -29,7 +29,7 @@ const featureFlags: Record<string, boolean> = {
   HISTORY_SNIP: true,
   UDS_INBOX: false,
   BG_SESSIONS: true,
-  WEB_BROWSER_TOOL: false,
+  WEB_BROWSER_TOOL: true,
   CHICAGO_MCP: false,
   COWORKER_TYPE_TELEMETRY: false,
   MCP_SKILLS: true,
@@ -182,6 +182,28 @@ function moduleKey(specifier: string): string {
   return `module:${specifier}`
 }
 
+// Subpath imports of an optional module (e.g. '@ant/computer-use-mcp/sentinelApps')
+// are resolved to the same root stub ('@ant/computer-use-mcp'). The stub must
+// therefore export every named import seen across the root AND all of its
+// subpaths, otherwise an `import { x } from 'root/sub'` fails with
+// "does not provide an export named 'x'" and crashes the module graph.
+function collectModuleNames(
+  namedImports: Map<string, Set<string>>,
+  rootModuleName: string,
+): Set<string> {
+  const names = new Set<string>()
+  const rootKey = moduleKey(rootModuleName)
+  const subpathPrefix = `${rootKey}/`
+
+  for (const [key, set] of namedImports) {
+    if (key === rootKey || key.startsWith(subpathPrefix)) {
+      for (const name of set) names.add(name)
+    }
+  }
+
+  return names
+}
+
 function findOptionalModuleRoot(
   source: string,
   optionalModules: Set<string>,
@@ -237,7 +259,10 @@ function scanNamedImports(optionalModules: Set<string>): Map<string, Set<string>
       const specifier = m[4]
       const namedPart = m[1] || m[3] || ''
 
-      if (optionalModules.has(specifier)) {
+      if (
+        optionalModules.has(specifier) ||
+        findOptionalModuleRoot(specifier, optionalModules)
+      ) {
         registerNames(result, moduleKey(specifier), namedPart)
       }
 
@@ -256,7 +281,10 @@ function scanNamedImports(optionalModules: Set<string>): Map<string, Set<string>
       const namedPart = m[1]
       const specifier = m[2]
 
-      if (optionalModules.has(specifier)) {
+      if (
+        optionalModules.has(specifier) ||
+        findOptionalModuleRoot(specifier, optionalModules)
+      ) {
         registerNames(result, moduleKey(specifier), namedPart)
       }
 
@@ -540,7 +568,7 @@ export function openClaudeCompatPlugin(): Plugin {
         const moduleName = id.slice(OPTIONAL_PREFIX.length)
         return makeGenericStub(
           moduleName,
-          namedImports.get(moduleKey(moduleName)) ?? new Set(),
+          collectModuleNames(namedImports, moduleName),
         )
       }
 
@@ -548,7 +576,7 @@ export function openClaudeCompatPlugin(): Plugin {
         const moduleName = id.slice(MISSING_MODULE_PREFIX.length)
         return makeGenericStub(
           moduleName,
-          namedImports.get(moduleKey(moduleName)) ?? new Set(),
+          collectModuleNames(namedImports, moduleName),
         )
       }
 

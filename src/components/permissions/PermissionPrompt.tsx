@@ -9,6 +9,7 @@ import {
 } from '../../services/analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
 import { useSetAppState } from '../../state/AppState.js'
+import { isBrowserRuntime } from '../../utils/imports.js'
 import type { DangerousPermissionMode } from '../../utils/permissions/dangerousModePrompt.js'
 import { Select } from '../CustomSelect/select.js'
 import { type UnaryEvent, usePermissionRequestLogging } from './hooks.js'
@@ -54,6 +55,47 @@ const DEFAULT_PLACEHOLDERS: Record<FeedbackType, string> = {
 const DEFAULT_UNARY_EVENT: UnaryEvent = {
   completion_type: 'tool_use_single',
   language_name: 'none',
+}
+
+function labelToPlainText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return ''
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(labelToPlainText).join('')
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: ReactNode }
+    return labelToPlainText(props.children)
+  }
+  return ''
+}
+
+function questionToPlainText(node: string | ReactNode): string {
+  return typeof node === 'string' ? node : labelToPlainText(node)
+}
+
+function permissionTargetFromInput(input: Record<string, unknown>): string | null {
+  const preferredKeys = [
+    'url',
+    'command',
+    'file_path',
+    'notebook_path',
+    'path',
+    'pattern',
+  ]
+
+  for (const key of preferredKeys) {
+    const value = input[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return null
 }
 
 export function PermissionPrompt<T extends string>({
@@ -251,6 +293,65 @@ export function PermissionPrompt<T extends string>({
 
   if (dangerousModeDialog) {
     return dangerousModeDialog
+  }
+
+  if (isBrowserRuntime()) {
+    const description = toolUseConfirm.description
+    const questionText = questionToPlainText(question)
+    const target = permissionTargetFromInput(
+      toolUseConfirm.input as Record<string, unknown>,
+    )
+    const permissionReason =
+      toolUseConfirm.permissionResult.message ||
+      `${PRODUCT_DISPLAY_NAME} is requesting permission to use ${title}.`
+
+    return (
+      <div className="repl-webPermissionCard" role="dialog" aria-modal="true" aria-label={`${title} permission request`}>
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">{toolType} permission</div>
+            <h2>{title}</h2>
+          </div>
+          <span className="repl-webPermissionBadge">Review</span>
+        </div>
+        <div className="repl-webPermissionBody">
+          <div className="repl-webPermissionTarget">
+            <span className="repl-webPermissionTargetLabel">Request</span>
+            <strong>{description || permissionReason}</strong>
+            {description && permissionReason !== description ? (
+              <small>{permissionReason}</small>
+            ) : null}
+            {target ? <code>{target}</code> : null}
+          </div>
+          <p className="repl-webPermissionQuestion">{questionText}</p>
+          <div className="repl-webPermissionActions">
+            {options.map(option => {
+              const label = labelToPlainText(option.label) || option.value
+              const isDangerous = Boolean(option.dangerousMode)
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="repl-webPermissionAction"
+                  data-danger={isDangerous ? 'true' : undefined}
+                  data-primary={option.value === options[0]?.value ? 'true' : undefined}
+                  onClick={() => handleSelect(option.value)}
+                  onMouseEnter={() => setFocusedValue(option.value)}
+                  onFocus={() => setFocusedValue(option.value)}
+                >
+                  <span>{label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="repl-webPermissionFooter">
+          <button type="button" onClick={handleCancel}>Esc to cancel</button>
+          {showTabHint ? <span>Tab to amend in terminal mode</span> : <span>Choose an option to continue</span>}
+        </div>
+      </div>
+    )
   }
 
   const renderedQuestion =

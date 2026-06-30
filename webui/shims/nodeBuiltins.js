@@ -19,16 +19,236 @@ const enoent = path => {
   return error
 }
 
-export function openSync(path) {
+const WEBFS_KEY = 'openclaude.webui.fs.v1'
+const fdTable = new Map()
+let nextFd = 100
+
+const vfsNow = () => Date.now()
+
+const vfsNormalize = path => {
+  const raw = String(path ?? '/')
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+  const absolute = raw.startsWith('/') || /^[a-zA-Z]:\//.test(raw)
+  const parts = []
+  for (const part of raw.split('/')) {
+    if (!part || part === '.') continue
+    if (part === '..') {
+      parts.pop()
+    } else {
+      parts.push(part)
+    }
+  }
+  return `${absolute ? '/' : '/'}${parts.join('/')}` || '/'
+}
+
+const vfsParent = path => {
+  const normalized = vfsNormalize(path)
+  if (normalized === '/') return '/'
+  const index = normalized.lastIndexOf('/')
+  return index <= 0 ? '/' : normalized.slice(0, index)
+}
+
+const loadVfs = () => {
+  const fallback = {
+    dirs: { '/': { ctimeMs: vfsNow(), mtimeMs: vfsNow() } },
+    files: {},
+  }
+  try {
+    const raw = globalThis.localStorage?.getItem(WEBFS_KEY)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw)
+    return {
+      dirs: { '/': fallback.dirs['/'], ...(parsed.dirs ?? {}) },
+      files: parsed.files ?? {},
+    }
+  } catch {
+    return fallback
+  }
+}
+
+const saveVfs = fs => {
+  try {
+    globalThis.localStorage?.setItem(WEBFS_KEY, JSON.stringify(fs))
+  } catch {
+    // Browser storage can be disabled or full. Keep the in-memory operation
+    // successful so the UI can continue, matching best-effort terminal logs.
+  }
+}
+
+const ensureVfsDir = (fs, path) => {
+  const dir = vfsNormalize(path)
+  if (fs.dirs[dir]) return
+  const parent = vfsParent(dir)
+  if (parent !== dir) ensureVfsDir(fs, parent)
+  const now = vfsNow()
+  fs.dirs[dir] = { ctimeMs: now, mtimeMs: now }
+}
+
+const toFileString = value => {
+  if (typeof value === 'string') return value
+  if (value instanceof ArrayBuffer) {
+    return new NativeTextDecoder().decode(value)
+  }
+  if (ArrayBuffer.isView(value)) {
+    return new NativeTextDecoder().decode(
+      value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength),
+    )
+  }
+  return String(value ?? '')
+}
+
+const readVfsText = path => {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  const file = fs.files[normalized]
+  if (!file) throw enoent(path)
+  return file.content ?? ''
+}
+
+const writeVfsText = (path, content, append = false) => {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  const parent = vfsParent(normalized)
+  ensureVfsDir(fs, parent)
+  const now = vfsNow()
+  const existing = fs.files[normalized]
+  fs.files[normalized] = {
+    content: append ? `${existing?.content ?? ''}${content}` : content,
+    ctimeMs: existing?.ctimeMs ?? now,
+    mtimeMs: now,
+  }
+  fs.dirs[parent].mtimeMs = now
+  saveVfs(fs)
+}
+
+const deleteVfsPath = path => {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  delete fs.files[normalized]
+  for (const dir of Object.keys(fs.dirs)) {
+    if (dir !== normalized && dir.startsWith(`${normalized}/`)) {
+      delete fs.dirs[dir]
+    }
+  }
+  delete fs.dirs[normalized]
+  saveVfs(fs)
+}
+
+const makeVfsStat = (entry, isDirectory = false) => {
+  const content = entry?.content ?? ''
+  const size = isDirectory ? 0 : Buffer.from(content).byteLength
+  const ctime = new Date(entry?.ctimeMs ?? 0)
+  const mtime = new Date(entry?.mtimeMs ?? 0)
+  return {
+    isFile: () => !isDirectory,
+    isDirectory: () => isDirectory,
+    isSymbolicLink: () => false,
+    size,
+    mtime,
+    ctime,
+    birthtime: ctime,
+    mtimeMs: mtime.getTime(),
+    ctimeMs: ctime.getTime(),
+    birthtimeMs: ctime.getTime(),
+  }
+}
+
+const getVfsStat = path => {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  if (fs.files[normalized]) return makeVfsStat(fs.files[normalized], false)
+  if (fs.dirs[normalized]) return makeVfsStat(fs.dirs[normalized], true)
   throw enoent(path)
 }
 
-export function closeSync() {}
+const makeDirent = (name, isDirectory) => ({
+  name,
+  isFile: () => !isDirectory,
+  isDirectory: () => isDirectory,
+  isSymbolicLink: () => false,
+})
+
+const listVfsDir = (path, options = {}) => {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  if (!fs.dirs[normalized]) throw enoent(path)
+  const prefix = normalized === '/' ? '/' : `${normalized}/`
+  const entries = new Map()
+  for (const filePath of Object.keys(fs.files)) {
+    if (!filePath.startsWith(prefix)) continue
+    const rest = filePath.slice(prefix.length)
+    if (!rest || rest.includes('/')) continue
+    entries.set(rest, false)
+  }
+  for (const dirPath of Object.keys(fs.dirs)) {
+    if (dirPath === normalized || !dirPath.startsWith(prefix)) continue
+    const rest = dirPath.slice(prefix.length)
+    if (!rest || rest.includes('/')) continue
+    entries.set(rest, true)
+  }
+  const sorted = [...entries.entries()].sort(([a], [b]) => a.localeCompare(b))
+  if (options?.withFileTypes) {
+    return sorted.map(([name, isDirectory]) => makeDirent(name, isDirectory))
+  }
+  return sorted.map(([name]) => name)
+}
+
+const makeFileHandle = path => {
+  const normalized = vfsNormalize(path)
+  return {
+    async read(buffer, offset = 0, length = buffer.byteLength, position = 0) {
+      const content = Buffer.from(readVfsText(normalized))
+      const start = position ?? 0
+      const chunk = content.subarray(start, start + length)
+      buffer.set(chunk, offset)
+      return { bytesRead: chunk.length, buffer }
+    },
+    async write(buffer, offset = 0, length, position = 0) {
+      const current = Buffer.from(readVfsText(normalized))
+      const source =
+        typeof buffer === 'string'
+          ? Buffer.from(buffer)
+          : Buffer.from(buffer).subarray(offset, offset + (length ?? buffer.length))
+      const start = position ?? current.length
+      const next = Buffer.alloc(Math.max(current.length, start + source.length))
+      next.set(current, 0)
+      next.set(source, start)
+      writeVfsText(normalized, next.toString())
+      return { bytesWritten: source.length, buffer }
+    },
+    async truncate(size = 0) {
+      const current = Buffer.from(readVfsText(normalized))
+      writeVfsText(normalized, current.subarray(0, size).toString())
+    },
+    async stat() {
+      return getVfsStat(normalized)
+    },
+    async close() {},
+  }
+}
+
+export function openSync(path) {
+  const normalized = vfsNormalize(path)
+  if (!loadVfs().files[normalized]) throw enoent(path)
+  const fd = nextFd++
+  fdTable.set(fd, normalized)
+  return fd
+}
+
+export function closeSync(fd) {
+  fdTable.delete(fd)
+}
 
 export function fsyncSync() {}
 
-export function readSync() {
-  return 0
+export function readSync(fd, buffer, offset = 0, length = buffer.byteLength, position = 0) {
+  const path = fdTable.get(fd)
+  if (!path) throw enoent(String(fd))
+  const content = Buffer.from(readVfsText(path))
+  const chunk = content.subarray(position ?? 0, (position ?? 0) + length)
+  buffer.set(chunk, offset)
+  return chunk.length
 }
 
 export function rmdirSync() {}
@@ -57,8 +277,16 @@ export async function rmdir() {}
 
 export async function* glob() {}
 
-export async function open(path) {
-  throw enoent(path)
+export async function open(path, flags = 'r') {
+  const normalized = vfsNormalize(path)
+  if (!loadVfs().files[normalized]) {
+    if (String(flags).includes('w') || String(flags).includes('+')) {
+      writeVfsText(normalized, '')
+    } else {
+      throw enoent(path)
+    }
+  }
+  return makeFileHandle(normalized)
 }
 
 export class EventEmitter {
@@ -185,20 +413,29 @@ export class Buffer extends Uint8Array {
     return buffer
   }
 
+  static allocUnsafe(size) {
+    return new Buffer(size)
+  }
+
   static isBuffer(value) {
     return value instanceof Buffer
   }
 
-  toString(encoding = 'utf8') {
+  static byteLength(value, encoding = 'utf8') {
+    return Buffer.from(value, encoding).byteLength
+  }
+
+  toString(encoding = 'utf8', start = 0, end = this.byteLength) {
+    const view = this.subarray(start, end)
     if (encoding === 'hex') {
-      return [...this].map(byte => byte.toString(16).padStart(2, '0')).join('')
+      return [...view].map(byte => byte.toString(16).padStart(2, '0')).join('')
     }
     if (encoding === 'base64') {
       let binary = ''
-      for (const byte of this) binary += String.fromCharCode(byte)
+      for (const byte of view) binary += String.fromCharCode(byte)
       return btoa(binary)
     }
-    return textDecoder.decode(this)
+    return textDecoder.decode(view)
   }
 }
 
@@ -446,33 +683,47 @@ export function hostname() {
 
 export const EOL = '\n'
 
-export async function readFile(path) {
-  throw enoent(path)
+export async function readFile(path, options) {
+  const content = readVfsText(path)
+  const encoding = typeof options === 'string' ? options : options?.encoding
+  return encoding ? content : Buffer.from(content)
 }
 
-export async function writeFile() {}
-export async function appendFile() {}
-export async function mkdir() {}
+export async function writeFile(path, data) {
+  writeVfsText(path, toFileString(data))
+}
+export async function appendFile(path, data) {
+  writeVfsText(path, toFileString(data), true)
+}
+export async function mkdir(path) {
+  const fs = loadVfs()
+  ensureVfsDir(fs, path)
+  saveVfs(fs)
+}
 export async function chmod() {}
 export async function copyFile() {}
 export async function link() {}
 export async function truncate() {}
 export async function symlink() {}
 export async function rename() {}
-export async function rm() {}
-export async function unlink() {}
+export async function rm(path) {
+  deleteVfsPath(path)
+}
+export async function unlink(path) {
+  deleteVfsPath(path)
+}
 export async function utimes() {}
-export async function readdir() {
-  return []
+export async function readdir(path, options) {
+  return listVfsDir(path, options)
 }
 export async function mkdtemp(prefix = '/tmp/openclaude-') {
   return `${prefix}${Math.random().toString(16).slice(2)}`
 }
-export async function stat() {
-  return fileStat
+export async function stat(path) {
+  return getVfsStat(path)
 }
-export async function lstat() {
-  return fileStat
+export async function lstat(path) {
+  return getVfsStat(path)
 }
 export async function realpath(path) {
   return path
@@ -487,34 +738,50 @@ const fileStat = {
   mtimeMs: 0,
 }
 
-export function readFileSync(path) {
-  throw enoent(path)
+export function readFileSync(path, options) {
+  const content = readVfsText(path)
+  const encoding = typeof options === 'string' ? options : options?.encoding
+  return encoding ? content : Buffer.from(content)
 }
 
-export function writeFileSync() {}
-export function appendFileSync() {}
-export function mkdirSync() {}
+export function writeFileSync(path, data) {
+  writeVfsText(path, toFileString(data))
+}
+export function appendFileSync(path, data) {
+  writeVfsText(path, toFileString(data), true)
+}
+export function mkdirSync(path) {
+  const fs = loadVfs()
+  ensureVfsDir(fs, path)
+  saveVfs(fs)
+}
 export function chmodSync() {}
 export function copyFileSync() {}
 export function symlinkSync() {}
 export function renameSync() {}
-export function rmSync() {}
-export function unlinkSync() {}
-export function existsSync() {
-  return false
+export function rmSync(path) {
+  deleteVfsPath(path)
+}
+export function unlinkSync(path) {
+  deleteVfsPath(path)
+}
+export function existsSync(path) {
+  const fs = loadVfs()
+  const normalized = vfsNormalize(path)
+  return Boolean(fs.files[normalized] || fs.dirs[normalized])
 }
 export function realpathSync(path) {
   return path
 }
 realpathSync.native = realpathSync
-export function statSync() {
-  return fileStat
+export function statSync(path) {
+  return getVfsStat(path)
 }
-export function lstatSync() {
-  return fileStat
+export function lstatSync(path) {
+  return getVfsStat(path)
 }
-export function readdirSync() {
-  return []
+export function readdirSync(path, options) {
+  return listVfsDir(path, options)
 }
 export function createReadStream() {
   return new Readable()
@@ -528,11 +795,21 @@ export function watch(_filename, _options, _listener) {
   return new EventEmitter()
 }
 export function accessSync() {}
-export function fstatSync() {
-  return fileStat
+export function fstatSync(fd) {
+  const path = fdTable.get(fd)
+  if (!path) throw enoent(String(fd))
+  return getVfsStat(path)
 }
 export function fstat(fd, callback) {
-  if (typeof callback === 'function') queueMicrotask(() => callback(null, fileStat))
+  if (typeof callback === 'function') {
+    queueMicrotask(() => {
+      try {
+        callback(null, fstatSync(fd))
+      } catch (error) {
+        callback(error)
+      }
+    })
+  }
 }
 export function mkdtempSync(prefix = '/tmp/openclaude-') {
   return `${prefix}${Math.random().toString(16).slice(2)}`

@@ -60,20 +60,16 @@ function webColorFromTheme(themeColor?: keyof Theme): string | undefined {
 }
 
 function WebPromptChar({ isLoading, themeColor }: PromptCharProps) {
+  const resolvedColor = webColorFromTheme(themeColor)
   return (
     <span
       data-openclaude-prompt-char
+      className="repl-promptGlyphSymbol"
+      aria-hidden="true"
       style={{
-        color: webColorFromTheme(themeColor),
-        opacity: isLoading ? 0.45 : 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-        fontWeight: 700,
-        lineHeight: 1,
-        marginRight: 6,
-      }}
+        '--openclaude-promptGlyphColor': resolvedColor ?? '#f3eadc',
+        '--openclaude-promptGlyphOpacity': isLoading ? 0.45 : 1,
+      } as React.CSSProperties}
     >
       {figures.pointer}
     </span>
@@ -116,14 +112,20 @@ function WebPromptInputModeIndicator({
     <span
       data-openclaude-prompt-mode={mode}
       data-openclaude-viewing-agent={viewingAgentName ?? undefined}
+      className="repl-promptGlyph"
+      aria-hidden="true"
       style={{
-        display: 'inline-flex',
-        alignItems: 'flex-start',
-        justifyContent: 'flex-start',
-        flexWrap: 'nowrap',
-        minWidth: 18,
-        userSelect: 'none',
-      }}
+        '--openclaude-promptGlyphColor': webColorFromTheme(
+          viewingAgentName
+            ? viewedTeammateThemeColor
+            : isBash
+              ? 'bashBorder'
+              : isAgentSwarmsEnabled()
+                ? teammateThemeColor
+                : undefined,
+        ) ?? '#f3eadc',
+        '--openclaude-promptGlyphOpacity': isLoading ? 0.45 : 1,
+      } as React.CSSProperties}
     >
       {viewingAgentName ? (
         <PromptChar
@@ -131,21 +133,7 @@ function WebPromptInputModeIndicator({
           themeColor={viewedTeammateThemeColor}
         />
       ) : isBash ? (
-        <span
-          style={{
-            color: webColorFromTheme('bashBorder' as keyof Theme),
-            opacity: isLoading ? 0.45 : 1,
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            fontWeight: 700,
-            lineHeight: 1,
-            marginRight: 6,
-          }}
-        >
-          !
-        </span>
+        <span className="repl-promptGlyphSymbol">!</span>
       ) : (
         <PromptChar
           isLoading={isLoading}

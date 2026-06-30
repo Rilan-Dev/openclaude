@@ -16,6 +16,7 @@ import type { InputEvent } from '../ink/events/input-event.js';
 import { type Key, useInput } from '../ink.js';
 import { count } from '../utils/array.js';
 import { logForDebugging } from '../utils/debug.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { plural } from '../utils/stringUtils.js';
 import { KeybindingProvider } from './KeybindingContext.js';
 import { initializeKeybindingWatcher, type KeybindingsLoadResult, loadKeybindingsSyncWithWarnings, subscribeToKeybindingChanges } from './loadUserBindings.js';
@@ -116,6 +117,54 @@ function _temp2(w_0) {
 function _temp(w) {
   return w.severity === "error";
 }
+
+function WebKeybindingStatus({
+  bindings,
+  pendingChord,
+  warnings,
+  isReload,
+}: {
+  bindings: ParsedBinding[];
+  pendingChord: ParsedKeystroke[] | null;
+  warnings: KeybindingWarning[];
+  isReload: boolean;
+}) {
+  const errorCount = count(warnings, _temp);
+  const warningCount = count(warnings, _temp2);
+  const severity = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'ready';
+  const chordLabel = pendingChord?.map(formatWebKeystroke).join(' ') ?? 'Listening';
+
+  return (
+    <aside
+      className="repl-keybindingHud"
+      data-severity={severity}
+      aria-live="polite"
+      aria-label="Keybinding status"
+    >
+      <div className="repl-keybindingHudGlow" />
+      <div className="repl-keybindingHudHeader">
+        <span className="repl-keybindingHudDot" />
+        <span>{pendingChord ? 'Chord armed' : isReload ? 'Keymap reloaded' : 'Keymap online'}</span>
+      </div>
+      <div className="repl-keybindingHudChord">{chordLabel}</div>
+      <div className="repl-keybindingHudMeta">
+        <span>{bindings.length} bindings</span>
+        {warnings.length > 0 ? <span>{warnings.length} issue{warnings.length === 1 ? '' : 's'}</span> : <span>clean</span>}
+      </div>
+    </aside>
+  );
+}
+
+function formatWebKeystroke(stroke: ParsedKeystroke): string {
+  return [
+    stroke.ctrl ? 'Ctrl' : null,
+    stroke.alt ? 'Alt' : null,
+    stroke.shift ? 'Shift' : null,
+    stroke.meta ? 'Meta' : null,
+    stroke.super ? 'Super' : null,
+    stroke.key,
+  ].filter(Boolean).join('+');
+}
 export function KeybindingSetup({
   children
 }: Props): React.ReactNode {
@@ -202,8 +251,13 @@ export function KeybindingSetup({
       clearChordTimeout();
     };
   }, [clearChordTimeout]);
+  const browserStatus =
+    isBrowserRuntime() && (pendingChord || warnings.length > 0)
+      ? <WebKeybindingStatus bindings={bindings} pendingChord={pendingChord} warnings={warnings} isReload={isReload} />
+      : null;
   return <KeybindingProvider bindings={bindings} pendingChordRef={pendingChordRef} pendingChord={pendingChord} setPendingChord={setPendingChord} activeContexts={activeContextsRef.current} registerActiveContext={registerActiveContext} unregisterActiveContext={unregisterActiveContext} handlerRegistryRef={handlerRegistryRef}>
       <ChordInterceptor bindings={bindings} pendingChordRef={pendingChordRef} setPendingChord={setPendingChord} activeContexts={activeContextsRef.current} handlerRegistryRef={handlerRegistryRef} />
+      {browserStatus}
       {children}
     </KeybindingProvider>;
 }

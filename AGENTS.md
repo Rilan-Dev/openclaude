@@ -46,6 +46,59 @@ Common libraries and patterns:
 - `web/` - documentation website.
 - `python/` - legacy/local-provider helper code and tests; maintain existing code here, but prefer TypeScript for new implementation.
 
+## Technical Navigation Map
+
+Use this map when changing chat UX, WebUI migration code, sessions, provider logic, or tool behavior.
+
+Chat window and message rendering:
+
+- `src/screens/REPL.tsx` - main interactive chat screen. It wires prompt input, message list, slash-command overlays, permissions, status, and fullscreen layout.
+- `src/components/Messages.tsx` - transcript list renderer.
+- `src/components/Message.tsx`, `src/components/MessageRow.tsx`, and `src/components/Message*.tsx` - individual message, role-specific rows, assistant/tool output, loading, and metadata display.
+- `src/components/PromptInput/` - prompt composer implementation, footer controls, shimmer/input behavior, model and command affordances.
+- `src/components/BaseTextInput.tsx` and `src/components/TextInput.tsx` - lower-level text input behavior used by prompt input flows.
+- `src/components/ui/` - WebUI-oriented shadcn-style reusable components. Keep browser-only visual components here when they should not replace terminal Ink primitives globally.
+- `webui/repl.css` - primary WebUI stylesheet for the REPL/chat migration, including message bubbles, prompt input, permission cards, pickers, and browser-specific layout polish.
+
+Layouts and WebUI runtime:
+
+- `src/components/FullscreenLayout.tsx` - top-level fullscreen shell used around REPL surfaces.
+- `webui/` - browser entrypoint, Vite config, shims, and WebUI-specific runtime files.
+- `webui/bootstrap.tsx` - browser bootstrap and runtime guard behavior.
+- `webui/shims/` - browser replacements for Node/Bun modules. If code reaches Node APIs in WebUI, check these shims before changing app logic.
+- `src/utils/imports.ts` - shared import/runtime helpers, including browser-runtime checks and terminal-control stripping utilities.
+
+Sessions, conversations, and transcript storage:
+
+- `src/utils/sessionStorage.ts` - main session/transcript manager, JSONL append queue, `/resume` log discovery, transcript loading, renaming, summaries, tags, and metadata.
+- `src/utils/sessionStoragePortable.ts` - portable transcript metadata readers used by session discovery and resume flows.
+- `src/utils/sessionPersistencePolicy.ts` - rules for when session entries should or should not be persisted.
+- `src/utils/getWorktreePaths.ts` and `src/utils/getWorktreePathsPortable.ts` - worktree/session discovery helpers used by resume and title search.
+- `src/commands/resume/` and `/resume` command handlers under `src/commands/` - resume command UI/control flow.
+- Browser WebUI cannot use the real Node filesystem directly. Browser transcript persistence depends on `webui/shims/nodeBuiltins.js`; do not add browser session code that assumes native `fs` access.
+
+Input, commands, permissions, and keybindings:
+
+- `src/commands/` - slash command definitions and handlers.
+- `src/components/permissions/` - permission request UI and decision handling for tools such as WebFetch, Bash, file edits, and MCP tools.
+- `src/keybindings/` - keybinding setup, command routing, and keymap state.
+- `src/keybindings/KeybindingProviderSetup.tsx` - keybinding provider wiring used by the interactive app.
+
+Providers, models, clients, and query execution:
+
+- `src/query.ts` and `src/QueryEngine.ts` - model query orchestration, streaming, tool-use handling, and conversation execution flow.
+- `src/services/api/` - API clients, provider request/response plumbing, session ingress, and backend integrations.
+- `src/integrations/` - provider and model metadata, recommendation data, and integration-specific configuration.
+- `src/components/ProviderManager.tsx` and provider-related components in `src/components/` - provider profile UI and user-facing provider settings.
+- `docs/integrations/` - provider implementation guidance. Read this before changing provider behavior.
+
+Tools and MCP:
+
+- `src/tools/` - tool implementations such as Bash, WebFetch, file operations, and REPL helpers.
+- `src/services/tools/` - tool coordination and shared tool services.
+- `src/services/mcp/` - MCP client/server connection management, resource/tool discovery, and MCP runtime state.
+- `src/services/mcp/MCPConnectionManager.tsx` - MCP connection UI/status surface. Keep browser presentation separate from core connection behavior.
+
 ## Validation
 
 Run the narrowest useful checks for your change, and list the exact commands in the PR.

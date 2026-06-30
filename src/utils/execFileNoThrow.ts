@@ -4,7 +4,7 @@
 // child_process transitively.
 
 import { getCwd } from '../utils/cwd.js'
-import { isAbsolute, runtimeRequire } from './imports.js'
+import { isAbsolute, isBrowserRuntime, runtimeRequire } from './imports.js'
 import { logError } from './log.js'
 
 export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
@@ -173,6 +173,15 @@ export function execFileNoThrowWithCwd(
     maxBuffer: DEFAULT_MAX_BUFFER,
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
+  if (isBrowserRuntime()) {
+    return Promise.resolve({
+      stdout: '',
+      stderr: '',
+      code: 1,
+      error: 'Subprocess execution is not available in the browser WebUI',
+    })
+  }
+
   const executableError = validateExecutable(file)
   if (executableError) {
     return Promise.resolve({

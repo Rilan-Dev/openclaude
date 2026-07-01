@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import type { SuggestionItem } from '../PromptInput/PromptInputFooterSuggestions.js'
+import { PromptInputFooterSuggestions } from '../PromptInput/PromptInputFooterSuggestions.js'
 
 export type ClaudeStyleAttachedFile = {
   id: string
@@ -267,12 +268,12 @@ export function ClaudeStyleChatInput({
         if (event.dataTransfer.files.length > 0) handleFiles(event.dataTransfer.files)
       }}
     >
-      <div className="oc-claude-hero" aria-hidden="true" style={{paddingTop: 20}}>
-        {/* <ClaudeMark /> */}
+      {/* <div className="oc-claude-hero" aria-hidden="true" style={{paddingTop: 20}}>
+        <ClaudeMark />
         <h1>
           Good morning, <span>Saify</span>
         </h1>
-      </div>
+      </div> */}
 
       <div className="oc-claude-inputShell">
         {files.length > 0 ? (
@@ -374,6 +375,15 @@ export function ClaudeStyleChatInput({
         ) : null}
       </div>
 
+      {suggestions.length > 0 ? (
+        <div className="oc-claude-suggestions">
+          <PromptInputFooterSuggestions
+            suggestions={suggestions}
+            selectedSuggestion={selectedSuggestion}
+          />
+        </div>
+      ) : null}
+
       {commandArgumentHint ? (
         <div id="openclaude-prompt-command-hint" className="oc-claude-commandHint">
           Tab applies {commandArgumentHint}
@@ -384,14 +394,14 @@ export function ClaudeStyleChatInput({
         AI can make mistakes. Please check important information.
       </p>
 
-      <div className="oc-claude-quickActions" aria-hidden="true">
+      {/* <div className="oc-claude-quickActions" aria-hidden="true">
         {quickActions.map(action => (
           <button key={action.label} type="button" tabIndex={-1}>
             <action.icon size={17} strokeWidth={1.7} />
             <span>{action.label}</span>
           </button>
         ))}
-      </div>
+      </div> */}
     </div>
   )
 }

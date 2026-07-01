@@ -1,5 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
+import { setMainLoopModelOverride } from '../bootstrap/state.js'
 import { DEFAULT_CODEX_BASE_URL } from '../services/api/providerConfig.js'
 import { Box, Text } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -305,7 +306,7 @@ function canUseStreamlinedPresetFlow(draft: ProviderDraft): boolean {
 function profileSummary(profile: ProviderProfile, isActive: boolean): string {
   const activeSuffix = isActive ? ' (active)' : ''
   const keyInfo = profile.apiKey ? 'key set' : 'no key'
-  const routeId = resolveProfileRoute(profile.provider).routeId
+  const routeId = resolveProviderEditorRouteId(profile.provider, profile.baseUrl)
   const providerKind = getRouteProviderTypeLabel(routeId)
   const models = parseModelList(profile.model)
   const modelDisplay =
@@ -1093,6 +1094,16 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
   }, [draft.baseUrl, screen])
 
   function refreshProfiles(): void {
+    if (isBrowserRuntime()) {
+      const nextProfiles = getProviderProfiles()
+      setProfiles(nextProfiles)
+      setActiveProfileId(getActiveProviderProfile()?.id)
+      refreshGithubProviderState()
+      refreshCodexOAuthCredentialState()
+      refreshXaiOAuthCredentialState()
+      return
+    }
+
     // Defer sync I/O to next microtask to prevent UI freeze.
     // getProviderProfiles() and getActiveProviderProfile() read config files
     // synchronously, which can block the main thread on Windows (antivirus, disk cache).
@@ -1106,12 +1117,31 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       setActiveProfileId(getActiveProviderProfile()?.id)
       refreshGithubProviderState()
       refreshCodexOAuthCredentialState()
+      refreshXaiOAuthCredentialState()
       isRefreshingRef.current = false
     })
   }
 
   function clearStartupProviderOverrideFromUserSettings(): string | null {
     return clearStartupProviderOverrides()
+  }
+
+  function applyActiveProviderModelToSession(model: string): string {
+    const activeModel = getPrimaryModel(model)
+
+    // Apply immediately to the runtime selector used by useMainLoopModel().
+    // Relying only on AppState/onChangeAppState can leave the next WebUI turn
+    // on the previous startup model while the provider manager already says
+    // the new provider is active.
+    setMainLoopModelOverride(activeModel)
+    updateSettingsForSource('userSettings', { model: activeModel })
+    setAppState(prev => ({
+      ...prev,
+      mainLoopModel: activeModel,
+      mainLoopModelForSession: null,
+    }))
+
+    return activeModel
   }
 
   function formatWarningsForMessage(warnings: string[]): string {
@@ -1224,11 +1254,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
           return
         }
 
-        setAppState(prev => ({
-          ...prev,
-          mainLoopModel: GITHUB_PROVIDER_DEFAULT_MODEL,
-          mainLoopModelForSession: null,
-        }))
+        applyActiveProviderModelToSession(GITHUB_PROVIDER_DEFAULT_MODEL)
         refreshProfiles()
         setStatusMessage(`Active provider: ${GITHUB_PROVIDER_LABEL}`)
         setIsActivating(false)
@@ -1254,12 +1280,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       // persistActiveProviderProfileModel (called by onChangeAppState) will
       // not overwrite the multi-model list because it checks if the model
       // is already in the provider's configured model list.
-      const newModel = getPrimaryModel(active.model)
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: newModel,
-        mainLoopModelForSession: null,
-      }))
+      const newModel = applyActiveProviderModelToSession(active.model)
       providerLabel = active.name
       const settingsOverrideError =
         clearStartupProviderOverrideFromUserSettings()
@@ -1547,11 +1568,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
 
     const isActiveSavedProfile = getActiveProviderProfile()?.id === saved.id
     if (isActiveSavedProfile) {
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: getPrimaryModel(saved.model),
-        mainLoopModelForSession: null,
-      }))
+      applyActiveProviderModelToSession(saved.model)
     }
     const settingsOverrideError = isActiveSavedProfile
       ? clearStartupProviderOverrideFromUserSettings()
@@ -2035,6 +2052,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             description: option.description,
             disabled: option.disabled,
           }))}
+          className="repl-providerChoiceList repl-providerPresetList"
           onSelect={handlePresetSelect}
           onCancel={handlePresetCancel}
         />
@@ -2444,6 +2462,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             options={menuOptions}
             selectedValue={menuFocusValue}
             focusedValue={menuFocusValue}
+            className="repl-providerActionList"
             onSelect={handleMenuSelect}
             onCancel={() => closeWithCancelled('Provider manager closed')}
           />
@@ -2510,7 +2529,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
         profile.id === activeProfileId
           ? `${profile.name} (active)`
           : profile.name,
-      description: `${getRouteProviderTypeLabel(resolveProfileRoute(profile.provider).routeId)} · ${profile.baseUrl} · ${profile.model}`,
+      description: `${getRouteProviderTypeLabel(resolveProviderEditorRouteId(profile.provider, profile.baseUrl))} · ${profile.baseUrl} · ${profile.model}`,
     }))
 
     if (includeGithub && githubProviderAvailable) {
@@ -2567,9 +2586,11 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       return (
         <WebSelectList
           title={title}
+          subtitle="Choose the provider profile that should power this chat session."
           options={selectOptions}
           selectedValue={activeProfileId}
           focusedValue={activeProfileId}
+          className="repl-providerChoiceList"
           onSelect={onSelect}
           onCancel={() => returnToMenu()}
         />
@@ -2656,11 +2677,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             // (e.g. kimi-k2.6) and gets a 400 "Model not found" against
             // api.x.ai. Mirrors the activateSelectedProvider /
             // saveAndCloseProvider flows.
-            setAppState(prev => ({
-              ...prev,
-              mainLoopModel: getPrimaryModel(saved.model),
-              mainLoopModelForSession: null,
-            }))
+            applyActiveProviderModelToSession(saved.model)
             setHasStoredXaiOAuthCredentials(true)
             setStoredXaiOAuthProfileId(saved.id)
             refreshProfiles()
@@ -2743,6 +2760,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             const settingsOverrideError =
               clearStartupProviderOverrideFromUserSettings()
             const activationWarning = await activateCodexOAuthSession(tokens)
+            applyActiveProviderModelToSession(saved.model)
             setHasStoredCodexOAuthCredentials(true)
             setStoredCodexOAuthProfileId(saved.id)
             refreshProfiles()

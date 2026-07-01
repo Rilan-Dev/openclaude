@@ -9,6 +9,7 @@ import React, {
 } from 'react'
 import { feature } from 'bun:bundle'
 import { MailboxProvider } from '../context/mailbox.js'
+import { VoiceProvider as EnabledVoiceProvider } from '../context/voice.js'
 import { useEffectEventCompat } from '../hooks/useEffectEventCompat.js'
 import { useSettingsChange } from '../hooks/useSettingsChange.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -23,14 +24,11 @@ import { createStore } from './store.js'
 import type { AppState, AppStateStore } from './AppStateStore.js'
 import { getDefaultAppState } from './AppStateStore.js'
 
-// DCE: voice context is internal-only. External builds get a passthrough.
-/* eslint-disable @typescript-eslint/no-require-imports */
 const VoiceProvider: React.ComponentType<{
   children: React.ReactNode
 }> = feature('VOICE_MODE')
-  ? require('../context/voice.js').VoiceProvider
+  ? EnabledVoiceProvider
   : ({ children }) => children
-/* eslint-enable @typescript-eslint/no-require-imports */
 
 // TODO: Remove these re-exports once all callers import directly from
 // ./AppStateStore.js. Kept for back-compat during migration so .ts callers
@@ -77,7 +75,9 @@ function BrowserAppStateProvider({
   return (
     <HasAppStateContext.Provider value={true}>
       <AppStoreContext.Provider value={browserAppStore}>
-        <MailboxProvider>{children}</MailboxProvider>
+        <MailboxProvider>
+          <VoiceProvider>{children}</VoiceProvider>
+        </MailboxProvider>
       </AppStoreContext.Provider>
     </HasAppStateContext.Provider>
   )

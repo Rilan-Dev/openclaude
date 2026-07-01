@@ -15,7 +15,7 @@ import { useVoiceEnabled } from './useVoiceEnabled.js';
 
 // Dead code elimination: conditional import for voice input hook.
 /* eslint-disable @typescript-eslint/no-require-imports */
-const hasNodeRequire = typeof require === 'function'
+const hasNodeRequire = typeof require === 'function';
 // Capture the module namespace, not the function: spyOn() mutates the module
 // object, so `voiceNs.useVoice(...)` resolves to the spy even if this module
 // was loaded before the spy was installed (test ordering independence).

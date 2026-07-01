@@ -272,6 +272,7 @@ export function FullscreenLayout(t0) {
   const $ = _c(47);
   const {
     scrollable,
+    nonscrollable,
     bottom,
     overlay,
     bottomFloat,
@@ -350,16 +351,17 @@ export function FullscreenLayout(t0) {
           </div>
         </div></ModalContext.Provider> : null;
 
-    return <PromptOverlayProvider>
+    return <PromptOverlayProvider uiMode="web">
       <div className="repl-webFullscreen" data-has-overlay={overlay ? 'true' : undefined}>
-        <div className="repl-webAurora repl-webAuroraOne" />
-        <div className="repl-webAurora repl-webAuroraTwo" />
+        {/* <div className="repl-webAurora repl-webAuroraOne" />
+        <div className="repl-webAurora repl-webAuroraTwo" /> */}
         <main className="repl-webConversationWindow" aria-label="OpenClaude conversation">
           {headerPrompt ? <WebStickyPromptHeader text={headerPrompt.text} onClick={headerPrompt.scrollTo} /> : null}
           <section className="repl-webScrollPane">
             <ScrollChromeContext.Provider value={chromeCtx}>{scrollable}</ScrollChromeContext.Provider>
             {overlay ? <div className="repl-webInlineOverlay">{overlay}</div> : null}
           </section>
+          {nonscrollable}
           {!hidePill && newMessageCount > 0 && overlay == null ? <WebNewMessagesPill count={newMessageCount} onClick={onPillClick} /> : null}
           {bottomFloat != null ? <div className="repl-webBottomFloat">{bottomFloat}</div> : null}
         </main>

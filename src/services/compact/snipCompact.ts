@@ -97,8 +97,6 @@ export function shouldNudgeForSnips(messages: any[]): boolean {
 export function snipCompactIfNeeded(
   messages: any[],
 ): { messages: any[]; tokensFreed: number; boundaryMessage?: any } {
-  console.log('snipCompactIfNeeded messages ' , messages)
-  console.log('pendingSnipUuids.size === ' , pendingSnipUuids.size)
   if (pendingSnipUuids.size === 0) {
     return { messages, tokensFreed: 0 }
   }

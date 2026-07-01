@@ -16,6 +16,7 @@ import type { LogOption, SerializedMessage } from '../types/logs.js';
 import { formatLogMetadata, truncateToWidth } from '../utils/format.js';
 import { getWorktreePaths } from '../utils/getWorktreePaths.js';
 import { getBranch } from '../utils/git.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { getLogDisplayTitle } from '../utils/log.js';
 import { getFirstMeaningfulUserMessageTextContent, getSessionIdFromLog, isCustomTitleEnabled, saveCustomTitle } from '../utils/sessionStorage.js';
 import { getTheme } from '../utils/theme.js';
@@ -1245,7 +1246,7 @@ export function LogSelector(t0: LogSelectorProps) {
   if (logs.length === 0) {
     return null;
   }
-  if (viewMode === "preview" && previewLog && isResumeWithRenameEnabled) {
+  if (!isBrowserRuntime() && viewMode === "preview" && previewLog && isResumeWithRenameEnabled) {
     let t57;
     if ($[160] === Symbol.for("react.memo_cache_sentinel")) {
       t57 = () => {
@@ -1427,6 +1428,196 @@ export function LogSelector(t0: LogSelectorProps) {
     $[221] = t70;
   } else {
     t70 = $[221];
+  }
+  if (isBrowserRuntime()) {
+    const isSearchingMode = viewMode === "search";
+    const selectedIndex = Math.max(0, Math.min(focusedIndex - 1, displayedLogs.length - 1));
+    const selectedLog = displayedLogs[selectedIndex] ?? focusedLog ?? displayedLogs[0];
+    const focusWebLog = (log: LogOption, index: number) => {
+      const title = getLogDisplayTitle(log);
+      setFocusedIndex(index + 1);
+      setFocusedNode({
+        id: `web:${getSessionIdFromLog(log) ?? index}`,
+        value: {
+          log,
+          indexInFiltered: index
+        },
+        label: title
+      });
+    };
+
+    return <div className="repl-webResumePicker" role="dialog" aria-label="Resume session">
+      <div className="repl-webResumeHeader">
+        <div>
+          <p className="repl-webResumeEyebrow">Resume workspace</p>
+          <h2>Pick up a previous conversation</h2>
+        </div>
+        <button type="button" className="repl-webResumeGhostButton" onClick={onCancel}>
+          Esc
+          <span>Cancel</span>
+        </button>
+      </div>
+
+      <div className="repl-webResumeSearchRow">
+        <label className="repl-webResumeSearch">
+          <span>Search</span>
+          <input
+            value={searchQuery}
+            placeholder="Search title, branch, path, or transcript…"
+            autoFocus
+            onFocus={() => setViewMode("search")}
+            onChange={event => {
+              setViewMode("search");
+              setSearchQuery(event.currentTarget.value);
+            }}
+            onKeyDown={event => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                if (searchQuery) {
+                  setSearchQuery("");
+                  setViewMode("list");
+                } else {
+                  onCancel?.();
+                }
+              }
+              if (event.key === "Enter" && selectedLog) {
+                event.preventDefault();
+                onSelect(selectedLog);
+              }
+            }}
+          />
+        </label>
+        <div className="repl-webResumeFilterPills" aria-label="Active filters">
+          {showAllProjects ? <span>All projects</span> : <span>Current project</span>}
+          {branchFilterEnabled && currentBranch ? <span>{currentBranch}</span> : null}
+          {hasMultipleWorktrees && !showAllWorktrees ? <span>Current worktree</span> : null}
+        </div>
+      </div>
+
+      {viewMode === "rename" && focusedLog ? (
+        <div className="repl-webResumeRename">
+          <label>
+            <span>Rename session</span>
+            <input
+              value={renameValue}
+              placeholder={getLogDisplayTitle(focusedLog, "Enter new session name")}
+              onChange={event => {
+                setRenameValue(event.currentTarget.value);
+                setRenameCursorOffset(event.currentTarget.selectionStart ?? event.currentTarget.value.length);
+              }}
+              onKeyDown={event => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleRenameSubmit();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setViewMode("list");
+                }
+              }}
+            />
+          </label>
+          <button type="button" onClick={() => void handleRenameSubmit()}>
+            Save
+          </button>
+        </div>
+      ) : null}
+
+      {viewMode === "preview" && previewLog ? (
+        <div className="repl-webResumePreview">
+          <div>
+            <span>Preview</span>
+            <strong>{getLogDisplayTitle(previewLog)}</strong>
+            <small>{buildLogMetadata(previewLog, { showProjectPath: showAllProjects })}</small>
+          </div>
+          <div>
+            <button type="button" onClick={() => onSelect(previewLog)}>Resume</button>
+            <button type="button" onClick={() => {
+              setPreviewLog(null);
+              setViewMode("list");
+            }}>Close</button>
+          </div>
+        </div>
+      ) : null}
+
+      {agenticSearchState.status === "searching" ? (
+        <div className="repl-webResumeStatus">Searching with Claude…</div>
+      ) : null}
+
+      <div className="repl-webResumeBody">
+        <div className="repl-webResumeList" role="listbox" aria-label="Available sessions">
+          {displayedLogs.length === 0 ? (
+            <div className="repl-webResumeEmpty">No matching sessions found.</div>
+          ) : displayedLogs.map((log, index) => {
+            const isSelected = index === selectedIndex;
+            const metadata = buildLogMetadata(log, {
+              showProjectPath: showAllProjects
+            });
+            const title = getLogDisplayTitle(log);
+            const sessionId = getSessionIdFromLog(log);
+
+            return <button
+              key={`${sessionId ?? title}:${index}`}
+              type="button"
+              className="repl-webResumeCard"
+              data-selected={isSelected ? "true" : undefined}
+              role="option"
+              aria-selected={isSelected}
+              onMouseEnter={() => focusWebLog(log, index)}
+              onFocus={() => focusWebLog(log, index)}
+              onClick={() => onSelect(log)}
+            >
+              <span className="repl-webResumeCardAccent" aria-hidden="true" />
+              <span className="repl-webResumeCardMain">
+                <span className="repl-webResumeCardTitle">{title}</span>
+                <span className="repl-webResumeCardMeta">{metadata}</span>
+              </span>
+              <span className="repl-webResumeCardActions">
+                {isResumeWithRenameEnabled ? (
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    className="repl-webResumeMiniAction"
+                    onClick={event => {
+                      event.stopPropagation();
+                      focusWebLog(log, index);
+                      setRenameValue("");
+                      setViewMode("rename");
+                    }}
+                  >
+                    Rename
+                  </span>
+                ) : null}
+                {isResumeWithRenameEnabled ? (
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    className="repl-webResumeMiniAction"
+                    onClick={event => {
+                      event.stopPropagation();
+                      focusWebLog(log, index);
+                      setPreviewLog(log);
+                      setViewMode("preview");
+                    }}
+                  >
+                    Preview
+                  </span>
+                ) : null}
+                <span className="repl-webResumeEnter">Resume</span>
+              </span>
+            </button>;
+          })}
+        </div>
+      </div>
+
+      <div className="repl-webResumeFooter">
+        <span><kbd>Enter</kbd> resume selected</span>
+        {onToggleAllProjects ? <button type="button" onClick={onToggleAllProjects}>{showAllProjects ? "Current project" : "All projects"}</button> : null}
+        {currentBranch ? <button type="button" onClick={() => setBranchFilterEnabled(prev => !prev)}>Branch</button> : null}
+        {hasMultipleWorktrees ? <button type="button" onClick={() => setShowAllWorktrees(prev => !prev)}>Worktrees</button> : null}
+        <span><kbd>Esc</kbd> cancel</span>
+      </div>
+    </div>;
   }
   let t71;
   if ($[222] !== agenticSearchState.status || $[223] !== currentBranch || $[224] !== exitState.keyName || $[225] !== exitState.pending || $[226] !== getExpandCollapseHint || $[227] !== hasMultipleWorktrees || $[228] !== isAgenticSearchOptionFocused || $[229] !== isSearching || $[230] !== onToggleAllProjects || $[231] !== showAllProjects || $[232] !== showAllWorktrees || $[233] !== viewMode) {

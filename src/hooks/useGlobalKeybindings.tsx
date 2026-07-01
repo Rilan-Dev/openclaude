@@ -5,7 +5,7 @@
  * This component renders nothing - it just registers the keybinding handlers.
  */
 import { feature } from 'bun:bundle';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import instances from '../ink/instances.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
 import type { Screen } from '../screens/REPL.js';
@@ -13,6 +13,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growt
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../services/analytics/index.js';
 import { useAppState, useSetAppState } from '../state/AppState.js';
 import { count } from '../utils/array.js';
+import { isBrowserRuntime } from '../utils/imports.js';
 import { getTerminalPanel } from '../utils/terminalPanel.js';
 const hasNodeRequire = typeof require === 'function';
 type Props = {
@@ -186,6 +187,82 @@ export function GlobalKeybindingHandlers({
       });
     }
   }, [isBriefOnly, setAppState]);
+
+  useEffect(() => {
+    if (!isBrowserRuntime()) return;
+
+    const consume = (event: KeyboardEvent, handler: () => void) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      handler();
+    };
+
+    const handleBrowserKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
+
+      const key = event.key.toLowerCase();
+      const ctrlOrMeta = event.ctrlKey || event.metaKey;
+      const onlyPrimaryModifier =
+        ctrlOrMeta && !event.altKey && !event.shiftKey;
+
+      if (onlyPrimaryModifier && key === 'o') {
+        consume(event, handleToggleTranscript);
+        return;
+      }
+
+      if (onlyPrimaryModifier && key === 't') {
+        consume(event, handleToggleTodos);
+        return;
+      }
+
+      if (
+        feature('KAIROS') ||
+        feature('KAIROS_BRIEF')
+      ) {
+        if (ctrlOrMeta && event.shiftKey && !event.altKey && key === 'b') {
+          consume(event, handleToggleBrief);
+          return;
+        }
+      }
+
+      if (ctrlOrMeta && event.shiftKey && !event.altKey && key === 'o') {
+        consume(event, () => {
+          setAppState(prev => ({
+            ...prev,
+            showTeammateMessagePreview: !prev.showTeammateMessagePreview
+          }));
+        });
+        return;
+      }
+
+      if (screen !== 'transcript') return;
+
+      if (!virtualScrollActive && onlyPrimaryModifier && key === 'e') {
+        consume(event, handleToggleShowAll);
+        return;
+      }
+
+      if (!searchBarOpen && (event.key === 'Escape' || key === 'q')) {
+        consume(event, handleExitTranscript);
+      }
+    };
+
+    window.addEventListener('keydown', handleBrowserKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleBrowserKeyDown, true);
+    };
+  }, [
+    handleExitTranscript,
+    handleToggleBrief,
+    handleToggleShowAll,
+    handleToggleTodos,
+    handleToggleTranscript,
+    screen,
+    searchBarOpen,
+    setAppState,
+    virtualScrollActive
+  ]);
 
   // Register keybinding handlers
   useKeybinding('app:toggleTodos', handleToggleTodos, {

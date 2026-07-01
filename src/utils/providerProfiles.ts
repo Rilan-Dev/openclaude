@@ -805,7 +805,11 @@ export function applyProviderProfileToProcessEnv(profile: ProviderProfile): void
         openAIProfileEnv.FIREWORKS_API_KEY = profile.apiKey
       }
     }
-    if (route.gatewayId === 'nvidia-nim') {
+    if (
+      route.gatewayId === 'nvidia-nim' ||
+      profile.baseUrl.toLowerCase().includes('nvidia') ||
+      profile.baseUrl.toLowerCase().includes('integrate.api.nvidia')
+    ) {
       openAIProfileEnv.NVIDIA_NIM = '1'
     }
     if (profile.maxContextLength) {
@@ -1035,6 +1039,21 @@ function buildOpenAICompatibleStartupEnv(
     return null
   }
 
+  if (
+    activeProfile.baseUrl?.toLowerCase().includes('nvidia') ||
+    activeProfile.baseUrl?.toLowerCase().includes('integrate.api.nvidia')
+  ) {
+    const env = buildNvidiaNimProfileEnv({
+      model: getPrimaryModel(activeProfile.model),
+      baseUrl: activeProfile.baseUrl,
+      apiKey: activeProfile.apiKey,
+      processEnv: process.env,
+    })
+    if (env) {
+      return applySupportedProfileCustomHeaders(activeProfile, env)
+    }
+  }
+
   if (activeProfile.apiKey) {
     const strictEnv = buildOpenAIProfileEnv({
       goal: 'balanced',
@@ -1060,6 +1079,13 @@ function buildOpenAICompatibleStartupEnv(
       }
       if (isFireworksBaseUrl(activeProfile.baseUrl)) {
         strictEnv.FIREWORKS_API_KEY = activeProfile.apiKey
+      }
+      if (
+        activeProfile.baseUrl?.toLowerCase().includes('nvidia') ||
+        activeProfile.baseUrl?.toLowerCase().includes('integrate.api.nvidia')
+      ) {
+        strictEnv.NVIDIA_API_KEY = activeProfile.apiKey
+        strictEnv.NVIDIA_NIM = '1'
       }
       return applySupportedProfileCustomHeaders(activeProfile, strictEnv)
     }
@@ -1106,6 +1132,13 @@ function buildOpenAICompatibleStartupEnv(
     }
     if (isFireworksBaseUrl(activeProfile.baseUrl)) {
       env.FIREWORKS_API_KEY = activeProfile.apiKey
+    }
+    if (
+      activeProfile.baseUrl?.toLowerCase().includes('nvidia') ||
+      activeProfile.baseUrl?.toLowerCase().includes('integrate.api.nvidia')
+    ) {
+      env.NVIDIA_API_KEY = activeProfile.apiKey
+      env.NVIDIA_NIM = '1'
     }
   } else {
     delete env.OPENAI_API_KEY
@@ -1208,7 +1241,11 @@ function buildStartupProfileFromActiveProfile(
         })),
       }
     case 'openai': {
-      if (route.gatewayId === 'nvidia-nim') {
+      if (
+        route.gatewayId === 'nvidia-nim' ||
+        activeProfile.baseUrl?.toLowerCase().includes('nvidia') ||
+        activeProfile.baseUrl?.toLowerCase().includes('integrate.api.nvidia')
+      ) {
         const env =
           buildNvidiaNimProfileEnv({
             model: getPrimaryModel(activeProfile.model),

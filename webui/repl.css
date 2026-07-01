@@ -860,6 +860,131 @@
   color: rgba(148, 163, 184, 0.86);
 }
 
+.repl-webTerminalTitleBeacon {
+  position: relative;
+  z-index: 2;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  width: fit-content;
+  max-width: min(100%, 28rem);
+  margin: 0.75rem;
+  padding: 0.54rem 0.68rem;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(210, 153, 110, 0.18), transparent 8rem),
+    linear-gradient(180deg, rgba(20, 24, 34, 0.88), rgba(12, 16, 25, 0.72));
+  box-shadow:
+    0 18px 44px rgba(2, 6, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(18px) saturate(1.16);
+  animation: repl-title-beacon-in 220ms var(--ease-silk, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+.repl-webTerminalTitleBeacon[data-active='true'] {
+  border-color: rgba(210, 153, 110, 0.34);
+}
+
+.repl-webTerminalTitleBeacon[data-disabled='true'] {
+  opacity: 0.84;
+}
+
+.repl-webTerminalTitleOrb {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.2), transparent 42%),
+    linear-gradient(135deg, rgba(210, 153, 110, 0.36), rgba(210, 107, 79, 0.12));
+  color: #f3eadc;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow:
+    0 0 0 0 rgba(210, 153, 110, 0.34),
+    0 0 24px rgba(210, 153, 110, 0.26);
+}
+
+.repl-webTerminalTitleBeacon[data-active='true'] .repl-webTerminalTitleOrb {
+  animation:
+    repl-title-orb-pulse 1.85s ease-out infinite,
+    repl-title-orb-tilt 960ms steps(2, end) infinite;
+}
+
+.repl-webTerminalTitleCopy {
+  min-width: 0;
+  display: grid;
+  gap: 0.04rem;
+}
+
+.repl-webTerminalTitleLabel {
+  color: rgba(210, 153, 110, 0.9);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.repl-webTerminalTitleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(248, 250, 252, 0.94);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.repl-webTerminalTitleState {
+  padding: 0.25rem 0.54rem;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #dbeafe;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@keyframes repl-title-beacon-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes repl-title-orb-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(210, 153, 110, 0.34),
+      0 0 24px rgba(210, 153, 110, 0.26);
+  }
+  72%,
+  100% {
+    box-shadow:
+      0 0 0 0.58rem rgba(210, 153, 110, 0),
+      0 0 24px rgba(210, 153, 110, 0.26);
+  }
+}
+
+@keyframes repl-title-orb-tilt {
+  50% {
+    transform: rotate(8deg) scale(1.04);
+  }
+}
+
 .repl-webTranscriptFooter {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -1288,8 +1413,10 @@
 }
 
 .repl-suggestionDeck {
+  overflow-y: scroll;
   display: grid;
   gap: 0.7rem;
+  max-height: 10%;
   width: 100%;
 }
 
@@ -1828,6 +1955,282 @@
   line-height: 1.45;
 }
 
+.repl-providerManagerSurface {
+  width: 100%;
+  margin: 0;
+  padding: 0.62rem;
+  border-color: rgba(217, 119, 87, 0.18);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(145deg, rgba(48, 48, 46, 0.94), rgba(34, 34, 32, 0.94)),
+    rgba(33, 33, 33, 0.96);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.repl-providerManagerSurface .repl-webPickerKicker {
+  border-color: rgba(217, 119, 87, 0.28);
+  background: rgba(217, 119, 87, 0.1);
+  color: #f3c3a7;
+}
+
+.repl-providerManagerSurface .repl-webPickerHeader h2 {
+  color: #f4f1ea;
+  font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 820;
+  letter-spacing: -0.01em;
+}
+
+.repl-providerManagerSurface .repl-webPickerHeader p {
+  color: rgba(244, 241, 234, 0.68);
+  font-size: 0.78rem;
+}
+
+.repl-providerManagerSurface .repl-webPickerNotice {
+  border-color: rgba(217, 119, 87, 0.22);
+  background: rgba(217, 119, 87, 0.09);
+  color: rgba(244, 241, 234, 0.8);
+}
+
+.repl-providerManagerSurface .repl-providerProfileRow,
+.repl-providerManagerSurface .repl-providerProfileEmpty {
+  border-color: rgba(244, 241, 234, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.repl-providerManagerSurface .repl-providerProfileRow[data-active='true'] {
+  border-color: rgba(217, 119, 87, 0.32);
+  background:
+    linear-gradient(135deg, rgba(217, 119, 87, 0.13), rgba(255, 255, 255, 0.025)),
+    rgba(48, 48, 46, 0.7);
+}
+
+.repl-providerManagerSurface .repl-providerProfileStatus {
+  background: rgba(217, 119, 87, 0.12);
+  color: #f3c3a7;
+}
+
+.repl-providerManagerSurface > .repl-webPickerHeader {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.62rem;
+  row-gap: 0.12rem;
+  padding: 0.1rem 0.22rem 0.52rem;
+}
+
+.repl-providerManagerSurface > .repl-webPickerHeader .repl-webPickerKicker {
+  grid-row: span 2;
+}
+
+.repl-providerManagerSurface > .repl-webPickerHeader p {
+  grid-column: 2;
+}
+
+.repl-providerManagerSurface .repl-providerProfileStrip {
+  max-height: 5.8rem;
+  overflow-y: auto;
+  margin-bottom: 0.48rem;
+  padding-right: 0.12rem;
+}
+
+.repl-providerManagerSurface .repl-providerProfileRow,
+.repl-providerManagerSurface .repl-providerProfileEmpty {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.58rem;
+  border-radius: 0.72rem;
+}
+
+.repl-providerManagerSurface .repl-providerProfileStatus {
+  min-width: 3.4rem;
+  font-size: 0.58rem;
+}
+
+.repl-providerManagerSurface .repl-providerProfileRow strong {
+  font-size: 0.78rem;
+}
+
+.repl-providerManagerSurface .repl-providerProfileRow small,
+.repl-providerManagerSurface .repl-providerProfileEmpty {
+  font-size: 0.68rem;
+}
+
+.repl-providerActionList {
+  gap: 0.42rem;
+}
+
+.repl-providerActionList > .repl-webPickerHeader {
+  display: none;
+}
+
+.repl-providerPresetList {
+  width: 100%;
+  margin: 0;
+  padding: 0.62rem;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(145deg, rgba(48, 48, 46, 0.94), rgba(34, 34, 32, 0.94)),
+    rgba(33, 33, 33, 0.96);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.repl-commandSurface .repl-providerPresetList {
+  width: 100%;
+  padding: 0.62rem;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(145deg, rgba(48, 48, 46, 0.94), rgba(34, 34, 32, 0.94)),
+    rgba(33, 33, 33, 0.96);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: none;
+}
+
+.repl-providerPresetList > .repl-webPickerHeader {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.62rem;
+  row-gap: 0.12rem;
+  padding: 0.1rem 0.22rem 0.52rem;
+}
+
+.repl-providerPresetList > .repl-webPickerHeader .repl-webPickerKicker {
+  grid-row: span 2;
+  border-color: rgba(217, 119, 87, 0.28);
+  background: rgba(217, 119, 87, 0.1);
+  color: #f3c3a7;
+}
+
+.repl-providerPresetList > .repl-webPickerHeader h2 {
+  color: #f4f1ea;
+  font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 820;
+  letter-spacing: -0.01em;
+}
+
+.repl-providerPresetList > .repl-webPickerHeader p {
+  grid-column: 2;
+  color: rgba(244, 241, 234, 0.62);
+  font-size: 0.76rem;
+}
+
+.repl-providerActionList .repl-webPickerList,
+.repl-providerChoiceList .repl-webPickerList {
+  max-height: min(34vh, 17rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.18rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 119, 87, 0.34) rgba(255, 255, 255, 0.05);
+}
+
+.repl-providerActionList .repl-webPickerList::-webkit-scrollbar,
+.repl-providerChoiceList .repl-webPickerList::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.repl-providerActionList .repl-webPickerList::-webkit-scrollbar-track,
+.repl-providerChoiceList .repl-webPickerList::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.repl-providerActionList .repl-webPickerList::-webkit-scrollbar-thumb,
+.repl-providerChoiceList .repl-webPickerList::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(217, 119, 87, 0.36);
+}
+
+.repl-providerActionList .repl-webPickerOption,
+.repl-providerChoiceList .repl-webPickerOption {
+  min-height: 3.05rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.72rem;
+  padding: 0.55rem 0.64rem;
+  border-color: rgba(244, 241, 234, 0.08);
+  border-radius: 0.78rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(32, 32, 30, 0.78);
+  box-shadow: none;
+}
+
+.repl-providerActionList .repl-webPickerOption:hover,
+.repl-providerActionList .repl-webPickerOption:focus-visible,
+.repl-providerActionList .repl-webPickerOption[data-focused='true'],
+.repl-providerChoiceList .repl-webPickerOption:hover,
+.repl-providerChoiceList .repl-webPickerOption:focus-visible,
+.repl-providerChoiceList .repl-webPickerOption[data-focused='true'] {
+  border-color: rgba(217, 119, 87, 0.32);
+  background:
+    linear-gradient(135deg, rgba(217, 119, 87, 0.12), rgba(255, 255, 255, 0.025)),
+    rgba(38, 38, 36, 0.92);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.08);
+  transform: none;
+}
+
+.repl-providerActionList .repl-webPickerOption[data-selected='true'],
+.repl-providerChoiceList .repl-webPickerOption[data-selected='true'] {
+  border-color: rgba(210, 153, 110, 0.48);
+  background:
+    linear-gradient(135deg, rgba(210, 153, 110, 0.16), rgba(255, 255, 255, 0.025)),
+    rgba(48, 48, 46, 0.88);
+}
+
+.repl-providerActionList .repl-webPickerOptionMark,
+.repl-providerChoiceList .repl-webPickerOptionMark {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.48rem;
+  border-color: rgba(244, 241, 234, 0.1);
+  background: rgba(255, 255, 255, 0.055);
+  color: #d2996e;
+  font-size: 0.55rem;
+}
+
+.repl-providerActionList .repl-webPickerOptionTitle,
+.repl-providerChoiceList .repl-webPickerOptionTitle {
+  color: #f4f1ea;
+  font-size: 0.88rem;
+  white-space: normal;
+}
+
+.repl-providerActionList .repl-webPickerOptionDescription,
+.repl-providerChoiceList .repl-webPickerOptionDescription {
+  color: rgba(244, 241, 234, 0.58);
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.repl-promptOverlayDock:has(.repl-providerManagerSurface),
+.repl-promptOverlayDock:has(.repl-providerPresetList) {
+  width: min(calc(100vw - 2rem), 42rem);
+  gap: 0.4rem;
+}
+
+.repl-promptOverlayDock > .repl-commandSurface:has(.repl-providerManagerSurface),
+.repl-promptOverlayDock > .repl-commandSurface:has(.repl-providerPresetList) {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.repl-promptOverlayDock > .repl-commandSurface:has(.repl-providerManagerSurface) > .repl-providerManagerSurface,
+.repl-promptOverlayDock > .repl-commandSurface:has(.repl-providerPresetList) > .repl-providerPresetList {
+  animation: repl-provider-dropdown-in 150ms ease-out both;
+}
+
 .repl-promptFooterSuggestions,
 .repl-promptFooterHelp,
 .repl-promptFooterBar {
@@ -2199,6 +2602,20 @@
   }
 }
 
+@keyframes repl-provider-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.985);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 @keyframes repl-message-enter {
   from {
     opacity: 0;
@@ -2262,6 +2679,11 @@
   gap: 1rem;
   color: var(--oc-text);
   font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+.oc-claude-suggestions {
+  width: min(100%, 52.5rem);
+  margin: -0.55rem auto 0;
 }
 
 .oc-claude-hero {
@@ -2574,6 +2996,9 @@
 .repl-suggestionDeck {
   gap: 0.2rem;
   padding: 0.35rem;
+  max-height: min(22rem, 42vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0.95rem;
   background: rgba(38, 38, 36, 0.98);
@@ -2679,13 +3104,16 @@
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 1rem;
-  padding: clamp(1rem, 2.4vw, 2rem);
+  /* padding: clamp(1rem, 1.4vw, 2rem); */
   overflow: hidden;
   color: #ececec;
   background:
-    radial-gradient(circle at 18% 8%, rgba(217, 119, 87, 0.16), transparent 22rem),
-    radial-gradient(circle at 88% 14%, rgba(210, 153, 110, 0.13), transparent 20rem),
-    linear-gradient(145deg, #1f2020 0%, #212121 48%, #171818 100%);
+    linear-gradient(180deg, rgba(48, 48, 46, 0.72), rgba(33, 33, 33, 0.6)),
+    rgba(33, 33, 33, 0.72);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px);
   font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -2731,21 +3159,14 @@
 .repl-webConversationWindow {
   position: relative;
   z-index: 1;
-  min-height: 0;
-  width: min(100%, 72rem);
-  justify-self: center;
+  height: 100%;
+  width: min(100%, 40rem);
+  justify-self: left;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 2rem;
-  background:
-    linear-gradient(180deg, rgba(48, 48, 46, 0.72), rgba(33, 33, 33, 0.6)),
-    rgba(33, 33, 33, 0.72);
-  box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  backdrop-filter: blur(22px);
 }
 
 .repl-webScrollPane {
@@ -2793,6 +3214,300 @@
   max-width: min(100%, 54rem);
   padding: 0.18rem;
   color: rgba(236, 236, 236, 0.9);
+}
+
+.repl-webResumePicker {
+  width: min(100%, 64rem);
+  max-height: min(38rem, 72vh);
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 1rem;
+  margin: 0.35rem auto 0;
+  padding: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.55rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(217, 119, 87, 0.14), transparent 18rem),
+    linear-gradient(145deg, rgba(42, 42, 39, 0.96), rgba(25, 25, 24, 0.96));
+  box-shadow:
+    0 1.5rem 4rem rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  color: #ececec;
+}
+
+.repl-webResumeHeader,
+.repl-webResumeSearchRow,
+.repl-webResumeFooter,
+.repl-webResumeCard,
+.repl-webResumePreview,
+.repl-webResumeRename {
+  display: flex;
+  align-items: center;
+}
+
+.repl-webResumeHeader {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.repl-webResumeEyebrow {
+  margin: 0 0 0.28rem;
+  color: #d97757;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.repl-webResumeHeader h2 {
+  margin: 0;
+  font-family: Georgia, "Source Serif 4", "Times New Roman", serif;
+  font-size: clamp(1.35rem, 2.2vw, 2rem);
+  line-height: 1.05;
+}
+
+.repl-webResumeGhostButton,
+.repl-webResumeFooter button,
+.repl-webResumeRename button,
+.repl-webResumePreview button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(236, 236, 236, 0.9);
+}
+
+.repl-webResumeGhostButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.62rem;
+  font-weight: 800;
+}
+
+.repl-webResumeGhostButton span {
+  color: rgba(236, 236, 236, 0.62);
+  font-weight: 650;
+}
+
+.repl-webResumeSearchRow {
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.repl-webResumeSearch {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.repl-webResumeSearch span,
+.repl-webResumeRename label span {
+  color: rgba(236, 236, 236, 0.58);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.repl-webResumeSearch input,
+.repl-webResumeRename input {
+  width: 100%;
+  height: 2.65rem;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.95rem;
+  outline: none;
+  background: rgba(18, 18, 17, 0.72);
+  color: #f4f0ea;
+  padding: 0 0.95rem;
+}
+
+.repl-webResumeSearch input:focus,
+.repl-webResumeRename input:focus {
+  border-color: rgba(217, 119, 87, 0.58);
+  box-shadow: 0 0 0 0.22rem rgba(217, 119, 87, 0.12);
+}
+
+.repl-webResumeFilterPills,
+.repl-webResumeFooter {
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.repl-webResumeFilterPills span,
+.repl-webResumeFooter span,
+.repl-webResumeFooter button {
+  padding: 0.38rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(236, 236, 236, 0.68);
+  font-size: 0.78rem;
+}
+
+.repl-webResumeBody {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.repl-webResumeList {
+  max-height: min(23rem, 42vh);
+  display: grid;
+  gap: 0.55rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+}
+
+.repl-webResumeList::-webkit-scrollbar {
+  width: 0.7rem;
+}
+
+.repl-webResumeList::-webkit-scrollbar-thumb {
+  border: 0.22rem solid transparent;
+  border-radius: 999px;
+  background: rgba(217, 119, 87, 0.58);
+  background-clip: padding-box;
+}
+
+.repl-webResumeCard {
+  width: 100%;
+  min-width: 0;
+  gap: 0.72rem;
+  padding: 0.78rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(33, 33, 31, 0.74);
+  color: inherit;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.repl-webResumeCard:hover,
+.repl-webResumeCard[data-selected='true'] {
+  transform: translateY(-1px);
+  border-color: rgba(217, 119, 87, 0.42);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(217, 119, 87, 0.13), transparent 14rem),
+    rgba(43, 43, 40, 0.9);
+}
+
+.repl-webResumeCardAccent {
+  width: 0.54rem;
+  align-self: stretch;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.repl-webResumeCard[data-selected='true'] .repl-webResumeCardAccent {
+  background: #d97757;
+}
+
+.repl-webResumeCardMain {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.repl-webResumeCardTitle {
+  overflow: hidden;
+  color: #f4f0ea;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repl-webResumeCardMeta {
+  overflow: hidden;
+  color: rgba(236, 236, 236, 0.58);
+  font-size: 0.79rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repl-webResumeCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.repl-webResumeMiniAction,
+.repl-webResumeEnter {
+  padding: 0.34rem 0.52rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(236, 236, 236, 0.72);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.repl-webResumeEnter {
+  color: #f2c7ad;
+}
+
+.repl-webResumeRename,
+.repl-webResumePreview {
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(217, 119, 87, 0.18);
+  border-radius: 1rem;
+  background: rgba(217, 119, 87, 0.07);
+}
+
+.repl-webResumeRename label,
+.repl-webResumePreview > div:first-child {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.repl-webResumePreview span,
+.repl-webResumePreview small {
+  color: rgba(236, 236, 236, 0.58);
+}
+
+.repl-webResumePreview strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repl-webResumePreview > div:last-child {
+  display: inline-flex;
+  gap: 0.45rem;
+}
+
+.repl-webResumeRename button,
+.repl-webResumePreview button,
+.repl-webResumeFooter button {
+  padding: 0.45rem 0.7rem;
+}
+
+.repl-webResumeStatus,
+.repl-webResumeEmpty {
+  padding: 0.85rem;
+  border-radius: 1rem;
+  color: rgba(236, 236, 236, 0.66);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.repl-webResumeFooter {
+  justify-content: flex-start;
+  color: rgba(236, 236, 236, 0.62);
+}
+
+.repl-webResumeFooter kbd {
+  padding: 0.16rem 0.42rem;
+  border-radius: 0.45rem;
+  background: rgba(15, 23, 42, 0.62);
+  color: #dbeafe;
+  font-size: 0.7rem;
 }
 
 .repl-webNotification {
@@ -3005,6 +3720,34 @@
   background: rgba(236, 236, 236, 0.24);
 }
 
+.repl-webModalBackdrop:has(.repl-providerManagerSurface),
+.repl-webModalBackdrop:has(.repl-providerPresetList) {
+  z-index: 42;
+  place-items: end center;
+  padding: 0 1rem clamp(7.5rem, 16vh, 11rem);
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.repl-webModalPanel:has(.repl-providerManagerSurface),
+.repl-webModalPanel:has(.repl-providerPresetList) {
+  width: min(calc(100vw - 2rem), 42rem);
+  max-height: min(44vh, 24rem);
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+.repl-webModalPanel:has(.repl-providerManagerSurface) .repl-webModalHandle,
+.repl-webModalPanel:has(.repl-providerPresetList) .repl-webModalHandle {
+  display: none;
+}
+
 .repl-keybindingHud,
 .repl-mcpStatusPanel {
   position: fixed;
@@ -3017,6 +3760,28 @@
   background: rgba(38, 38, 36, 0.78);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(18px);
+}
+
+.repl-promptOverlayRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.repl-promptOverlayDock {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(5rem, 9vh, 8rem);
+  width: min(calc(100vw - 2rem), 58rem);
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.75rem;
+  pointer-events: auto;
+}
+
+.repl-promptOverlayDock .repl-commandSurface {
+  width: 100%;
 }
 
 .repl-keybindingHud {

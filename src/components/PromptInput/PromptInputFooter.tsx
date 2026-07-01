@@ -157,9 +157,7 @@ function PromptInputFooter({
   useSetPromptOverlay(overlayData);
   if (suggestions.length && !isFullscreen) {
     if (isBrowserRuntime()) {
-      return <div className="repl-promptFooterSuggestions">
-          <PromptInputFooterSuggestions suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} />
-        </div>;
+      return null;
     }
     return <Box paddingX={2} paddingY={0}>
         <PromptInputFooterSuggestions suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} />

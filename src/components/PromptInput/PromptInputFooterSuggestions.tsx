@@ -74,9 +74,6 @@ function BrowserSuggestionItemRow({
       data-unified={unified ? 'true' : undefined}
       role="option"
       aria-selected={isSelected}
-      style={{
-        maxWidth: getBrowserMaxWidth(maxColumnWidth),
-      }}
     >
       <div className="repl-suggestionItemMain">
         <span className="repl-suggestionIcon">{icon}</span>
@@ -251,7 +248,7 @@ export function PromptInputFooterSuggestions({
           width: '100%',
         }}
       >
-        {visibleItems.map(item => (
+        {suggestions.map(item => (
           <BrowserSuggestionItemRow
             key={`${item.id}:${item.id === suggestions[selectedSuggestion]?.id ? 'selected' : 'idle'}`}
             item={item}

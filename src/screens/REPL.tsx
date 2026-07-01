@@ -103,7 +103,8 @@ const hasNodeRequire = typeof require === 'function';
 const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
   stripTrailing: () => 0,
   handleKeyEvent: () => { },
-  resetAnchor: () => { }
+  resetAnchor: () => { },
+  interimRange: null
 });
 const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Dead code elimination: conditional import for coordinator mode
@@ -363,22 +364,6 @@ function TranscriptModeFooter(t0) {
   const toggleShortcut = useShortcutDisplay("app:toggleTranscript", "Global", "ctrl+o");
   const showAllShortcut = useShortcutDisplay("transcript:toggleShowAll", "Transcript", "ctrl+e");
   const t2 = searchBadge ? " \xB7 n/N to navigate" : virtualScroll ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · home/end top/bottom` : suppressShowAll ? "" : ` · ${showAllShortcut} to ${showAllInTranscript ? "collapse" : "show all"}`;
-  if (isBrowserRuntime()) {
-    const primaryHint = searchBadge ? 'n / N to navigate' : virtualScroll ? 'Mouse wheel, arrows, Home / End' : suppressShowAll ? 'Transcript controls minimized' : `${showAllShortcut} to ${showAllInTranscript ? 'collapse' : 'show all'}`;
-    const stateLabel = status ?? (searchBadge ? `${searchBadge.current}/${searchBadge.count} matches` : virtualScroll ? 'Full transcript' : showAllInTranscript ? 'Expanded transcript' : 'Focused transcript');
-    return <div className="repl-webTranscriptFooter" data-search={searchBadge ? 'true' : undefined}>
-      <div className="repl-webTranscriptFooterPulse" aria-hidden="true" />
-      <div className="repl-webTranscriptFooterCopy">
-        <span className="repl-webTranscriptFooterEyebrow">Transcript mode</span>
-        <span className="repl-webTranscriptFooterTitle">Detailed conversation view</span>
-      </div>
-      <div className="repl-webTranscriptFooterActions" aria-label="Transcript shortcuts">
-        <span className="repl-webTranscriptShortcut"><kbd>{toggleShortcut}</kbd><span>toggle</span></span>
-        <span className="repl-webTranscriptShortcut"><kbd>{primaryHint}</kbd></span>
-      </div>
-      <div className="repl-webTranscriptFooterStatus" aria-live="polite">{stateLabel}</div>
-    </div>;
-  }
   let t3;
   if ($[0] !== t2 || $[1] !== toggleShortcut) {
     t3 = <Text dimColor={true}>Showing detailed transcript · {toggleShortcut} to toggle{t2}</Text>;
@@ -538,12 +523,13 @@ function AnimatedTerminalTitle(t0) {
     noPrefix
   } = t0;
   const terminalFocused = useTerminalFocus();
+  const browserRuntime = isBrowserRuntime();
   const [frame, setFrame] = useState(0);
   let t1;
   let t2;
   if ($[0] !== disabled || $[1] !== isAnimating || $[2] !== noPrefix || $[3] !== terminalFocused) {
     t1 = () => {
-      if (disabled || noPrefix || !isAnimating || !terminalFocused) {
+      if ((!browserRuntime && (disabled || noPrefix)) || !isAnimating || !terminalFocused) {
         return;
       }
       const interval = setInterval(_temp2, TITLE_ANIMATION_INTERVAL_MS, setFrame);
@@ -574,6 +560,17 @@ function AnimatedTerminalTitle(t0) {
       }
     };
   }, [resolvedTitle]);
+  // if (browserRuntime) {
+  //   const visibleTitle = noPrefix ? title : `${prefix} ${title}`;
+  //   return <div className="repl-webTerminalTitleBeacon" data-active={isAnimating ? 'true' : undefined} data-disabled={disabled ? 'true' : undefined} aria-live="polite">
+  //     <span className="repl-webTerminalTitleOrb" aria-hidden="true">{prefix}</span>
+  //     <span className="repl-webTerminalTitleCopy">
+  //       <span className="repl-webTerminalTitleLabel">Browser title</span>
+  //       <span className="repl-webTerminalTitleText">{visibleTitle}</span>
+  //     </span>
+  //     <span className="repl-webTerminalTitleState">{disabled ? 'preview' : isAnimating ? 'live' : 'ready'}</span>
+  //   </div>;
+  // }
   return null;
 }
 function _temp2(setFrame_0) {

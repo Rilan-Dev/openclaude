@@ -2362,11 +2362,12 @@ function PromptInput({
     return (
       <div
         data-openclaude-web-prompt-composer
-        className="repl-composerShell"
+        // className="repl-composerShell"
         style={{
           width: '100%',
           boxSizing: 'border-box',
           display: 'grid',
+          padding: 20,
           gap: '0.9rem',
         }}
       >
@@ -2453,42 +2454,7 @@ function PromptInput({
           onOpenThinkingToggle={() => setShowThinkingToggle(true)}
         />
 
-        <PromptInputFooter
-          apiKeyStatus={apiKeyStatus}
-          debug={debug}
-          exitMessage={exitMessage}
-          vimMode={isVimModeEnabled() ? vimMode : undefined}
-          mode={mode}
-          autoUpdaterResult={autoUpdaterResult}
-          isAutoUpdating={isAutoUpdating}
-          verbose={verbose}
-          onAutoUpdaterResult={onAutoUpdaterResult}
-          onChangeIsUpdating={setIsAutoUpdating}
-          suggestions={suggestions}
-          selectedSuggestion={selectedSuggestion}
-          maxColumnWidth={maxColumnWidth}
-          toolPermissionContext={effectiveToolPermissionContext}
-          helpOpen={helpOpen}
-          suppressHint={input.length > 0}
-          isLoading={isLoading}
-          tasksSelected={tasksSelected}
-          teamsSelected={teamsSelected}
-          bridgeSelected={bridgeSelected}
-          tmuxSelected={tmuxSelected}
-          teammateFooterIndex={teammateFooterIndex}
-          ideSelection={ideSelection}
-          mcpClients={mcpClients}
-          isPasting={isPasting}
-          isInputWrapped={isInputWrapped}
-          messages={messages}
-          isSearching={isSearchingHistory}
-          historyQuery={historyQuery}
-          setHistoryQuery={setHistoryQuery}
-          historyFailedMatch={historyFailedMatch}
-          onOpenTasksDialog={
-            isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined
-          }
-        />
+      
 
         {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
       </div>

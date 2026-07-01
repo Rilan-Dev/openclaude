@@ -37,6 +37,7 @@ async function renderNoticePlainText(
 
 const SAVED_ARGV = process.argv
 const SAVED_API_KEY = process.env.ANTHROPIC_API_KEY
+const SAVED_OAUTH_TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN
 
 beforeEach(() => {
   // Reset argv each test so the dangerously-skip-permissions detector starts
@@ -55,7 +56,31 @@ afterEach(() => {
   } else {
     process.env.ANTHROPIC_API_KEY = SAVED_API_KEY
   }
+  if (SAVED_OAUTH_TOKEN === undefined) {
+    delete process.env.CLAUDE_CODE_OAUTH_TOKEN
+  } else {
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = SAVED_OAUTH_TOKEN
+  }
   mock.restore()
+})
+
+describe('Anthropic auth conflict notices', () => {
+  test('suppressed on NVIDIA NIM even when Anthropic token and API key env vars exist', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test'
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = 'oauth-test-token'
+    mock.module('./model/providers.js', () => ({
+      getAPIProvider: () => 'nvidia-nim',
+    }))
+
+    const { getActiveNotices: freshGetActiveNotices } = await import(
+      `./statusNoticeDefinitions.js?ts=${Date.now()}`
+    )
+    const ids = freshGetActiveNotices(buildContext()).map((n: { id: string }) => n.id)
+
+    expect(ids).not.toContain('claude-ai-external-token')
+    expect(ids).not.toContain('api-key-conflict')
+    expect(ids).not.toContain('both-auth-methods')
+  })
 })
 
 describe('third-party permissive mode notice (#244 finding 1)', () => {

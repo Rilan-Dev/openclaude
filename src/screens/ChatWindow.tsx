@@ -103,7 +103,8 @@ const hasNodeRequire = typeof require === 'function';
 const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
     stripTrailing: () => 0,
     handleKeyEvent: () => { },
-    resetAnchor: () => { }
+    resetAnchor: () => { },
+    interimRange: null
 });
 const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Dead code elimination: conditional import for coordinator mode
@@ -538,12 +539,13 @@ function AnimatedTerminalTitle(t0) {
         noPrefix
     } = t0;
     const terminalFocused = useTerminalFocus();
+    const browserRuntime = isBrowserRuntime();
     const [frame, setFrame] = useState(0);
     let t1;
     let t2;
     if ($[0] !== disabled || $[1] !== isAnimating || $[2] !== noPrefix || $[3] !== terminalFocused) {
         t1 = () => {
-            if (disabled || noPrefix || !isAnimating || !terminalFocused) {
+            if ((!browserRuntime && (disabled || noPrefix)) || !isAnimating || !terminalFocused) {
                 return;
             }
             const interval = setInterval(_temp2, TITLE_ANIMATION_INTERVAL_MS, setFrame);
@@ -574,6 +576,17 @@ function AnimatedTerminalTitle(t0) {
             }
         };
     }, [resolvedTitle]);
+    // if (browserRuntime) {
+    //     const visibleTitle = noPrefix ? title : `${prefix} ${title}`;
+    //     return <div className="repl-webTerminalTitleBeacon" data-active={isAnimating ? 'true' : undefined} data-disabled={disabled ? 'true' : undefined} aria-live="polite">
+    //         <span className="repl-webTerminalTitleOrb" aria-hidden="true">{prefix}</span>
+    //         <span className="repl-webTerminalTitleCopy">
+    //             <span className="repl-webTerminalTitleLabel">Browser title</span>
+    //             <span className="repl-webTerminalTitleText">{visibleTitle}</span>
+    //         </span>
+    //         <span className="repl-webTerminalTitleState">{disabled ? 'preview' : isAnimating ? 'live' : 'ready'}</span>
+    //     </div>;
+    // }
     return null;
 }
 function _temp2(setFrame_0) {
@@ -4828,10 +4841,20 @@ export function ChatWindow({
         {feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? <MessageActionsKeybindings handlers={messageActionHandlers} isActive={cursor !== null} /> : null}
         <CancelRequestHandler {...cancelRequestProps} />
         <MCPConnectionManager key={remountKey} dynamicMcpConfig={dynamicMcpConfig} isStrictMcpConfig={strictMcpConfig}>
-            <FullscreenLayout scrollRef={scrollRef} overlay={toolPermissionOverlay} bottomFloat={isBuddyEnabled() && companionVisible && !companionNarrow ? <CompanionFloatingBubble /> : undefined} modal={centeredModal} modalScrollRef={modalScrollRef} dividerYRef={dividerYRef} hidePill={!!viewedAgentTask} hideSticky={!!viewedTeammateTask} newMessageCount={unseenDivider?.count ?? 0} onPillClick={() => {
-                setCursor(null);
-                jumpToNew(scrollRef.current);
-            }}
+            <FullscreenLayout
+                scrollRef={scrollRef}
+                overlay={toolPermissionOverlay}
+                bottomFloat={isBuddyEnabled() && companionVisible && !companionNarrow ? <CompanionFloatingBubble /> : undefined}
+                modal={centeredModal}
+                modalScrollRef={modalScrollRef}
+                dividerYRef={dividerYRef}
+                hidePill={!!viewedAgentTask}
+                hideSticky={!!viewedTeammateTask}
+                newMessageCount={unseenDivider?.count ?? 0}
+                onPillClick={() => {
+                    setCursor(null);
+                    jumpToNew(scrollRef.current);
+                }}
                 scrollable={
                     <>
                         <TeammateViewHeader />
@@ -4861,8 +4884,9 @@ export function ChatWindow({
                         {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
                     </>
                 }
-                bottom={
+                nonscrollable={
                     <Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
+                        <CompanionFloatingBubble />
                         {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
                         <Box flexDirection="column" flexGrow={1}>
                             {permissionStickyFooter}
@@ -5277,21 +5301,11 @@ export function ChatWindow({
         </MCPConnectionManager>
     </KeybindingSetup>;
 
-    return (
-        // <div>
-        //     {isFullscreenEnvEnabled() ? (
-        //         <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
-        //             {mainReturn}
-        //         </AlternateScreen>
-        //     ) : (
-        //         mainReturn
-        //     )}
-        // </div>
-
-        <div>
-            <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
-        </div>
-    );
+    return <div>
+        {isFullscreenEnvEnabled() ? <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
+            {mainReturn}
+        </AlternateScreen> : mainReturn}
+    </div>;
 }
 
 export default ChatWindow;

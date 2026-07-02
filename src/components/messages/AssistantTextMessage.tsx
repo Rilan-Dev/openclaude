@@ -9,6 +9,7 @@ import { API_ERROR_MESSAGE_PREFIX, API_TIMEOUT_ERROR_MESSAGE, CREDIT_BALANCE_TOO
 import { isEmptyMessageText, NO_RESPONSE_REQUESTED } from '../../utils/messages.js';
 import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js';
 import { getDefaultSonnetModel, renderModelName } from '../../utils/model/model.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { isMacOsKeychainLocked } from '../../utils/secureStorage/macOsKeychainStorage.js';
 import { CtrlOToExpand } from '../CtrlOToExpand.js';
 import { InterruptedByUser } from '../InterruptedByUser.js';
@@ -224,6 +225,9 @@ export function AssistantTextMessage(t0) {
             t5 = $[21];
           }
           return t5;
+        }
+        if (isBrowserRuntime()) {
+          return <div className="oc-assistantText" data-selected={isSelected ? 'true' : undefined}><Markdown>{text}</Markdown></div>;
         }
         const t2 = addMargin ? 1 : 0;
         const t3 = isSelected ? "messageActionsBackground" : undefined;

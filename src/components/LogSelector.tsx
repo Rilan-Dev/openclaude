@@ -18,6 +18,7 @@ import { getWorktreePaths } from '../utils/getWorktreePaths.js';
 import { getBranch } from '../utils/git.js';
 import { getLogDisplayTitle } from '../utils/log.js';
 import { getFirstMeaningfulUserMessageTextContent, getSessionIdFromLog, isCustomTitleEnabled, saveCustomTitle } from '../utils/sessionStorage.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { getTheme } from '../utils/theme.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select, type OptionWithDescription } from './CustomSelect/select.js';
@@ -1317,6 +1318,48 @@ export function LogSelector(t0: LogSelectorProps) {
       t58 = $[163];
     }
     return t58;
+  }
+  if (isBrowserRuntime()) {
+    const visibleLogs = displayedLogs;
+    const countLabel = visibleLogs.length === 1 ? "1 session" : `${visibleLogs.length} sessions`;
+    const activeTitle = focusedLog ? getResumeLogDisplayTitle(focusedLog) : "";
+    return <div className="oc-resumePicker" role="dialog" aria-label="Resume conversation">
+        <div className="oc-resumePickerHeader">
+          <div>
+            <span className="oc-resumePickerKicker">Conversation history</span>
+            <h2>Resume session</h2>
+          </div>
+          <span className="oc-resumePickerCount">{countLabel}</span>
+        </div>
+        <div className="oc-resumeSearch">
+          <span>Search</span>
+          <input value={searchQuery} placeholder="Find a previous conversation..." onChange={event => {
+            setSearchQuery(event.target.value);
+            setViewMode("search");
+          }} onFocus={() => setViewMode("search")} />
+        </div>
+        {filterIndicators.length > 0 ? <div className="oc-resumeFilters">{filterIndicators.map(filter => <span key={filter}>{filter}</span>)}</div> : null}
+        {agenticSearchState.status === "searching" ? <div className="oc-resumeNotice">Searching conversations...</div> : null}
+        {visibleLogs.length === 0 ? <div className="oc-resumeEmpty">No matching sessions found.</div> : <div className="oc-resumeList">
+            {visibleLogs.map((log, index) => {
+              const title = getResumeLogDisplayTitle(log);
+              const metadata = formatLogMetadata(log);
+              const selected = activeTitle === title || focusedIndex === index + 1;
+              const snippet = snippetMap.get(log);
+              return <button key={`${log.sessionId ?? title}-${index}`} type="button" className="oc-resumeItem" data-selected={selected ? "true" : undefined} onMouseEnter={() => setFocusedIndex(index + 1)} onFocus={() => setFocusedIndex(index + 1)} onClick={() => onSelect(log)}>
+                  <span className="oc-resumeItemTitle">{title || "Untitled conversation"}</span>
+                  {snippet ? <span className="oc-resumeItemSnippet">{snippet.before}{snippet.match}{snippet.after}</span> : null}
+                  <span className="oc-resumeItemMeta">{metadata}{log.projectPath ? ` · ${log.projectPath}` : ""}</span>
+                </button>;
+            })}
+          </div>}
+        <div className="oc-resumePickerFooter">
+          <button type="button" onClick={() => setViewMode("list")}>Clear search</button>
+          {onToggleAllProjects ? <button type="button" onClick={onToggleAllProjects}>{showAllProjects ? "Current project" : "All projects"}</button> : null}
+          {onLoadMore ? <button type="button" onClick={() => onLoadMore(20)}>Load more</button> : null}
+          {onCancel ? <button type="button" onClick={onCancel}>Cancel</button> : null}
+        </div>
+      </div>;
   }
   const t57 = maxHeight - 1;
   let t58;

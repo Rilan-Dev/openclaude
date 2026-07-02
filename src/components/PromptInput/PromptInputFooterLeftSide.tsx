@@ -34,6 +34,7 @@ import { VoiceWarmupHint } from './VoiceIndicator.js';
 import { useVoiceEnabled } from '../../hooks/useVoiceEnabled.js';
 import { useVoiceState } from '../../context/voice.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { isXtermJs } from '../../ink/terminal.js';
 import { useHasSelection, useSelection } from '../../ink/hooks/use-selection.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
@@ -68,6 +69,7 @@ type Props = {
   setHistoryQuery: (query: string) => void;
   historyFailedMatch: boolean;
   onOpenTasksDialog?: (taskId?: string) => void;
+  onCycleMode?: () => void;
 };
 function ProactiveCountdown() {
   const $ = _c(7);
@@ -122,104 +124,56 @@ function ProactiveCountdown() {
   }
   return t4;
 }
-export function PromptInputFooterLeftSide(t0) {
-  const $ = _c(27);
-  const {
-    exitMessage,
-    vimMode,
-    mode,
-    toolPermissionContext,
-    suppressHint,
-    isLoading,
-    tasksSelected,
-    teamsSelected,
-    tmuxSelected,
-    teammateFooterIndex,
-    isPasting,
-    isSearching,
-    historyQuery,
-    setHistoryQuery,
-    historyFailedMatch,
-    onOpenTasksDialog
-  } = t0;
+export function PromptInputFooterLeftSide({
+  exitMessage,
+  vimMode,
+  mode,
+  toolPermissionContext,
+  suppressHint,
+  isLoading,
+  tasksSelected,
+  teamsSelected,
+  teammateFooterIndex,
+  isPasting,
+  isSearching,
+  historyQuery,
+  setHistoryQuery,
+  historyFailedMatch,
+  onOpenTasksDialog,
+  onCycleMode,
+}: Props) {
   if (exitMessage.show) {
-    let t1;
-    if ($[0] !== exitMessage.key) {
-      t1 = <Text dimColor={true} key="exit-message">Press {exitMessage.key} again to exit</Text>;
-      $[0] = exitMessage.key;
-      $[1] = t1;
-    } else {
-      t1 = $[1];
-    }
-    return t1;
+    return <Text dimColor key="exit-message">Press {exitMessage.key} again to exit</Text>;
   }
+
   if (isPasting) {
-    let t1;
-    if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-      t1 = <Text dimColor={true} key="pasting-message">Pasting text…</Text>;
-      $[2] = t1;
-    } else {
-      t1 = $[2];
-    }
-    return t1;
+    return <Text dimColor key="pasting-message">Pasting text…</Text>;
   }
-  let t1;
-  if ($[3] !== isSearching || $[4] !== vimMode) {
-    t1 = isVimModeEnabled() && vimMode === "INSERT" && !isSearching;
-    $[3] = isSearching;
-    $[4] = vimMode;
-    $[5] = t1;
-  } else {
-    t1 = $[5];
-  }
-  const showVim = t1;
-  let t2;
-  if ($[6] !== historyFailedMatch || $[7] !== historyQuery || $[8] !== isSearching || $[9] !== setHistoryQuery) {
-    t2 = isSearching && <HistorySearchInput value={historyQuery} onChange={setHistoryQuery} historyFailedMatch={historyFailedMatch} />;
-    $[6] = historyFailedMatch;
-    $[7] = historyQuery;
-    $[8] = isSearching;
-    $[9] = setHistoryQuery;
-    $[10] = t2;
-  } else {
-    t2 = $[10];
-  }
-  let t3;
-  if ($[11] !== showVim) {
-    t3 = showVim ? <Text dimColor={true} key="vim-insert">-- INSERT --</Text> : null;
-    $[11] = showVim;
-    $[12] = t3;
-  } else {
-    t3 = $[12];
-  }
-  const t4 = !suppressHint && !showVim;
-  let t5;
-  if ($[13] !== isLoading || $[14] !== mode || $[15] !== onOpenTasksDialog || $[16] !== t4 || $[17] !== tasksSelected || $[18] !== teammateFooterIndex || $[19] !== teamsSelected || $[20] !== tmuxSelected || $[21] !== toolPermissionContext) {
-    t5 = <ModeIndicator mode={mode} toolPermissionContext={toolPermissionContext} showHint={t4} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} onOpenTasksDialog={onOpenTasksDialog} />;
-    $[13] = isLoading;
-    $[14] = mode;
-    $[15] = onOpenTasksDialog;
-    $[16] = t4;
-    $[17] = tasksSelected;
-    $[18] = teammateFooterIndex;
-    $[19] = teamsSelected;
-    $[20] = tmuxSelected;
-    $[21] = toolPermissionContext;
-    $[22] = t5;
-  } else {
-    t5 = $[22];
-  }
-  let t6;
-  if ($[23] !== t2 || $[24] !== t3 || $[25] !== t5) {
-    t6 = <Box justifyContent="flex-start" gap={1}>{t2}{t3}{t5}</Box>;
-    $[23] = t2;
-    $[24] = t3;
-    $[25] = t5;
-    $[26] = t6;
-  } else {
-    t6 = $[26];
-  }
-  return t6;
+
+  const showVim = isVimModeEnabled() && vimMode === 'INSERT' && !isSearching;
+  const showHint = !suppressHint && !showVim;
+  const historySearch = isSearching
+    ? <HistorySearchInput value={historyQuery} onChange={setHistoryQuery} historyFailedMatch={historyFailedMatch} />
+    : null;
+  const vimIndicator = showVim ? <Text dimColor key="vim-insert">-- INSERT --</Text> : null;
+
+  return (
+    <Box justifyContent="flex-start" gap={1}>
+      {historySearch}
+      {vimIndicator}
+      <ModeIndicator
+        mode={mode}
+        toolPermissionContext={toolPermissionContext}
+        showHint={showHint}
+        isLoading={isLoading}
+        tasksSelected={tasksSelected}
+        teamsSelected={teamsSelected}
+        teammateFooterIndex={teammateFooterIndex}
+        onOpenTasksDialog={onOpenTasksDialog}
+        onCycleMode={onCycleMode}
+      />
+    </Box>
+  );
 }
 type ModeIndicatorProps = {
   mode: PromptInputMode;
@@ -230,6 +184,7 @@ type ModeIndicatorProps = {
   teamsSelected: boolean;
   teammateFooterIndex?: number;
   onOpenTasksDialog?: (taskId?: string) => void;
+  onCycleMode?: () => void;
 };
 function ModeIndicator({
   mode,
@@ -239,7 +194,8 @@ function ModeIndicator({
   tasksSelected,
   teamsSelected,
   teammateFooterIndex,
-  onOpenTasksDialog
+  onOpenTasksDialog,
+  onCycleMode
 }: ModeIndicatorProps): React.ReactNode {
   const {
     columns
@@ -310,6 +266,12 @@ function ModeIndicator({
   // In-process mode uses Shift+Down/Up navigation, not footer teams menu
   const hasTeams = isAgentSwarmsEnabled() && !isInProcessEnabled() && teamContext !== undefined && count(Object.values(teamContext.teammates), t_0 => t_0.name !== 'team-lead') > 0;
   if (mode === 'bash') {
+    if (isBrowserRuntime()) {
+      return <div className="repl-promptFooterModeCluster" data-mode="bash">
+          <span className="repl-promptFooterModeDot" />
+          <span className="repl-promptFooterModeLabel">Bash mode</span>
+        </div>;
+    }
     return <Text color="bashBorder">! for bash mode</Text>;
   }
   const currentMode = toolPermissionContext?.mode;
@@ -348,6 +310,31 @@ function ModeIndicator({
             <KeyboardShortcutHint shortcut={modeCycleShortcut} action="cycle" parens />
           </Text>}
       </Text> : null;
+
+  if (isBrowserRuntime()) {
+    const modeLabel = currentMode ? permissionModeTitle(currentMode) : 'Default';
+    const modeTone = currentMode && hasActiveMode ? currentMode : 'default';
+    const isRemote = getIsRemoteMode();
+    const canCycleMode = !isRemote && typeof onCycleMode === 'function';
+    const detail = isRemote
+      ? 'Remote session'
+      : currentMode && hasActiveMode
+        ? 'Tool approvals active'
+        : 'Standard approvals';
+
+    return (
+      <div className="repl-promptFooterModeCluster" data-mode={modeTone}>
+        <span className="repl-promptFooterModeDot" />
+        <span className="repl-promptFooterModeLabel">{modeLabel}</span>
+        <span className="repl-promptFooterModeDetail">{detail}</span>
+        {canCycleMode ? (
+          <button type="button" className="repl-promptFooterModeButton" onClick={onCycleMode} title={`Cycle mode (${modeCycleShortcut})`}>
+            Switch
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   // Build parts array - exclude BackgroundTaskStatus when we have teammate pills
   // (teammate pills get their own row)

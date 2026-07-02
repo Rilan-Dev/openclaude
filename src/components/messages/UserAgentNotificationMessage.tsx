@@ -4,6 +4,7 @@ import * as React from 'react';
 import { BLACK_CIRCLE } from '../../constants/figures.js';
 import { Box, Text, type TextProps } from '../../ink.js';
 import { extractTag } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 type Props = {
   addMargin: boolean;
   param: TextBlockParam;
@@ -51,6 +52,18 @@ export function UserAgentNotificationMessage(t0) {
     t3 = $[3];
   }
   const color = t3;
+  if (isBrowserRuntime()) {
+    const status = extractTag(text, 'status') ?? 'completed';
+    return (
+      <div className="oc-agentNotificationCard" data-status={status}>
+        <span className="oc-agentNotificationDot" />
+        <div>
+          <div className="oc-agentNotificationTitle">{status === 'completed' ? 'Agent completed' : 'Agent update'}</div>
+          <div className="oc-agentNotificationSummary">{summary}</div>
+        </div>
+      </div>
+    );
+  }
   const t4 = addMargin ? 1 : 0;
   let t5;
   if ($[4] !== color) {

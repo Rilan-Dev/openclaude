@@ -8,8 +8,73 @@ import { Text } from '../../ink.js';
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js';
 import { formatFileSize } from '../../utils/format.js';
 import { getPlansDirectory } from '../../utils/plans.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js';
 import type { Input, Output } from './FileReadTool.js';
+
+const BROWSER_READ_PREVIEW_CHAR_LIMIT = 120_000;
+
+function formatReadPreviewContent(content: string, startLine: number): {
+  content: string;
+  isTruncated: boolean;
+} {
+  const visibleContent = content.length > BROWSER_READ_PREVIEW_CHAR_LIMIT ? content.slice(0, BROWSER_READ_PREVIEW_CHAR_LIMIT) : content;
+  const lineCount = visibleContent.split('\n').length;
+  const lineNumberWidth = String(startLine + Math.max(lineCount - 1, 0)).length;
+  const numberedContent = visibleContent.split('\n').map((line, index) => {
+    const lineNumber = String(startLine + index).padStart(lineNumberWidth, ' ');
+    return `${lineNumber}  ${line}`;
+  }).join('\n');
+
+  return {
+    content: numberedContent,
+    isTruncated: visibleContent.length < content.length,
+  };
+}
+
+function BrowserReadPreview({
+  filePath,
+  content,
+  numLines,
+  startLine,
+  totalLines,
+}: {
+  filePath: string;
+  content: string;
+  numLines: number;
+  startLine: number;
+  totalLines: number;
+}): React.ReactNode {
+  const preview = formatReadPreviewContent(content, startLine);
+  const lineRange = numLines > 0 ? `lines ${startLine}-${startLine + numLines - 1}` : '0 lines';
+
+  return (
+    <MessageResponse>
+      <div className="oc-toolResultPreview oc-toolResultPreview--read">
+        <div className="oc-toolResultPreviewHeader">
+          <div>
+            <div className="oc-toolResultPreviewKicker">Read</div>
+            <div className="oc-toolResultPreviewTitle">{getDisplayPath(filePath)}</div>
+          </div>
+          <div className="oc-toolResultPreviewMeta">
+            <span>{lineRange}</span>
+            <span>{totalLines} total</span>
+          </div>
+        </div>
+        <div className="oc-toolResultPreviewBody">
+          {content ? (
+            <pre>{preview.content}</pre>
+          ) : (
+            <div className="oc-toolResultPreviewEmpty">The file exists, but this range returned no readable content.</div>
+          )}
+        </div>
+        {preview.isTruncated ? (
+          <div className="oc-toolResultPreviewTruncated">Preview truncated for browser performance. The full content is still available to the model.</div>
+        ) : null}
+      </div>
+    </MessageResponse>
+  );
+}
 
 /**
  * Check if a file path is an agent output file and extract the task ID.
@@ -124,8 +189,15 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
     case 'text':
       {
         const {
-          numLines
+          content,
+          filePath,
+          numLines,
+          startLine,
+          totalLines
         } = output.file;
+        if (isBrowserRuntime()) {
+          return <BrowserReadPreview filePath={filePath} content={content} numLines={numLines} startLine={startLine} totalLines={totalLines} />;
+        }
         return <MessageResponse height={1}>
           <Text>
             Read <Text bold>{numLines}</Text>{' '}

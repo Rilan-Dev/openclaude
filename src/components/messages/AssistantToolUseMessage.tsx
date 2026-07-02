@@ -13,6 +13,7 @@ import type { ProgressMessage } from '../../types/message.js';
 import { useIsClassifierChecking } from '../../utils/classifierApprovalsHook.js';
 import { logError } from '../../utils/log.js';
 import type { buildMessageLookups } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { MessageResponse } from '../MessageResponse.js';
 import { useSelectedMessageBg } from '../messageActions.js';
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js';
@@ -269,6 +270,24 @@ export function AssistantToolUseMessage(t0) {
     $[72] = t14;
   } else {
     t14 = $[72];
+  }
+  if (isBrowserRuntime()) {
+    const toolState = lookups.erroredToolUseIDs.has(param.id)
+      ? "error"
+      : isResolved
+        ? "done"
+        : isQueued
+          ? "queued"
+          : "running";
+    return <div className="oc-toolCallCard" data-tool-state={toolState}>
+        <div className="oc-toolCallHeader">
+          <span className="oc-toolCallStatus" />
+          <span className="oc-toolCallName">{userFacingToolName}</span>
+          {renderedToolUseMessage !== "" ? <span className="oc-toolCallSummary">{renderedToolUseMessage}</span> : null}
+        </div>
+        {t13 ? <div className="oc-toolCallBody">{t13}</div> : null}
+        {t14 ? <div className="oc-toolCallBody">{t14}</div> : null}
+      </div>;
   }
   let t15;
   if ($[73] !== t12 || $[74] !== t13 || $[75] !== t14) {

@@ -66,6 +66,7 @@ import {
   saveGeminiAccessToken,
 } from '../../utils/geminiCredentials.js'
 import { isBareMode } from '../../utils/envUtils.js'
+import { isBrowserRuntime } from '../../utils/runtime.js'
 import {
   getGoalDefaultOpenAIModel,
   normalizeRecommendationGoal,
@@ -1130,6 +1131,29 @@ function CodexOAuthStep({
     onAuthenticated: handleAuthenticated,
   })
 
+  if (isBrowserRuntime()) {
+    return (
+      <ProviderCommandOAuthPanel
+        title={status.state === 'error' ? 'Codex OAuth failed' : 'Codex OAuth'}
+        message={
+          status.state === 'error'
+            ? status.message
+            : status.state === 'starting'
+              ? 'Starting the secure OAuth callback and preparing browser handoff.'
+              : status.browserOpened === false
+                ? 'Browser did not open automatically. Use the authorization URL below to continue.'
+                : status.browserOpened === true
+                  ? 'Browser opened. Complete sign-in there and OpenClaude will finish setup automatically.'
+                  : 'Opening your browser...'
+        }
+        authUrl={status.state === 'waiting' ? status.authUrl : undefined}
+        tone={status.state === 'error' ? 'error' : status.state === 'waiting' && status.browserOpened === false ? 'warning' : 'active'}
+        onBack={onBack}
+        onCancel={onCancel}
+      />
+    )
+  }
+
   if (status.state === 'error') {
     return (
       <Dialog title="Codex OAuth failed" onCancel={onCancel} color="warning">
@@ -1177,6 +1201,58 @@ function CodexOAuthStep({
         <Text dimColor>Press Esc to cancel and go back.</Text>
       </Box>
     </Dialog>
+  )
+}
+
+function ProviderCommandOAuthPanel({
+  title,
+  message,
+  authUrl,
+  tone,
+  onBack,
+  onCancel,
+}: {
+  title: string
+  message: string
+  authUrl?: string
+  tone: 'active' | 'warning' | 'error'
+  onBack: () => void
+  onCancel: () => void
+}): React.ReactNode {
+  return (
+    <section className="repl-oauthSurface repl-providerManagerSurface" data-tone={tone}>
+      <div className="repl-oauthHandle" aria-hidden="true" />
+      <div className="repl-oauthHeader">
+        <span className="repl-webPickerKicker">Secure provider login</span>
+        <h2>{title}</h2>
+        <p>
+          Finish signing in with ChatGPT in your browser. OpenClaude will store the resulting Codex credentials securely for future sessions.
+        </p>
+      </div>
+      <div className="repl-oauthStatus" data-tone={tone}>
+        <span className="repl-oauthPulse" aria-hidden="true" />
+        <span>
+          <strong>{tone === 'error' ? 'Connection failed' : tone === 'warning' ? 'Manual action needed' : 'OAuth in progress'}</strong>
+          <small>{message}</small>
+        </span>
+      </div>
+      {authUrl ? (
+        <div className="repl-oauthUrl">
+          <span>Authorization URL</span>
+          <a href={authUrl} target="_blank" rel="noreferrer">
+            {authUrl}
+          </a>
+        </div>
+      ) : null}
+      <div className="repl-oauthActions">
+        <button type="button" className="repl-webPickerGhostButton" onClick={onBack}>
+          Back
+        </button>
+        <button type="button" className="repl-webPickerGhostButton" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </section>
   )
 }
 

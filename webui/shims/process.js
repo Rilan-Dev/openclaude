@@ -4,6 +4,13 @@ if (typeof __OPENCLAUDE_ENV__ !== 'undefined') {
   Object.assign(runtimeEnv, __OPENCLAUDE_ENV__)
 }
 
+let currentWorkingDirectory =
+  runtimeEnv.OPENCLAUDE_WEBUI_CWD || runtimeEnv.INIT_CWD || runtimeEnv.PWD || '/'
+
+function resolveCurrentWorkingDirectory() {
+  return runtimeEnv.OPENCLAUDE_WEBUI_CWD || runtimeEnv.INIT_CWD || runtimeEnv.PWD || '/'
+}
+
 export const env = new Proxy(runtimeEnv, {
   get(target, prop) {
     return target[prop]
@@ -33,14 +40,19 @@ export const env = new Proxy(runtimeEnv, {
 export function setEnv(values = {}) {
   Object.keys(runtimeEnv).forEach((k) => delete runtimeEnv[k])
   Object.assign(runtimeEnv, values)
+  currentWorkingDirectory = resolveCurrentWorkingDirectory()
 }
 
 export function updateEnv(values = {}) {
   Object.assign(runtimeEnv, values)
+  if ('OPENCLAUDE_WEBUI_CWD' in values || 'INIT_CWD' in values || 'PWD' in values) {
+    currentWorkingDirectory = resolveCurrentWorkingDirectory()
+  }
 }
 
 export function clearEnv() {
   Object.keys(runtimeEnv).forEach((k) => delete runtimeEnv[k])
+  currentWorkingDirectory = '/'
 }
 
 export const argv = []
@@ -440,10 +452,14 @@ export const stdout = createBrowserWriteStream('stdout')
 export const stderr = createBrowserWriteStream('stderr')
 
 export function cwd() {
-  return '/'
+  return currentWorkingDirectory
 }
 
-export function chdir() {}
+export function chdir(path) {
+  currentWorkingDirectory = String(path || '/')
+  runtimeEnv.PWD = currentWorkingDirectory
+  runtimeEnv.OPENCLAUDE_WEBUI_CWD = currentWorkingDirectory
+}
 
 export function exit(code = 0) {
   throw new Error(`process.exit(${code}) is not available in browser`)

@@ -1,4 +1,3 @@
-import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { Box } from '../ink.js';
 import { useAppState } from '../state/AppState.js';
@@ -9,6 +8,8 @@ import { getGlobalConfig } from '../utils/config.js';
 import { getActiveNotices, type StatusNoticeContext } from '../utils/statusNoticeDefinitions.js';
 import { assembleToolPool } from '../tools.js';
 import { checkLocalModelContextLoad, isActiveProviderLocalModel, type LocalModelContextWarning } from '../utils/statusNoticeLocalModel.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
+import { isDefaultMode, permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 type Props = {
   agentDefinitions?: AgentDefinitionsResult;
 };
@@ -34,11 +35,9 @@ async function loadMemoryFiles(): Promise<void> {
  * moved neutral or positive status to src/components/Status.tsx instead, which
  * users can access through /status.
  */
-export function StatusNotices(t0) {
-  const $ = _c(8);
-  const {
-    agentDefinitions
-  } = t0 === undefined ? {} : t0;
+export function StatusNotices({
+  agentDefinitions,
+}: Props = {}) {
   const mcpTools = useAppState(s => s.mcp.tools);
   const toolPermissionContext = useAppState(s => s.toolPermissionContext);
   const tools = React.useMemo(() => assembleToolPool(toolPermissionContext, mcpTools), [toolPermissionContext, mcpTools]);
@@ -46,22 +45,15 @@ export function StatusNotices(t0) {
   const [localModelContextLoad, setLocalModelContextLoad] = React.useState<LocalModelContextWarning | null | undefined>(undefined);
   const isLocalModel = isActiveProviderLocalModel();
   const mainLoopModel = useAppState(s => s.mainLoopModel);
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = () => {
-      if (cachedMemoryFiles.length > 0) {
-        setMemoryFiles(cachedMemoryFiles);
-        return;
-      }
-      void loadMemoryFiles().then(() => {
-        setMemoryFiles(cachedMemoryFiles);
-      });
-    };
-    $[0] = t1;
-  } else {
-    t1 = $[0];
-  }
-  React.useEffect(t1, [t1]);
+  React.useEffect(() => {
+    if (cachedMemoryFiles.length > 0) {
+      setMemoryFiles(cachedMemoryFiles);
+      return;
+    }
+    void loadMemoryFiles().then(() => {
+      setMemoryFiles(cachedMemoryFiles);
+    });
+  }, []);
   React.useEffect(() => {
     let cancelled = false;
     if (!isLocalModel) {
@@ -103,18 +95,33 @@ export function StatusNotices(t0) {
   if (activeNotices.length === 0) {
     return null;
   }
-  const T0 = Box;
-  const t3 = "column";
-  const t4 = 1;
-  const t5 = activeNotices.map(notice => <React.Fragment key={notice.id}>{notice.render(context)}</React.Fragment>);
-  let t6;
-  if ($[1] !== T0 || $[2] !== t5) {
-    t6 = <T0 flexDirection={t3} paddingLeft={t4}>{t5}</T0>;
-    $[1] = T0;
-    $[2] = t5;
-    $[3] = t6;
-  } else {
-    t6 = $[3];
+
+  if (isBrowserRuntime()) {
+    const visibleNotices = activeNotices.filter(notice => notice.id !== 'third-party-permissive-mode');
+    if (visibleNotices.length === 0) {
+      return null;
+    }
+
+    const noticeCount = visibleNotices.length;
+    const hasWarning = visibleNotices.some(notice => notice.type === 'warning');
+    const permissionMode = context.permissionMode;
+    const modeLabel = permissionMode && !isDefaultMode(permissionMode)
+      ? permissionModeTitle(permissionMode)
+      : 'Default';
+    const detail = noticeCount === 1
+        ? 'Session notice'
+        : `${noticeCount} session notices`;
+
+    return (
+      <div className="oc-statusNoticeDock" data-warning={hasWarning ? 'true' : undefined}>
+        <span className="oc-statusNoticeDot" />
+        <span className="oc-statusNoticeMode">{modeLabel}</span>
+        <span className="oc-statusNoticeDetail">{detail}</span>
+      </div>
+    );
   }
-  return t6;
+
+  return <Box flexDirection="column" paddingLeft={1}>
+      {activeNotices.map(notice => <React.Fragment key={notice.id}>{notice.render(context)}</React.Fragment>)}
+    </Box>;
 }

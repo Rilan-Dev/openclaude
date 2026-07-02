@@ -7,6 +7,7 @@ import { type CliHighlight, getCliHighlightPromise } from '../utils/cliHighlight
 import { hashContent } from '../utils/hash.js';
 import { configureMarked, formatToken } from '../utils/markdown.js';
 import { stripPromptXMLTags } from '../utils/messages.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { MarkdownTable } from './MarkdownTable.js';
 type Props = {
   children: string;
@@ -120,54 +121,239 @@ function MarkdownWithHighlight(props) {
   }
   return t1;
 }
-function MarkdownBody(t0) {
-  const $ = _c(7);
-  const {
-    children,
-    dimColor,
-    highlight
-  } = t0;
-  const [theme] = useTheme();
+type MarkdownBodyProps = Props & {
+  highlight: CliHighlight | null;
+};
+function MarkdownBody({
+  children,
+  dimColor,
+  highlight
+}: MarkdownBodyProps) {
   configureMarked();
-  let elements;
-  if ($[0] !== children || $[1] !== dimColor || $[2] !== highlight || $[3] !== theme) {
-    const tokens = cachedLexer(stripPromptXMLTags(children));
-    elements = [];
-    let nonTableContent = "";
-    const flushNonTableContent = function flushNonTableContent() {
-      if (nonTableContent) {
-        elements.push(<Ansi key={elements.length} dimColor={dimColor}>{nonTableContent.trim()}</Ansi>);
-        nonTableContent = "";
-      }
-    };
-    for (const token of tokens) {
-      if (token.type === "table") {
-        flushNonTableContent();
-        elements.push(<MarkdownTable key={elements.length} token={token as Tokens.Table} highlight={highlight} />);
-      } else {
-        nonTableContent = nonTableContent + formatToken(token, theme, 0, null, null, highlight);
-        nonTableContent;
-      }
+
+  const tokens = cachedLexer(stripPromptXMLTags(children));
+  if (isBrowserRuntime()) {
+    return <BrowserMarkdown tokens={tokens} dimColor={dimColor} />;
+  }
+
+  const [theme] = useTheme();
+  const elements: React.ReactNode[] = [];
+  let nonTableContent = '';
+
+  const flushNonTableContent = () => {
+    if (!nonTableContent) {
+      return;
     }
-    flushNonTableContent();
-    $[0] = children;
-    $[1] = dimColor;
-    $[2] = highlight;
-    $[3] = theme;
-    $[4] = elements;
-  } else {
-    elements = $[4];
+    elements.push(<Ansi key={elements.length} dimColor={dimColor}>{nonTableContent.trim()}</Ansi>);
+    nonTableContent = '';
+  };
+
+  for (const token of tokens) {
+    if (token.type === 'table') {
+      flushNonTableContent();
+      elements.push(<MarkdownTable key={elements.length} token={token as Tokens.Table} highlight={highlight} />);
+    } else {
+      nonTableContent += formatToken(token, theme, 0, null, null, highlight);
+    }
   }
-  const elements_0 = elements;
-  let t1;
-  if ($[5] !== elements_0) {
-    t1 = <Box flexDirection="column" gap={1}>{elements_0}</Box>;
-    $[5] = elements_0;
-    $[6] = t1;
-  } else {
-    t1 = $[6];
+
+  flushNonTableContent();
+  return <Box flexDirection="column" gap={1}>{elements}</Box>;
+}
+
+type BrowserMarkdownProps = {
+  tokens: Token[];
+  dimColor?: boolean;
+};
+
+function BrowserMarkdown({
+  tokens,
+  dimColor
+}: BrowserMarkdownProps): React.ReactNode {
+  return (
+    <div className="oc-markdown" data-dim={dimColor ? 'true' : undefined}>
+      {tokens.map((token, index) => renderBrowserBlock(token, `block-${index}`))}
+    </div>
+  );
+}
+
+function renderBrowserBlocks(tokens: Token[] | undefined, keyPrefix: string): React.ReactNode[] {
+  if (!tokens || tokens.length === 0) {
+    return [];
   }
-  return t1;
+
+  return tokens.map((token, index) => renderBrowserBlock(token, `${keyPrefix}-${index}`));
+}
+
+function renderBrowserBlock(token: Token, key: React.Key): React.ReactNode {
+  switch (token.type) {
+    case 'space':
+      return null;
+    case 'heading': {
+      const heading = token as Tokens.Heading;
+      const tagName = `h${Math.min(Math.max(heading.depth, 1), 6)}`;
+      return React.createElement(
+        tagName,
+        { className: 'oc-markdownHeading', key },
+        renderBrowserInline(heading.tokens, heading.text, `${key}-inline`),
+      );
+    }
+    case 'paragraph': {
+      const paragraph = token as Tokens.Paragraph;
+      return (
+        <p key={key}>
+          {renderBrowserInline(paragraph.tokens, paragraph.text, `${key}-inline`)}
+        </p>
+      );
+    }
+    case 'text': {
+      const text = token as Tokens.Text;
+      return (
+        <p key={key}>
+          {renderBrowserInline(text.tokens, text.text, `${key}-inline`)}
+        </p>
+      );
+    }
+    case 'list': {
+      const list = token as Tokens.List;
+      const Tag = list.ordered ? 'ol' : 'ul';
+      return (
+        <Tag key={key} start={list.start || undefined}>
+          {list.items.map((item, index) => renderBrowserListItem(item, `${key}-item-${index}`))}
+        </Tag>
+      );
+    }
+    case 'code': {
+      const code = token as Tokens.Code;
+      return (
+        <pre key={key} className={code.lang ? `language-${code.lang}` : undefined}>
+          <code>{code.text}</code>
+        </pre>
+      );
+    }
+    case 'blockquote': {
+      const quote = token as Tokens.Blockquote;
+      return (
+        <blockquote key={key}>
+          {renderBrowserBlocks(quote.tokens, `${key}-quote`)}
+        </blockquote>
+      );
+    }
+    case 'hr':
+      return <hr key={key} />;
+    case 'table':
+      return renderBrowserTable(token as Tokens.Table, key);
+    case 'html': {
+      const html = token as Tokens.HTML;
+      return (
+        <pre key={key} className="oc-markdownRawHtml">
+          <code>{html.text || html.raw}</code>
+        </pre>
+      );
+    }
+    default: {
+      const fallback = token as Tokens.Generic;
+      const text = typeof fallback.text === 'string' ? fallback.text : fallback.raw;
+      return text ? <p key={key}>{text}</p> : null;
+    }
+  }
+}
+
+function renderBrowserListItem(item: Tokens.ListItem, key: React.Key): React.ReactNode {
+  const blocks = renderBrowserBlocks(item.tokens, `${key}-block`);
+  return (
+    <li key={key}>
+      {blocks.length > 0
+        ? blocks
+        : renderBrowserInline(item.tokens, item.text, `${key}-inline`)}
+    </li>
+  );
+}
+
+function renderBrowserTable(table: Tokens.Table, key: React.Key): React.ReactNode {
+  return (
+    <div key={key} className="oc-markdownTableWrap">
+      <table className="oc-markdownTable">
+        <thead>
+          <tr>
+            {table.header.map((cell, index) => (
+              <th key={`head-${index}`}>
+                {renderBrowserInline(cell.tokens, cell.text, `${key}-head-${index}`)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, rowIndex) => (
+            <tr key={`row-${rowIndex}`}>
+              {row.map((cell, cellIndex) => (
+                <td key={`cell-${rowIndex}-${cellIndex}`}>
+                  {renderBrowserInline(cell.tokens, cell.text, `${key}-cell-${rowIndex}-${cellIndex}`)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function renderBrowserInline(
+  tokens: Token[] | undefined,
+  fallback: string | undefined,
+  keyPrefix: string,
+): React.ReactNode {
+  if (!tokens || tokens.length === 0) {
+    return fallback ?? null;
+  }
+
+  return tokens.map((token, index) => renderBrowserInlineToken(token, `${keyPrefix}-${index}`));
+}
+
+function renderBrowserInlineToken(token: Token, key: React.Key): React.ReactNode {
+  switch (token.type) {
+    case 'text': {
+      const text = token as Tokens.Text;
+      return text.tokens
+        ? <React.Fragment key={key}>{renderBrowserInline(text.tokens, text.text, `${key}-nested`)}</React.Fragment>
+        : <React.Fragment key={key}>{text.text}</React.Fragment>;
+    }
+    case 'strong': {
+      const strong = token as Tokens.Strong;
+      return <strong key={key}>{renderBrowserInline(strong.tokens, strong.text, `${key}-strong`)}</strong>;
+    }
+    case 'em': {
+      const emphasis = token as Tokens.Em;
+      return <em key={key}>{renderBrowserInline(emphasis.tokens, emphasis.text, `${key}-em`)}</em>;
+    }
+    case 'codespan': {
+      const code = token as Tokens.Codespan;
+      return <code key={key}>{code.text}</code>;
+    }
+    case 'br':
+      return <br key={key} />;
+    case 'del': {
+      const deleted = token as Tokens.Del;
+      return <del key={key}>{renderBrowserInline(deleted.tokens, deleted.text, `${key}-del`)}</del>;
+    }
+    case 'link': {
+      const link = token as Tokens.Link;
+      return (
+        <a key={key} href={link.href} title={link.title || undefined} target="_blank" rel="noreferrer">
+          {renderBrowserInline(link.tokens, link.text, `${key}-link`)}
+        </a>
+      );
+    }
+    case 'image': {
+      const image = token as Tokens.Image;
+      return <img key={key} src={image.href} alt={image.text} title={image.title || undefined} />;
+    }
+    default: {
+      const fallback = token as Tokens.Generic;
+      return <React.Fragment key={key}>{typeof fallback.text === 'string' ? fallback.text : fallback.raw}</React.Fragment>;
+    }
+  }
 }
 type StreamingProps = {
   children: string;

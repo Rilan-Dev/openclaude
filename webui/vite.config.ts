@@ -300,6 +300,8 @@ export default defineConfig(({ mode }) => {
     ...runtimeEnv,
   }
   const browserEnv = { ...env }
+  browserEnv.OPENCLAUDE_WEBUI_CWD =
+    process.env.OPENCLAUDE_WEBUI_CWD ?? process.env.INIT_CWD ?? repoRoot
 
   for (const key of [
     'CLAUDE_CODE_USE_OPENAI',

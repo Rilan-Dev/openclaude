@@ -139,6 +139,30 @@ test('401 without expired-token signal keeps the generic API-key hint', () => {
   expect(failure.hint).not.toContain('/onboard-github')
 })
 
+test('403 from Gemini carries host metadata for provider-specific rendering', () => {
+  const failure = classifyOpenAIHttpFailure({
+    status: 403,
+    body: '{"error":{"code":403,"message":"Lightning dunning decision is deny for project: projects/972617961026","status":"PERMISSION_DENIED"}}',
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  })
+
+  const formatted = buildOpenAICompatibilityErrorMessage(
+    'OpenAI API error 403: permission denied',
+    failure,
+  )
+
+  expect(failure.category).toBe('auth_invalid')
+  expect(failure.requestUrl).toBe(
+    'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  )
+  expect(formatted).toContain(
+    '[openai_category=auth_invalid,host=generativelanguage.googleapis.com]',
+  )
+  expect(extractOpenAICategoryHost(formatted)).toBe(
+    'generativelanguage.googleapis.com',
+  )
+})
+
 test('classifies tool compatibility failures', () => {
   const failure = classifyOpenAIHttpFailure({
     status: 400,

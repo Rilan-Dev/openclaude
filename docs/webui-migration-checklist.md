@@ -32,6 +32,19 @@ by a generated equivalent.
 
 ## Current Notes
 
+- Latest browser-visible fixes:
+  - `src/components/Markdown.tsx` renders semantic browser Markdown tables,
+    lists, headings, code blocks, and links while preserving the Ink renderer.
+  - `src/components/messages/AssistantTextMessage.tsx` removes the terminal
+    leading assistant dot in browser mode.
+  - `src/components/messages/AssistantToolUseMessage.tsx` renders browser tool
+    calls as structured status cards.
+  - `src/components/permissions/SharedShellPermissionRequest.tsx` renders Bash
+    and shell approvals as WebUI permission cards.
+  - `src/components/LogSelector.tsx` renders `/resume` as a browser session
+    picker instead of a terminal `TreeSelect`.
+  - `webui/repl.css` owns the current browser transcript, markdown, tool,
+    permission, and resume picker visual system.
 - `src/components/MessageRow.tsx`, `src/components/ModelPicker.tsx`,
   `src/components/PromptInput/PromptInputModeIndicator.tsx`,
   `src/ink/components/Box.tsx`, `src/ink/components/Text.tsx`,
@@ -59,6 +72,17 @@ by a generated equivalent.
 
 ## Next Surface Buckets
 
+- Highest remaining Ink-only browser risks found by the latest audit:
+  - `src/components/LogoV2/WelcomeV2.tsx`
+  - `src/commands/plugin/ManagePlugins.tsx`
+  - `src/components/ContextVisualization.tsx`
+  - `src/components/Stats.tsx`
+  - `src/components/mcp/ElicitationDialog.tsx`
+  - `src/components/mcp/MCPRemoteServerMenu.tsx`
+  - `src/commands/plugin/ManageMarketplaces.tsx`
+  - `src/screens/Doctor.tsx`
+  - `src/commands/plugin/BrowseMarketplace.tsx`
+  - `src/commands/plugin/DiscoverPlugins.tsx`
 - Prompt composer: `src/components/PromptInput/PromptInput.tsx`,
   `PromptInputFooter*.tsx`, `BaseTextInput.tsx`, `TextInput.tsx`,
   `ShimmeredInput.tsx`.

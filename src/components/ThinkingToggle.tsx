@@ -10,6 +10,7 @@ import { Select } from './CustomSelect/index.js';
 import { Byline } from './design-system/Byline.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
 import { Pane } from './design-system/Pane.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 export type Props = {
   currentValue: boolean;
   onSelect: (enabled: boolean) => void;
@@ -111,6 +112,70 @@ export function ThinkingToggle(t0) {
     t7 = $[13];
   }
   const handleSelectChange = t7;
+  if (isBrowserRuntime()) {
+    const applySelection = (enabled: boolean) => {
+      if (isMidConversation && enabled !== currentValue) {
+        setConfirmationPending(enabled);
+      } else {
+        onSelect(enabled);
+      }
+    };
+
+    if (confirmationPending !== null) {
+      return (
+        <div className="oc-thinkingToggleCard" data-confirming="true">
+          <div className="oc-thinkingToggleHeader">
+            <span className="oc-thinkingToggleKicker">Thinking mode</span>
+            <h2>Confirm change</h2>
+            <p>Changing thinking mid-conversation can increase latency and may reduce quality.</p>
+          </div>
+          <div className="oc-thinkingToggleActions">
+            <button type="button" className="oc-thinkingTogglePrimary" onClick={() => onSelect(confirmationPending)}>
+              Apply change
+            </button>
+            <button type="button" className="oc-thinkingToggleGhost" onClick={() => setConfirmationPending(null)}>
+              Keep current
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="oc-thinkingToggleCard">
+        <div className="oc-thinkingToggleHeader">
+          <span className="oc-thinkingToggleKicker">Session controls</span>
+          <h2>Thinking mode</h2>
+          <p>Choose whether {PRODUCT_DISPLAY_NAME} should spend extra reasoning before responding.</p>
+        </div>
+        <div className="oc-thinkingToggleOptions" role="group" aria-label="Thinking mode">
+          <button
+            type="button"
+            className="oc-thinkingToggleOption"
+            data-selected={currentValue ? 'true' : undefined}
+            onClick={() => applySelection(true)}
+          >
+            <span>Enabled</span>
+            <small>{PRODUCT_DISPLAY_NAME} thinks before responding</small>
+          </button>
+          <button
+            type="button"
+            className="oc-thinkingToggleOption"
+            data-selected={!currentValue ? 'true' : undefined}
+            onClick={() => applySelection(false)}
+          >
+            <span>Disabled</span>
+            <small>Respond without extended thinking</small>
+          </button>
+        </div>
+        <div className="oc-thinkingToggleActions">
+          <button type="button" className="oc-thinkingToggleGhost" onClick={onCancel}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
   let t8;
   if ($[14] === Symbol.for("react.memo_cache_sentinel")) {
     t8 = <Box marginBottom={1} flexDirection="column"><Text color="remember" bold={true}>Toggle thinking mode</Text><Text dimColor={true}>Enable or disable thinking for this session.</Text></Box>;

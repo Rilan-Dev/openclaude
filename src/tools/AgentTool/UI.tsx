@@ -22,6 +22,7 @@ import { getSearchOrReadFromContent, getSearchReadSummaryText } from '../../util
 import { formatDuration, formatNumber } from '../../utils/format.js';
 import { buildSubagentLookups, createAssistantMessage, EMPTY_LOOKUPS } from '../../utils/messages.js';
 import { getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Theme, ThemeName } from '../../utils/theme.js';
 import type { outputSchema, Progress } from './AgentTool.js';
 import { inputSchema } from './AgentTool.js';
@@ -244,6 +245,25 @@ export function renderToolResultMessage(data: Output, progressMessagesForMessage
     const {
       prompt
     } = data;
+    if (isBrowserRuntime()) {
+      return (
+        <div className="oc-agentInlineCard" data-status="running">
+          <div className="oc-agentInlineHeader">
+            <span className="oc-agentInlinePulse" />
+            <div>
+              <div className="oc-agentInlineTitle">Background agent started</div>
+              <div className="oc-agentInlineMeta">Working in this conversation</div>
+            </div>
+          </div>
+          {prompt ? (
+            <details className="oc-agentInlineDetails">
+              <summary>View agent brief</summary>
+              <div className="oc-agentInlinePrompt">{prompt}</div>
+            </details>
+          ) : null}
+        </div>
+      );
+    }
     return <Box flexDirection="column">
         <MessageResponse height={1}>
           <Text>
@@ -276,6 +296,27 @@ export function renderToolResultMessage(data: Output, progressMessagesForMessage
   } = data;
   const result = [totalToolUseCount === 1 ? '1 tool use' : `${totalToolUseCount} tool uses`, formatNumber(totalTokens) + ' tokens', formatDuration(totalDurationMs)];
   const completionMessage = `Done (${result.join(' · ')})`;
+  if (isBrowserRuntime()) {
+    return (
+      <div className="oc-agentInlineCard" data-status="completed">
+        <div className="oc-agentInlineHeader">
+          <span className="oc-agentInlinePulse" />
+          <div>
+            <div className="oc-agentInlineTitle">Agent completed</div>
+            <div className="oc-agentInlineMeta">{result.join(' · ')}</div>
+          </div>
+        </div>
+        {content && content.length > 0 ? (
+          <details className="oc-agentInlineDetails" open={isTranscriptMode ? true : undefined}>
+            <summary>View agent response</summary>
+            <div className="oc-agentInlineResponse">
+              <AgentResponseDisplay content={content} theme={theme} />
+            </div>
+          </details>
+        ) : null}
+      </div>
+    );
+  }
   const finalAssistantMessage = createAssistantMessage({
     content: completionMessage,
     usage: {

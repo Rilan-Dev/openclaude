@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
+import { isBrowserRuntime } from '../../utils/runtime.js'
 import type { OptionWithDescription } from '../CustomSelect/select.js'
 import { Select } from '../CustomSelect/select.js'
 import { type UnaryEvent, usePermissionRequestLogging } from './hooks.js'
@@ -45,6 +46,23 @@ type SharedShellPermissionRequestProps<T extends string> = Pick<
   isSelectDisabled?: boolean
 }
 
+function plainTextFromNode(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return ''
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(plainTextFromNode).join('')
+  }
+  if (React.isValidElement(node)) {
+    const props = node.props as { children?: React.ReactNode }
+    return plainTextFromNode(props.children)
+  }
+  return ''
+}
+
 export function SharedShellPermissionRequest<T extends string>({
   toolUseConfirm,
   toolUseContext,
@@ -83,6 +101,62 @@ export function SharedShellPermissionRequest<T extends string>({
   const displayedOptions = isSelectDisabled
     ? options.map(option => ({ ...option, disabled: true }))
     : options
+
+  if (isBrowserRuntime()) {
+    return (
+      <div className="repl-webPermissionCard repl-webPermissionCard--shell" role="dialog" aria-modal="true" aria-label={`${title} permission request`}>
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">command permission</div>
+            <h2>{title}</h2>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          <span className="repl-webPermissionBadge">Action needed</span>
+        </div>
+        <div className="repl-webPermissionBody">
+          <div className="repl-webPermissionTarget">
+            <span className="repl-webPermissionTargetLabel">{toolName}</span>
+            <strong>{message}</strong>
+            {description ? <small>{description}</small> : null}
+          </div>
+          {destructiveWarning ? (
+            <div className="repl-webPermissionWarning">{destructiveWarning}</div>
+          ) : null}
+          <p className="repl-webPermissionQuestion">{question}</p>
+          <div className="repl-webPermissionActions">
+            {displayedOptions.map((option, index) => {
+              const label = plainTextFromNode(option.label) || String(option.value)
+              return (
+                <button
+                  key={String(option.value)}
+                  type="button"
+                  className="repl-webPermissionAction"
+                  data-primary={index === 0 ? 'true' : undefined}
+                  disabled={option.disabled}
+                  onClick={() => onSelect(option.value)}
+                  onMouseEnter={() => onFocus(option.value)}
+                  onFocus={() => onFocus(option.value)}
+                  onDoubleClick={() => onInputModeToggle(option.value)}
+                >
+                  <span>{label}</span>
+                  {option.description ? <small>{option.description}</small> : null}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="repl-webPermissionFooter">
+          <button type="button" onClick={onCancel}>Esc to cancel</button>
+          <span>
+            {explainerState.enabled
+              ? `Ctrl+E to ${explainerState.visible ? 'hide' : 'explain'}`
+              : 'Review before running'}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <PermissionScaffold

@@ -7,6 +7,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/gr
 import { useAppState } from '../../state/AppState.js';
 import { isEnvTruthy } from '../../utils/envUtils.js';
 import { logError } from '../../utils/log.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { countCharInString } from '../../utils/stringUtils.js';
 import { MessageActionsSelectedContext } from '../messageActions.js';
 import { HighlightedThinkingText } from './HighlightedThinkingText.js';
@@ -73,6 +74,19 @@ export function UserPromptMessage({
     logError(new Error('No content found in user prompt message'));
     return null;
   }
+
+  if (isBrowserRuntime()) {
+    return (
+      <div
+        className="oc-userPromptBubble"
+        data-selected={isSelected ? 'true' : undefined}
+        data-brief={useBriefLayout ? 'true' : undefined}
+      >
+        {displayText}
+      </div>
+    );
+  }
+
   return <Box flexDirection="column" marginTop={addMargin ? 1 : 0} backgroundColor={isSelected ? 'messageActionsBackground' : useBriefLayout ? undefined : 'userMessageBackground'} paddingRight={useBriefLayout ? 0 : 1}>
       <HighlightedThinkingText text={displayText} useBriefLayout={useBriefLayout} timestamp={useBriefLayout ? timestamp : undefined} />
     </Box>;

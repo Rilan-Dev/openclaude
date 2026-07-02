@@ -34,6 +34,16 @@ export function WebSelectList({
   onCancel,
   footer,
 }: Props): React.ReactNode {
+  const activeValue = focusedValue ?? selectedValue
+  const activeOptionRef = React.useRef<HTMLButtonElement | null>(null)
+
+  React.useEffect(() => {
+    activeOptionRef.current?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [activeValue, options.length])
+
   return (
     <section className={['repl-webPicker', className].filter(Boolean).join(' ')}>
       <div className="repl-webPickerHeader">
@@ -46,9 +56,11 @@ export function WebSelectList({
         {options.map(option => {
           const isSelected = selectedValue === option.value
           const isFocused = focusedValue === option.value
+          const isActive = activeValue === option.value
           return (
             <button
               key={option.value}
+              ref={isActive ? activeOptionRef : undefined}
               type="button"
               className="repl-webPickerOption"
               data-selected={isSelected ? 'true' : undefined}

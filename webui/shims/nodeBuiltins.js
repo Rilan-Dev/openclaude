@@ -861,7 +861,9 @@ export function normalize(path) {
 
 export function dirname(path) {
   const normalized = normalize(path)
+  if (/^[a-zA-Z]:$/.test(normalized)) return normalized
   const index = normalized.lastIndexOf('/')
+  if (index === 2 && /^[a-zA-Z]:/.test(normalized)) return normalized.slice(0, 2)
   if (index <= 0) return normalized.startsWith('/') ? '/' : '.'
   return normalized.slice(0, index)
 }
@@ -895,8 +897,9 @@ export function parse(path) {
   const dir = dirname(path)
   const base = basename(path)
   const ext = extname(base)
+  const driveRoot = String(path).replace(/\\/g, '/').match(/^([a-zA-Z]:)(?:\/|$)/)?.[1]
   return {
-    root: isAbsolute(path) ? '/' : '',
+    root: driveRoot ?? (isAbsolute(path) ? '/' : ''),
     dir,
     base,
     ext,

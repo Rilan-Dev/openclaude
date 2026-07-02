@@ -62,9 +62,13 @@ export const API_ERROR_MESSAGE_PREFIX = 'API Error'
 
 function stripOpenAICompatibilityMetadata(message: string): string {
   return message
-    .replace(/\s*\[openai_category=[a-z_]+\]\s*/g, ' ')
+    .replace(/\s*\[openai_category=[a-z_]+(?:,host=[^\]]+)?]\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()
+}
+
+function isGeminiOpenAICompatibleHost(host: string | undefined): boolean {
+  return host === 'generativelanguage.googleapis.com'
 }
 
 function mapOpenAICompatibilityFailureToAssistantMessage(options: {
@@ -111,6 +115,14 @@ function mapOpenAICompatibilityFailureToAssistantMessage(options: {
       })
 
     case 'auth_invalid':
+      if (isGeminiOpenAICompatibleHost(options.host)) {
+        return createAssistantAPIErrorMessage({
+          content: `${API_ERROR_MESSAGE_PREFIX}: Google Gemini denied this request for the configured API project. Check the Gemini API key or access token project, billing/payment status, Generative Language API access, and project permissions.`,
+          error: 'authentication_failed',
+          errorDetails: stripOpenAICompatibilityMetadata(options.rawMessage),
+        })
+      }
+
       return createAssistantAPIErrorMessage({
         content: `${API_ERROR_MESSAGE_PREFIX}: Authentication failed for your OpenAI-compatible provider. Verify OPENAI_API_KEYS or OPENAI_API_KEY and endpoint-specific auth requirements.`,
         error: 'authentication_failed',

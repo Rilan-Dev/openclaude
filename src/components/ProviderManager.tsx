@@ -484,6 +484,121 @@ function isXaiOAuthProfile(
   return Boolean(profile && profileId && profile.id === profileId)
 }
 
+function BrowserOAuthSetupPanel({
+  title,
+  description,
+  state,
+  message,
+  authUrl,
+  browserOpened,
+  onBack,
+  manualCode,
+}: {
+  title: string
+  description: React.ReactNode
+  state: 'starting' | 'waiting' | 'error'
+  message?: string
+  authUrl?: string
+  browserOpened?: boolean | null
+  onBack: () => void
+  manualCode?: {
+    label: string
+    onSubmit: (code: string) => void
+  }
+}): React.ReactNode {
+  const tone = state === 'error' ? 'error' : browserOpened === false ? 'warning' : 'active'
+  const statusLabel =
+    state === 'error'
+      ? 'Connection failed'
+      : state === 'starting'
+        ? 'Preparing secure callback'
+        : browserOpened === false
+          ? 'Manual action needed'
+          : browserOpened === true
+            ? 'Browser opened'
+            : 'Opening browser'
+  const statusMessage =
+    state === 'error'
+      ? message
+      : state === 'starting'
+        ? 'Starting the local OAuth callback and preparing the browser handoff.'
+        : browserOpened === false
+          ? 'Browser did not open automatically. Use the authorization URL below to continue.'
+          : browserOpened === true
+            ? 'Finish sign-in in the browser. This setup will complete automatically.'
+            : 'Opening your browser...'
+
+  return (
+    <section className="repl-oauthSurface repl-providerManagerSurface" data-tone={tone}>
+      <div className="repl-oauthHandle" aria-hidden="true" />
+      <div className="repl-oauthHeader">
+        <span className="repl-webPickerKicker">Secure provider login</span>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+
+      <div className="repl-oauthStatus" data-tone={tone}>
+        <span className="repl-oauthPulse" aria-hidden="true" />
+        <span>
+          <strong>{statusLabel}</strong>
+          <small>{statusMessage}</small>
+        </span>
+      </div>
+
+      {authUrl ? (
+        <div className="repl-oauthUrl">
+          <span>Authorization URL</span>
+          <a href={authUrl} target="_blank" rel="noreferrer">
+            {authUrl}
+          </a>
+        </div>
+      ) : null}
+
+      {manualCode ? <BrowserXaiManualCodeInput {...manualCode} /> : null}
+
+      <div className="repl-oauthActions">
+        <button type="button" className="repl-webPickerGhostButton" onClick={onBack}>
+          Back
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function BrowserXaiManualCodeInput({
+  label,
+  onSubmit,
+}: {
+  label: string
+  onSubmit: (code: string) => void
+}): React.ReactNode {
+  const [value, setValue] = React.useState('')
+  return (
+    <form
+      className="repl-oauthManualCode"
+      onSubmit={event => {
+        event.preventDefault()
+        const trimmed = value.trim()
+        if (trimmed) onSubmit(trimmed)
+      }}
+    >
+      <label>
+        <span>{label}</span>
+        <input
+          value={value}
+          type="password"
+          autoComplete="one-time-code"
+          placeholder="Paste the browser code..."
+          onChange={event => setValue(event.currentTarget.value)}
+        />
+      </label>
+      <button type="submit" className="repl-providerFormSubmit">
+        Submit code
+      </button>
+    </form>
+  )
+}
+
 function XaiOAuthSetup({
   onBack,
   onConfigured,
@@ -514,6 +629,32 @@ function XaiOAuthSetup({
   const status = useXaiOAuthFlow({
     onAuthenticated: handleAuthenticated,
   })
+
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserOAuthSetupPanel
+        title={status.state === 'error' ? 'xAI OAuth failed' : 'xAI OAuth'}
+        description={
+          <>
+            Sign in with your xAI account in the browser. OpenClaude will store the resulting OAuth credentials securely and switch this session to Grok when setup completes.
+          </>
+        }
+        state={status.state}
+        message={status.state === 'error' ? status.message : undefined}
+        authUrl={status.state === 'waiting' ? status.authUrl : undefined}
+        browserOpened={status.state === 'waiting' ? status.browserOpened : undefined}
+        onBack={onBack}
+        manualCode={
+          status.state === 'waiting'
+            ? {
+                label: 'If xAI shows "Could not establish connection", paste the code here.',
+                onSubmit: status.submitManualCode,
+              }
+            : undefined
+        }
+      />
+    )
+  }
 
   if (status.state === 'error') {
     return (
@@ -659,6 +800,24 @@ function CodexOAuthSetup({
   const status = useCodexOAuthFlow({
     onAuthenticated: handleAuthenticated,
   })
+
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserOAuthSetupPanel
+        title={status.state === 'error' ? 'Codex OAuth failed' : 'Codex OAuth'}
+        description={
+          <>
+            Sign in with your ChatGPT account in the browser. OpenClaude will store the resulting Codex credentials securely and switch this session to the new Codex login when setup completes.
+          </>
+        }
+        state={status.state}
+        message={status.state === 'error' ? status.message : undefined}
+        authUrl={status.state === 'waiting' ? status.authUrl : undefined}
+        browserOpened={status.state === 'waiting' ? status.browserOpened : undefined}
+        onBack={onBack}
+      />
+    )
+  }
 
   if (status.state === 'error') {
     return (
@@ -1963,6 +2122,93 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     isActive: screen === 'xai-oauth',
   })
 
+  function renderBrowserProviderInputStep({
+    title,
+    description,
+    providerType,
+    stepLabel,
+    value,
+    placeholder,
+    masked = false,
+    error,
+    actionLabel = 'Continue',
+    onChange,
+    onSubmit,
+    onBack,
+  }: {
+    title: string
+    description: React.ReactNode
+    providerType: string
+    stepLabel: string
+    value: string
+    placeholder: string
+    masked?: boolean
+    error?: string
+    actionLabel?: string
+    onChange: (value: string) => void
+    onSubmit: (value: string) => void
+    onBack: () => void
+  }): React.ReactNode {
+    return (
+      <section className="repl-providerFormSurface repl-providerManagerSurface">
+        <div className="repl-providerFormHeader">
+          <span className="repl-webPickerKicker">Session routing</span>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+
+        <div className="repl-providerFormMeta" aria-label="Provider setup details">
+          <span>{providerType}</span>
+          <span>{stepLabel}</span>
+        </div>
+
+        <form
+          className="repl-providerForm"
+          onSubmit={event => {
+            event.preventDefault()
+            onSubmit(value)
+          }}
+        >
+          <label className="repl-providerFormField">
+            <span>{stepLabel.replace(/^Step \d+ of \d+:\s*/, '')}</span>
+            <input
+              autoFocus
+              value={value}
+              type={masked ? 'password' : 'text'}
+              placeholder={placeholder}
+              onChange={event => onChange(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  onBack()
+                }
+              }}
+            />
+          </label>
+
+          {error ? (
+            <div className="repl-providerFormError" role="alert">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="repl-providerFormActions">
+            <button type="button" className="repl-webPickerGhostButton" onClick={onBack}>
+              Back
+            </button>
+            <button type="submit" className="repl-providerFormSubmit">
+              {actionLabel}
+            </button>
+          </div>
+        </form>
+
+        <p className="repl-providerFormHint">
+          Press Enter to continue. Press Esc to go back.
+        </p>
+      </section>
+    )
+  }
+
   function renderPresetSelection(): React.ReactNode {
     const canUseCodexOAuth = !isBareMode()
     const canUseXaiOAuth = !isBareMode()
@@ -2078,6 +2324,92 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
   }
 
   function renderForm(): React.ReactNode {
+    if (isBrowserRuntime()) {
+      const providerType = getRouteProviderTypeLabel(resolveProfileRoute(draftProvider).routeId)
+      const stepLabel = `Step ${formStepIndex + 1} of ${formSteps.length}: ${currentStep.label}`
+
+      if (currentStepKey === 'apiFormat') {
+        return (
+          <WebSelectList
+            title={editingProfileId ? 'Edit provider profile' : 'Create provider profile'}
+            subtitle={
+              <>
+                {currentStep.helpText}
+                <br />
+                Provider type: {providerType}
+                <br />
+                {stepLabel}
+              </>
+            }
+            className="repl-providerChoiceList repl-providerPresetList repl-providerFormSelect"
+            options={[
+              {
+                value: 'chat_completions',
+                label: 'Chat Completions',
+                description: 'Use /chat/completions for broad OpenAI-compatible support',
+              },
+              {
+                value: 'responses',
+                label: 'Responses',
+                description: 'Use /responses for providers that support the Responses API',
+              },
+              {
+                value: 'responses_compat',
+                label: 'Responses (Compat)',
+                description: 'Use /responses with legacy text chunks for strict gateways',
+              },
+            ]}
+            selectedValue={
+              currentValue === 'responses_compat' ? 'responses_compat' : currentValue === 'responses' ? 'responses' : 'chat_completions'
+            }
+            focusedValue={
+              currentValue === 'responses_compat' ? 'responses_compat' : currentValue === 'responses' ? 'responses' : 'chat_completions'
+            }
+            onSelect={handleFormSubmit}
+            onCancel={handleBackFromForm}
+            footer={
+              errorMessage ? (
+                <div className="repl-providerFormError" role="alert">
+                  {errorMessage}
+                </div>
+              ) : null
+            }
+          />
+        )
+      }
+
+      return renderBrowserProviderInputStep({
+        title: editingProfileId ? 'Edit provider profile' : 'Create provider profile',
+        description: (
+          <>
+            {currentStep.helpText}
+            {routeSupportsCustomHeaders(resolveProfileRoute(draftProvider).routeId) ? (
+              <>
+                <br />
+                Advanced: this provider supports custom request headers when needed.
+              </>
+            ) : null}
+          </>
+        ),
+        providerType,
+        stepLabel,
+        value: currentValue,
+        placeholder: currentStep.placeholder,
+        masked:
+          currentStepKey === 'apiKey' ||
+          currentStepKey === 'authHeaderValue',
+        error: errorMessage,
+        actionLabel: formStepIndex < formSteps.length - 1 ? 'Continue' : 'Save provider',
+        onChange: value =>
+          setDraft(prev => ({
+            ...prev,
+            [currentStepKey]: value,
+          })),
+        onSubmit: handleFormSubmit,
+        onBack: handleBackFromForm,
+      })
+    }
+
     return (
       <Box flexDirection="column" gap={1}>
         <Text color="remember" bold>
@@ -2163,6 +2495,55 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
 
   function renderPresetModel(): React.ReactNode {
     const needsApiKey = presetRequiresApiKey && !draft.apiKey.trim()
+    const submitPresetModel = (value: string) => {
+      const model = value.trim()
+      if (!model) {
+        setErrorMessage('Default model is required.')
+        return
+      }
+
+      const nextDraft = applyPresetApiFormat(
+        {
+          ...draft,
+          model,
+        },
+        draftProvider,
+      )
+      setDraft(nextDraft)
+      setErrorMessage(undefined)
+
+      if (needsApiKey) {
+        setCursorOffset(0)
+        setScreen('preset-api-key')
+        return
+      }
+
+      persistDraft(nextDraft, draftProvider, null)
+    }
+
+    if (isBrowserRuntime()) {
+      return renderBrowserProviderInputStep({
+        title: 'Create provider profile',
+        description: (
+          <>
+            Choose the default model for {draft.name}. Endpoint and advanced details are already configured by the preset.
+          </>
+        ),
+        providerType: getRouteProviderTypeLabel(resolveProfileRoute(draftProvider).routeId),
+        stepLabel: `Step 1 of ${needsApiKey ? 2 : 1}: Default model`,
+        value: draft.model,
+        placeholder: 'Enter model...',
+        error: errorMessage,
+        actionLabel: needsApiKey ? 'Continue' : 'Save provider',
+        onChange: value =>
+          setDraft(prev => ({
+            ...prev,
+            model: value,
+          })),
+        onSubmit: submitPresetModel,
+        onBack: handleBackFromPresetModel,
+      })
+    }
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -2190,31 +2571,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
                 model: value,
               }))
             }
-            onSubmit={value => {
-              const model = value.trim()
-              if (!model) {
-                setErrorMessage('Default model is required.')
-                return
-              }
-
-              const nextDraft = applyPresetApiFormat(
-                {
-                  ...draft,
-                  model,
-                },
-                draftProvider,
-              )
-              setDraft(nextDraft)
-              setErrorMessage(undefined)
-
-              if (needsApiKey) {
-                setCursorOffset(0)
-                setScreen('preset-api-key')
-                return
-              }
-
-              persistDraft(nextDraft, draftProvider, null)
-            }}
+            onSubmit={submitPresetModel}
             focus={true}
             showCursor={true}
             placeholder={`Enter model${figures.ellipsis}`}
@@ -2232,6 +2589,50 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
   }
 
   function renderPresetApiKey(): React.ReactNode {
+    const submitPresetApiKey = (value: string) => {
+      const apiKey = value.trim()
+      if (!apiKey) {
+        setErrorMessage(`API key is required for ${draft.name}.`)
+        return
+      }
+
+      const nextDraft = applyPresetApiFormat(
+        {
+          ...draft,
+          apiKey,
+        },
+        draftProvider,
+      )
+      setDraft(nextDraft)
+      setErrorMessage(undefined)
+      persistDraft(nextDraft, draftProvider, null)
+    }
+
+    if (isBrowserRuntime()) {
+      return renderBrowserProviderInputStep({
+        title: 'Create provider profile',
+        description: (
+          <>
+            Enter the API key for {draft.name}. Other preset details are already configured.
+          </>
+        ),
+        providerType: getRouteProviderTypeLabel(resolveProfileRoute(draftProvider).routeId),
+        stepLabel: 'Step 2 of 2: API key',
+        value: draft.apiKey,
+        placeholder: 'Enter API key...',
+        masked: true,
+        error: errorMessage,
+        actionLabel: 'Save provider',
+        onChange: value =>
+          setDraft(prev => ({
+            ...prev,
+            apiKey: value,
+          })),
+        onSubmit: submitPresetApiKey,
+        onBack: handleBackFromPresetApiKey,
+      })
+    }
+
     return (
       <Box flexDirection="column" gap={1}>
         <Text color="remember" bold>
@@ -2256,24 +2657,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
                 apiKey: value,
               }))
             }
-            onSubmit={value => {
-              const apiKey = value.trim()
-              if (!apiKey) {
-                setErrorMessage(`API key is required for ${draft.name}.`)
-                return
-              }
-
-              const nextDraft = applyPresetApiFormat(
-                {
-                  ...draft,
-                  apiKey,
-                },
-                draftProvider,
-              )
-              setDraft(nextDraft)
-              setErrorMessage(undefined)
-              persistDraft(nextDraft, draftProvider, null)
-            }}
+            onSubmit={submitPresetApiKey}
             focus={true}
             showCursor={true}
             placeholder={`Enter API key${figures.ellipsis}`}

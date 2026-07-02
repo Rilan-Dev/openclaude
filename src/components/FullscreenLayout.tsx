@@ -12,6 +12,7 @@ import type { Message } from '../types/message.js';
 import { openBrowser, openPath } from '../utils/browser.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
 import { plural } from '../utils/stringUtils.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js';
 import PromptInputFooterSuggestions from './PromptInput/PromptInputFooterSuggestions.js';
 import type { StickyPrompt } from './VirtualMessageList.js';
@@ -26,11 +27,13 @@ const MODAL_TRANSCRIPT_PEEK = 2;
 export const ScrollChromeContext = createContext<{
   setStickyPrompt: (p: StickyPrompt | null) => void;
 }>({
-  setStickyPrompt: () => {}
+  setStickyPrompt: () => { }
 });
 type Props = {
   /** Content that scrolls (messages, tool output) */
   scrollable: ReactNode;
+  /** Content below scrollback but above the prompt (status, buddy, notices). */
+  nonscrollable?: ReactNode;
   /** Content pinned to the bottom (spinner, prompt, permissions) */
   bottom: ReactNode;
   /** Content rendered inside the ScrollBox after messages — user can scroll
@@ -271,6 +274,7 @@ export function FullscreenLayout(t0) {
   const $ = _c(47);
   const {
     scrollable,
+    nonscrollable,
     bottom,
     overlay,
     bottomFloat,
@@ -335,302 +339,461 @@ export function FullscreenLayout(t0) {
     t7 = $[6];
   }
   useLayoutEffect(_temp3, t7);
-  if (isFullscreenEnvEnabled()) {
+  if (isBrowserRuntime()) {
     const sticky = hideSticky ? null : stickyPrompt;
     const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
-    const padCollapsed = sticky != null && overlay == null;
+    const browserModal = modal != null ? <ModalContext.Provider value={{
+      rows: Math.max(8, terminalRows - MODAL_TRANSCRIPT_PEEK - 1),
+      columns: Math.max(48, columns - 4),
+      scrollRef: modalScrollRef ?? null
+    }}><div className="repl-webModalBackdrop" role="presentation">
+        <div className="repl-webModalPanel" role="dialog" aria-modal="true">
+          <div className="repl-webModalHandle" />
+          {modal}
+        </div>
+      </div></ModalContext.Provider> : null;
+
+    return (
+      <PromptOverlayProvider uiMode="web">
+        <div
+          className="repl-webFullscreen"
+          data-has-overlay={overlay ? "true" : undefined}
+        >
+          <main
+            className="repl-webConversationWindow"
+            aria-label="OpenClaude conversation"
+          >
+            {headerPrompt ? (
+              <div className="repl-webStickyHeader">
+                <WebStickyPromptHeader
+                  text={headerPrompt.text}
+                  onClick={headerPrompt.scrollTo}
+                />
+              </div>
+            ) : null}
+
+            <section className="repl-webScrollPane">
+              <ScrollChromeContext.Provider value={chromeCtx}>
+                {scrollable}
+              </ScrollChromeContext.Provider>
+
+              {overlay ? (
+                <div className="repl-webInlineOverlay">
+                  {overlay}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="repl-webNonscrollable">
+              {nonscrollable}
+            </section>
+
+            {!hidePill && pillVisible && overlay == null ? (
+              <WebNewMessagesPill
+                count={newMessageCount}
+                onClick={onPillClick}
+              />
+            ) : null}
+
+            {bottomFloat != null ? (
+              <div className="repl-webBottomFloat">
+                {bottomFloat}
+              </div>
+            ) : null}
+          </main>
+
+          <footer
+            className="repl-webComposerDock"
+            aria-label="Prompt composer"
+          >
+            <div className="repl-webComposerOverlayLayer" aria-live="polite">
+              <WebSuggestionsOverlay />
+              <WebDialogOverlay />
+            </div>
+            {bottom}
+          </footer>
+
+          {browserModal}
+        </div>
+      </PromptOverlayProvider>
+    );
+  }
+
+    if (isFullscreenEnvEnabled()) {
+      const sticky = hideSticky ? null : stickyPrompt;
+      const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
+      const padCollapsed = sticky != null && overlay == null;
+      let t8;
+      if ($[7] !== headerPrompt) {
+        t8 = headerPrompt && <StickyPromptHeader text={headerPrompt.text} onClick={headerPrompt.scrollTo} />;
+        $[7] = headerPrompt;
+        $[8] = t8;
+      } else {
+        t8 = $[8];
+      }
+      const t9 = padCollapsed ? 0 : 1;
+      let t10;
+      if ($[9] !== scrollable) {
+        t10 = <ScrollChromeContext.Provider value={chromeCtx}>{scrollable}</ScrollChromeContext.Provider>;
+        $[9] = scrollable;
+        $[10] = t10;
+      } else {
+        t10 = $[10];
+      }
+      let t11;
+      if ($[11] !== overlay || $[12] !== scrollRef || $[13] !== t10 || $[14] !== t9) {
+        t11 = <ScrollBox ref={scrollRef} flexGrow={1} flexDirection="column" paddingTop={t9} stickyScroll={true}>{t10}{overlay}</ScrollBox>;
+        $[11] = overlay;
+        $[12] = scrollRef;
+        $[13] = t10;
+        $[14] = t9;
+        $[15] = t11;
+      } else {
+        t11 = $[15];
+      }
+      let t12;
+      if ($[16] !== hidePill || $[17] !== newMessageCount || $[18] !== onPillClick || $[19] !== overlay || $[20] !== pillVisible) {
+        t12 = !hidePill && pillVisible && overlay == null && <NewMessagesPill count={newMessageCount} onClick={onPillClick} />;
+        $[16] = hidePill;
+        $[17] = newMessageCount;
+        $[18] = onPillClick;
+        $[19] = overlay;
+        $[20] = pillVisible;
+        $[21] = t12;
+      } else {
+        t12 = $[21];
+      }
+      let t13;
+      if ($[22] !== bottomFloat) {
+        t13 = bottomFloat != null && <Box position="absolute" bottom={0} right={0} opaque={true}>{bottomFloat}</Box>;
+        $[22] = bottomFloat;
+        $[23] = t13;
+      } else {
+        t13 = $[23];
+      }
+      let t14;
+      if ($[24] !== t11 || $[25] !== t12 || $[26] !== t13 || $[27] !== t8) {
+        t14 = <Box flexGrow={1} flexDirection="column" overflow="hidden">{t8}{t11}{t12}{t13}</Box>;
+        $[24] = t11;
+        $[25] = t12;
+        $[26] = t13;
+        $[27] = t8;
+        $[28] = t14;
+      } else {
+        t14 = $[28];
+      }
+      let t15;
+      let t16;
+      if ($[29] === Symbol.for("react.memo_cache_sentinel")) {
+        t15 = <SuggestionsOverlay />;
+        t16 = <DialogOverlay />;
+        $[29] = t15;
+        $[30] = t16;
+      } else {
+        t15 = $[29];
+        t16 = $[30];
+      }
+      let t17;
+      if ($[31] !== bottom) {
+        t17 = <Box flexDirection="column" flexShrink={0} width="100%" maxHeight="50%">{t15}{t16}<Box flexDirection="column" width="100%" flexGrow={1} overflowY="hidden">{bottom}</Box></Box>;
+        $[31] = bottom;
+        $[32] = t17;
+      } else {
+        t17 = $[32];
+      }
+      let t18;
+      if ($[33] !== columns || $[34] !== modal || $[35] !== modalScrollRef || $[36] !== terminalRows) {
+        t18 = modal != null && <ModalContext.Provider value={{
+          rows: terminalRows - MODAL_TRANSCRIPT_PEEK - 1,
+          columns: columns - 4,
+          scrollRef: modalScrollRef ?? null
+        }}><Box position="absolute" bottom={0} left={0} right={0} maxHeight={terminalRows - MODAL_TRANSCRIPT_PEEK} flexDirection="column" overflow="hidden" opaque={true}><Box flexShrink={0}><Text color="permission">{"\u2594".repeat(columns)}</Text></Box><Box flexDirection="column" paddingX={2} flexShrink={0} overflow="hidden">{modal}</Box></Box></ModalContext.Provider>;
+        $[33] = columns;
+        $[34] = modal;
+        $[35] = modalScrollRef;
+        $[36] = terminalRows;
+        $[37] = t18;
+      } else {
+        t18 = $[37];
+      }
+      let t19;
+      if ($[38] !== t14 || $[39] !== t17 || $[40] !== t18) {
+        t19 = <PromptOverlayProvider>{t14}{t17}{t18}</PromptOverlayProvider>;
+        $[38] = t14;
+        $[39] = t17;
+        $[40] = t18;
+        $[41] = t19;
+      } else {
+        t19 = $[41];
+      }
+      return t19;
+    }
     let t8;
-    if ($[7] !== headerPrompt) {
-      t8 = headerPrompt && <StickyPromptHeader text={headerPrompt.text} onClick={headerPrompt.scrollTo} />;
-      $[7] = headerPrompt;
-      $[8] = t8;
+    if ($[42] !== bottom || $[43] !== modal || $[44] !== overlay || $[45] !== scrollable) {
+      t8 = <>{scrollable}{bottom}{overlay}{modal}</>;
+      $[42] = bottom;
+      $[43] = modal;
+      $[44] = overlay;
+      $[45] = scrollable;
+      $[46] = t8;
     } else {
-      t8 = $[8];
+      t8 = $[46];
     }
-    const t9 = padCollapsed ? 0 : 1;
-    let t10;
-    if ($[9] !== scrollable) {
-      t10 = <ScrollChromeContext value={chromeCtx}>{scrollable}</ScrollChromeContext>;
-      $[9] = scrollable;
-      $[10] = t10;
-    } else {
-      t10 = $[10];
-    }
-    let t11;
-    if ($[11] !== overlay || $[12] !== scrollRef || $[13] !== t10 || $[14] !== t9) {
-      t11 = <ScrollBox ref={scrollRef} flexGrow={1} flexDirection="column" paddingTop={t9} stickyScroll={true}>{t10}{overlay}</ScrollBox>;
-      $[11] = overlay;
-      $[12] = scrollRef;
-      $[13] = t10;
-      $[14] = t9;
-      $[15] = t11;
-    } else {
-      t11 = $[15];
-    }
-    let t12;
-    if ($[16] !== hidePill || $[17] !== newMessageCount || $[18] !== onPillClick || $[19] !== overlay || $[20] !== pillVisible) {
-      t12 = !hidePill && pillVisible && overlay == null && <NewMessagesPill count={newMessageCount} onClick={onPillClick} />;
-      $[16] = hidePill;
-      $[17] = newMessageCount;
-      $[18] = onPillClick;
-      $[19] = overlay;
-      $[20] = pillVisible;
-      $[21] = t12;
-    } else {
-      t12 = $[21];
-    }
-    let t13;
-    if ($[22] !== bottomFloat) {
-      t13 = bottomFloat != null && <Box position="absolute" bottom={0} right={0} opaque={true}>{bottomFloat}</Box>;
-      $[22] = bottomFloat;
-      $[23] = t13;
-    } else {
-      t13 = $[23];
-    }
-    let t14;
-    if ($[24] !== t11 || $[25] !== t12 || $[26] !== t13 || $[27] !== t8) {
-      t14 = <Box flexGrow={1} flexDirection="column" overflow="hidden">{t8}{t11}{t12}{t13}</Box>;
-      $[24] = t11;
-      $[25] = t12;
-      $[26] = t13;
-      $[27] = t8;
-      $[28] = t14;
-    } else {
-      t14 = $[28];
-    }
-    let t15;
-    let t16;
-    if ($[29] === Symbol.for("react.memo_cache_sentinel")) {
-      t15 = <SuggestionsOverlay />;
-      t16 = <DialogOverlay />;
-      $[29] = t15;
-      $[30] = t16;
-    } else {
-      t15 = $[29];
-      t16 = $[30];
-    }
-    let t17;
-    if ($[31] !== bottom) {
-      t17 = <Box flexDirection="column" flexShrink={0} width="100%" maxHeight="50%">{t15}{t16}<Box flexDirection="column" width="100%" flexGrow={1} overflowY="hidden">{bottom}</Box></Box>;
-      $[31] = bottom;
-      $[32] = t17;
-    } else {
-      t17 = $[32];
-    }
-    let t18;
-    if ($[33] !== columns || $[34] !== modal || $[35] !== modalScrollRef || $[36] !== terminalRows) {
-      t18 = modal != null && <ModalContext value={{
-        rows: terminalRows - MODAL_TRANSCRIPT_PEEK - 1,
-        columns: columns - 4,
-        scrollRef: modalScrollRef ?? null
-      }}><Box position="absolute" bottom={0} left={0} right={0} maxHeight={terminalRows - MODAL_TRANSCRIPT_PEEK} flexDirection="column" overflow="hidden" opaque={true}><Box flexShrink={0}><Text color="permission">{"\u2594".repeat(columns)}</Text></Box><Box flexDirection="column" paddingX={2} flexShrink={0} overflow="hidden">{modal}</Box></Box></ModalContext>;
-      $[33] = columns;
-      $[34] = modal;
-      $[35] = modalScrollRef;
-      $[36] = terminalRows;
-      $[37] = t18;
-    } else {
-      t18 = $[37];
-    }
-    let t19;
-    if ($[38] !== t14 || $[39] !== t17 || $[40] !== t18) {
-      t19 = <PromptOverlayProvider>{t14}{t17}{t18}</PromptOverlayProvider>;
-      $[38] = t14;
-      $[39] = t17;
-      $[40] = t18;
-      $[41] = t19;
-    } else {
-      t19 = $[41];
-    }
-    return t19;
-  }
-  let t8;
-  if ($[42] !== bottom || $[43] !== modal || $[44] !== overlay || $[45] !== scrollable) {
-    t8 = <>{scrollable}{bottom}{overlay}{modal}</>;
-    $[42] = bottom;
-    $[43] = modal;
-    $[44] = overlay;
-    $[45] = scrollable;
-    $[46] = t8;
-  } else {
-    t8 = $[46];
-  }
-  return t8;
-}
+    return t8;
 
-// Slack-style pill. Absolute overlay at bottom={0} of the scrollwrap — floats
-// over the ScrollBox's last content row, only obscuring the centered pill
-// text (the rest of the row shows ScrollBox content). Scroll-smear from
-// DECSTBM shifting the pill's pixels is repaired at the Ink layer
-// (absoluteRectsPrev third-pass in render-node-to-output.ts, #23939). Shows
-// "Jump to bottom" when count is 0 (scrolled away but no new messages yet —
-// the dead zone where users previously thought chat stalled).
-function _temp3() {
-  if (!isFullscreenEnvEnabled()) {
-    return;
+
+  // Slack-style pill. Absolute overlay at bottom={0} of the scrollwrap — floats
+  // over the ScrollBox's last content row, only obscuring the centered pill
+  // text (the rest of the row shows ScrollBox content). Scroll-smear from
+  // DECSTBM shifting the pill's pixels is repaired at the Ink layer
+  // (absoluteRectsPrev third-pass in render-node-to-output.ts, #23939). Shows
+  // "Jump to bottom" when count is 0 (scrolled away but no new messages yet —
+  // the dead zone where users previously thought chat stalled).
+  function _temp3() {
+    if (!isFullscreenEnvEnabled()) {
+      return;
+    }
+    const ink = instances.get(process.stdout);
+    if (!ink) {
+      return;
+    }
+    ink.onHyperlinkClick = _temp2;
+    return () => {
+      ink.onHyperlinkClick = undefined;
+    };
   }
-  const ink = instances.get(process.stdout);
-  if (!ink) {
-    return;
+  function _temp2(url) {
+    if (url.startsWith("file:")) {
+      try {
+        openPath(fileURLToPath(url));
+      } catch { }
+    } else {
+      openBrowser(url);
+    }
   }
-  ink.onHyperlinkClick = _temp2;
-  return () => {
-    ink.onHyperlinkClick = undefined;
-  };
-}
-function _temp2(url) {
-  if (url.startsWith("file:")) {
-    try {
-      openPath(fileURLToPath(url));
-    } catch {}
-  } else {
-    openBrowser(url);
-  }
-}
-function _temp() {}
-function NewMessagesPill(t0) {
-  const $ = _c(10);
-  const {
+  function _temp() { }
+
+  function WebNewMessagesPill({
     count,
-    onClick
-  } = t0;
-  const [hover, setHover] = useState(false);
-  let t1;
-  let t2;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = () => setHover(true);
-    t2 = () => setHover(false);
-    $[0] = t1;
-    $[1] = t2;
-  } else {
-    t1 = $[0];
-    t2 = $[1];
+    onClick,
+  }: {
+    count: number;
+    onClick?: () => void;
+  }) {
+    const label = count > 0 ? `${count} new ${plural(count, "message")}` : "Jump to bottom";
+    return (
+      <button type="button" className="repl-webNewMessagesPill" onClick={onClick}>
+        <span>{label}</span>
+        <span aria-hidden="true">↓</span>
+      </button>
+    );
   }
-  const t3 = hover ? "userMessageBackgroundHover" : "userMessageBackground";
-  let t4;
-  if ($[2] !== count) {
-    t4 = count > 0 ? `${count} new ${plural(count, "message")}` : "Jump to bottom";
-    $[2] = count;
-    $[3] = t4;
-  } else {
-    t4 = $[3];
-  }
-  let t5;
-  if ($[4] !== t3 || $[5] !== t4) {
-    t5 = <Text backgroundColor={t3} dimColor={true}>{" "}{t4}{" "}{figures.arrowDown}{" "}</Text>;
-    $[4] = t3;
-    $[5] = t4;
-    $[6] = t5;
-  } else {
-    t5 = $[6];
-  }
-  let t6;
-  if ($[7] !== onClick || $[8] !== t5) {
-    t6 = <Box position="absolute" bottom={0} left={0} right={0} justifyContent="center"><Box onClick={onClick} onMouseEnter={t1} onMouseLeave={t2}>{t5}</Box></Box>;
-    $[7] = onClick;
-    $[8] = t5;
-    $[9] = t6;
-  } else {
-    t6 = $[9];
-  }
-  return t6;
-}
 
-// Context breadcrumb: when scrolled up into history, pin the current
-// conversation turn's prompt above the viewport so you know what Claude was
-// responding to. Normal-flow sibling BEFORE the ScrollBox (mirrors the pill
-// below it) — shrinks the ScrollBox by exactly 1 row via flex, stays outside
-// the DECSTBM scroll region. Click jumps back to the prompt.
-//
-// Height is FIXED at 1 row (truncate-end for long prompts). A variable-height
-// header (1 when short, 2 when wrapped) shifts the ScrollBox by 1 row every
-// time the sticky prompt switches during scroll — content jumps on screen
-// even with scrollTop unchanged (the DECSTBM region top shifts with the
-// ScrollBox, and the diff engine sees "everything moved"). Fixed height
-// keeps the ScrollBox anchored; only the header TEXT changes, not its box.
-function StickyPromptHeader(t0) {
-  const $ = _c(8);
-  const {
+  function WebStickyPromptHeader({
     text,
-    onClick
-  } = t0;
-  const [hover, setHover] = useState(false);
-  const t1 = hover ? "userMessageBackgroundHover" : "userMessageBackground";
-  let t2;
-  let t3;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = () => setHover(true);
-    t3 = () => setHover(false);
-    $[0] = t2;
-    $[1] = t3;
-  } else {
-    t2 = $[0];
-    t3 = $[1];
+    onClick,
+  }: {
+    text: string;
+    onClick: () => void;
+  }) {
+    return (
+      <button type="button" className="repl-webStickyPrompt" onClick={onClick}>
+        <span className="repl-webStickyPromptMarker">Context</span>
+        <span className="repl-webStickyPromptText">{text}</span>
+      </button>
+    );
   }
-  let t4;
-  if ($[2] !== text) {
-    t4 = <Text color="subtle" wrap="truncate-end">{figures.pointer} {text}</Text>;
-    $[2] = text;
-    $[3] = t4;
-  } else {
-    t4 = $[3];
-  }
-  let t5;
-  if ($[4] !== onClick || $[5] !== t1 || $[6] !== t4) {
-    t5 = <Box flexShrink={0} width="100%" height={1} paddingRight={1} backgroundColor={t1} onClick={onClick} onMouseEnter={t2} onMouseLeave={t3}>{t4}</Box>;
-    $[4] = onClick;
-    $[5] = t1;
-    $[6] = t4;
-    $[7] = t5;
-  } else {
-    t5 = $[7];
-  }
-  return t5;
-}
 
-// Slash-command suggestion overlay — see promptOverlayContext.tsx for why
-// it's portaled. Scroll-smear from floating over the DECSTBM region is
-// repaired at the Ink layer (absoluteRectsPrev in render-node-to-output.ts).
-// The renderer clamps negative y to 0 for absolute elements (see
-// render-node-to-output.ts), so the top rows (best matches) stay visible
-// even when the overlay extends above the viewport. We omit minHeight and
-// flex-end here: they would create empty padding rows that shift visible
-// items down into the prompt area when the list has fewer items than max.
-function SuggestionsOverlay() {
-  const $ = _c(4);
-  const data = usePromptOverlay();
-  if (!data || data.suggestions.length === 0) {
-    return null;
-  }
-  let t0;
-  if ($[0] !== data.maxColumnWidth || $[1] !== data.selectedSuggestion || $[2] !== data.suggestions) {
-    t0 = <Box position="absolute" bottom="100%" left={0} right={0} paddingX={2} paddingTop={1} flexDirection="column" opaque={true}><PromptInputFooterSuggestions suggestions={data.suggestions} selectedSuggestion={data.selectedSuggestion} maxColumnWidth={data.maxColumnWidth} overlay={true} /></Box>;
-    $[0] = data.maxColumnWidth;
-    $[1] = data.selectedSuggestion;
-    $[2] = data.suggestions;
-    $[3] = t0;
-  } else {
-    t0 = $[3];
-  }
-  return t0;
-}
+  function WebSuggestionsOverlay() {
+    const data = usePromptOverlay();
+    if (!data || data.suggestions.length === 0) {
+      return null;
+    }
 
-// Dialog portaled from PromptInput (AutoModeOptInDialog) — same clip-escape
-// pattern as SuggestionsOverlay. Renders later in tree order so it paints
-// over suggestions if both are ever up (they shouldn't be).
-function DialogOverlay() {
-  const $ = _c(2);
-  const node = usePromptOverlayDialog();
-  if (!node) {
-    return null;
+    return (
+      <div
+        className="repl-webPromptOverlay repl-webPromptSuggestions"
+        role="presentation"
+      >
+        <div className="repl-webPromptOverlayChrome">
+          <div className="repl-webPromptOverlayHeader">
+            <span className="repl-webPromptOverlayKicker">Command palette</span>
+            <span className="repl-webPromptOverlayHint">Enter to apply / Esc to close</span>
+          </div>
+          <PromptInputFooterSuggestions
+            suggestions={data.suggestions}
+            selectedSuggestion={data.selectedSuggestion}
+            maxColumnWidth={data.maxColumnWidth}
+            overlay={true}
+          />
+        </div>
+      </div>
+    );
   }
-  let t0;
-  if ($[0] !== node) {
-    t0 = <Box position="absolute" bottom="100%" left={0} right={0} opaque={true}>{node}</Box>;
-    $[0] = node;
-    $[1] = t0;
-  } else {
-    t0 = $[1];
+
+  function WebDialogOverlay() {
+    const node = usePromptOverlayDialog();
+    if (!node) {
+      return null;
+    }
+
+    return (
+      <div
+        className="repl-webPromptOverlay repl-webPromptDialog"
+        role="dialog"
+        aria-modal="false"
+      >
+        <div className="repl-webPromptOverlayChrome repl-webPromptDialogChrome">
+          {node}
+        </div>
+      </div>
+    );
   }
-  return t0;
+
+  function NewMessagesPill(t0) {
+    const $ = _c(10);
+    const {
+      count,
+      onClick
+    } = t0;
+    const [hover, setHover] = useState(false);
+    let t1;
+    let t2;
+    if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
+      t1 = () => setHover(true);
+      t2 = () => setHover(false);
+      $[0] = t1;
+      $[1] = t2;
+    } else {
+      t1 = $[0];
+      t2 = $[1];
+    }
+    const t3 = hover ? "userMessageBackgroundHover" : "userMessageBackground";
+    let t4;
+    if ($[2] !== count) {
+      t4 = count > 0 ? `${count} new ${plural(count, "message")}` : "Jump to bottom";
+      $[2] = count;
+      $[3] = t4;
+    } else {
+      t4 = $[3];
+    }
+    let t5;
+    if ($[4] !== t3 || $[5] !== t4) {
+      t5 = <Text backgroundColor={t3} dimColor={true}>{" "}{t4}{" "}{figures.arrowDown}{" "}</Text>;
+      $[4] = t3;
+      $[5] = t4;
+      $[6] = t5;
+    } else {
+      t5 = $[6];
+    }
+    let t6;
+    if ($[7] !== onClick || $[8] !== t5) {
+      t6 = <Box position="absolute" bottom={0} left={0} right={0} justifyContent="center"><Box onClick={onClick} onMouseEnter={t1} onMouseLeave={t2}>{t5}</Box></Box>;
+      $[7] = onClick;
+      $[8] = t5;
+      $[9] = t6;
+    } else {
+      t6 = $[9];
+    }
+    return t6;
+  }
+
+  // Context breadcrumb: when scrolled up into history, pin the current
+  // conversation turn's prompt above the viewport so you know what Claude was
+  // responding to. Normal-flow sibling BEFORE the ScrollBox (mirrors the pill
+  // below it) — shrinks the ScrollBox by exactly 1 row via flex, stays outside
+  // the DECSTBM scroll region. Click jumps back to the prompt.
+  //
+  // Height is FIXED at 1 row (truncate-end for long prompts). A variable-height
+  // header (1 when short, 2 when wrapped) shifts the ScrollBox by 1 row every
+  // time the sticky prompt switches during scroll — content jumps on screen
+  // even with scrollTop unchanged (the DECSTBM region top shifts with the
+  // ScrollBox, and the diff engine sees "everything moved"). Fixed height
+  // keeps the ScrollBox anchored; only the header TEXT changes, not its box.
+  function StickyPromptHeader(t0) {
+    const $ = _c(8);
+    const {
+      text,
+      onClick
+    } = t0;
+    const [hover, setHover] = useState(false);
+    const t1 = hover ? "userMessageBackgroundHover" : "userMessageBackground";
+    let t2;
+    let t3;
+    if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
+      t2 = () => setHover(true);
+      t3 = () => setHover(false);
+      $[0] = t2;
+      $[1] = t3;
+    } else {
+      t2 = $[0];
+      t3 = $[1];
+    }
+    let t4;
+    if ($[2] !== text) {
+      t4 = <Text color="subtle" wrap="truncate-end">{figures.pointer} {text}</Text>;
+      $[2] = text;
+      $[3] = t4;
+    } else {
+      t4 = $[3];
+    }
+    let t5;
+    if ($[4] !== onClick || $[5] !== t1 || $[6] !== t4) {
+      t5 = <Box flexShrink={0} width="100%" height={1} paddingRight={1} backgroundColor={t1} onClick={onClick} onMouseEnter={t2} onMouseLeave={t3}>{t4}</Box>;
+      $[4] = onClick;
+      $[5] = t1;
+      $[6] = t4;
+      $[7] = t5;
+    } else {
+      t5 = $[7];
+    }
+    return t5;
+  }
+
+  // Slash-command suggestion overlay — see promptOverlayContext.tsx for why
+  // it's portaled. Scroll-smear from floating over the DECSTBM region is
+  // repaired at the Ink layer (absoluteRectsPrev in render-node-to-output.ts).
+  // The renderer clamps negative y to 0 for absolute elements (see
+  // render-node-to-output.ts), so the top rows (best matches) stay visible
+  // even when the overlay extends above the viewport. We omit minHeight and
+  // flex-end here: they would create empty padding rows that shift visible
+  // items down into the prompt area when the list has fewer items than max.
+  function SuggestionsOverlay() {
+    const $ = _c(4);
+    const data = usePromptOverlay();
+    if (!data || data.suggestions.length === 0) {
+      return null;
+    }
+    let t0;
+    if ($[0] !== data.maxColumnWidth || $[1] !== data.selectedSuggestion || $[2] !== data.suggestions) {
+      t0 = <Box position="absolute" bottom="100%" left={0} right={0} paddingX={2} paddingTop={1} flexDirection="column" opaque={true}><PromptInputFooterSuggestions suggestions={data.suggestions} selectedSuggestion={data.selectedSuggestion} maxColumnWidth={data.maxColumnWidth} overlay={true} /></Box>;
+      $[0] = data.maxColumnWidth;
+      $[1] = data.selectedSuggestion;
+      $[2] = data.suggestions;
+      $[3] = t0;
+    } else {
+      t0 = $[3];
+    }
+    return t0;
+  }
+
+  // Dialog portaled from PromptInput (AutoModeOptInDialog) — same clip-escape
+  // pattern as SuggestionsOverlay. Renders later in tree order so it paints
+  // over suggestions if both are ever up (they shouldn't be).
+  function DialogOverlay() {
+    const $ = _c(2);
+    const node = usePromptOverlayDialog();
+    if (!node) {
+      return null;
+    }
+    let t0;
+    if ($[0] !== node) {
+      t0 = <Box position="absolute" bottom="100%" left={0} right={0} opaque={true}>{node}</Box>;
+      $[0] = node;
+      $[1] = t0;
+    } else {
+      t0 = $[1];
+    }
+    return t0;
+  }
 }

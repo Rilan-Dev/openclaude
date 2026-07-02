@@ -6,8 +6,10 @@ import type { ClickEvent } from '../../ink/events/click-event.js';
 import type { FocusEvent } from '../../ink/events/focus-event.js';
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js';
 import type { Color, Styles } from '../../ink/styles.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { getTheme, type Theme } from '../../utils/theme.js';
 import { useTheme } from './ThemeProvider.js';
+import { inkBoxStylesToCss } from './webInkStyles.js';
 
 // Color props that accept theme keys
 type ThemedColorProps = {
@@ -129,6 +131,31 @@ function ThemedBoxInner(t0, ref: React.ForwardedRef<DOMElement>) {
     t1 = $[22];
   }
   const resolvedBackgroundColor = t1;
+  if (isBrowserRuntime()) {
+    const {
+      tabIndex,
+      autoFocus,
+      onClick,
+      onFocus,
+      onFocusCapture,
+      onBlur,
+      onBlurCapture,
+      onKeyDown,
+      onKeyDownCapture,
+      onMouseEnter,
+      onMouseLeave,
+      ...styleProps
+    } = rest;
+    return <div ref={ref as React.ForwardedRef<HTMLDivElement>} className="oc-webInkBox" data-ink-box="" tabIndex={tabIndex} autoFocus={autoFocus} onClick={onClick as never} onFocus={onFocus as never} onFocusCapture={onFocusCapture as never} onBlur={onBlur as never} onBlurCapture={onBlurCapture as never} onKeyDown={onKeyDown as never} onKeyDownCapture={onKeyDownCapture as never} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={inkBoxStylesToCss({
+      ...styleProps,
+      borderColor: resolvedBorderColor,
+      borderTopColor: resolvedBorderTopColor,
+      borderBottomColor: resolvedBorderBottomColor,
+      borderLeftColor: resolvedBorderLeftColor,
+      borderRightColor: resolvedBorderRightColor,
+      backgroundColor: resolvedBackgroundColor
+    })}>{children}</div>;
+  }
   let t2;
   if ($[23] !== children || $[24] !== ref || $[25] !== resolvedBackgroundColor || $[26] !== resolvedBorderBottomColor || $[27] !== resolvedBorderColor || $[28] !== resolvedBorderLeftColor || $[29] !== resolvedBorderRightColor || $[30] !== resolvedBorderTopColor || $[31] !== rest) {
     t2 = <Box ref={ref} borderColor={resolvedBorderColor} borderTopColor={resolvedBorderTopColor} borderBottomColor={resolvedBorderBottomColor} borderLeftColor={resolvedBorderLeftColor} borderRightColor={resolvedBorderRightColor} backgroundColor={resolvedBackgroundColor} {...rest}>{children}</Box>;

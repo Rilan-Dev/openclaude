@@ -3098,23 +3098,93 @@
   }
 }
 
+/* === REPL_CANONICAL_LEFT_CARD_START === */
+
+/*
+ * Canonical web REPL layout.
+ *
+ * The browser REPL owns the viewport directly. The conversation and composer
+ * share one centered full-width shell, and repl-webScrollPane is the only
+ * primary vertical scrollbar.
+ */
+
 .repl-webFullscreen {
-  position: relative;
-  min-height: 100vh;
+  --repl-web-card-width: min(100%, 78rem);
+  --repl-web-card-border: rgba(255, 255, 255, 0.07);
+  --repl-web-card-background:
+    linear-gradient(
+      180deg,
+      rgba(38, 38, 36, 0.97),
+      rgba(28, 28, 27, 0.97)
+    );
+
+  position: fixed;
+  inset: 0;
+
+  width: auto;
+  height: 100vh;
+  height: 100svh;
+  height: 100dvh;
+
+  min-width: 0;
+  min-height: 0;
+
+  max-width: none;
+  max-height: 100dvh;
+
+  margin: 0;
+
+  padding: clamp(0.75rem, 1.4vw, 1.4rem);
+
   display: grid;
+
+  grid-template-columns: minmax(0, 1fr);
+
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 1rem;
-  /* padding: clamp(1rem, 1.4vw, 2rem); */
+
+  gap: 0;
+
+  justify-items: center;
+  align-items: stretch;
+  align-content: stretch;
+
   overflow: hidden;
+  overscroll-behavior: none;
+
+  box-sizing: border-box;
+
   color: #ececec;
   background:
-    linear-gradient(180deg, rgba(48, 48, 46, 0.72), rgba(33, 33, 33, 0.6)),
-    rgba(33, 33, 33, 0.72);
-  box-shadow:
-    0 26px 70px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  backdrop-filter: blur(22px);
-  font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    radial-gradient(circle at 18% 12%, rgba(217, 119, 87, 0.10), transparent 26rem),
+    radial-gradient(circle at 82% 0%, rgba(245, 158, 11, 0.055), transparent 24rem),
+    linear-gradient(180deg, #20201f 0%, #1f1f1e 100%);
+
+  font-family:
+    "Aptos",
+    "Segoe UI Variable",
+    "SF Pro Text",
+    "Segoe UI",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+#root:has(.repl-webFullscreen),
+#root > ink-box:has(.repl-webFullscreen),
+.openclaude-web-runtime:has(.repl-webFullscreen),
+.openclaude-web-runtime__repl:has(.repl-webFullscreen) {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: #20201f;
+}
+
+#root > ink-box:has(.repl-webFullscreen) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
 }
 
 .repl-webFullscreen::before {
@@ -3123,11 +3193,25 @@
   inset: 0;
   pointer-events: none;
   opacity: 0.24;
+
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px
+    );
+
   background-size: 44px 44px;
-  mask-image: radial-gradient(circle at 50% 44%, black, transparent 72%);
+  mask-image:
+    radial-gradient(
+      circle at 50% 44%,
+      black,
+      transparent 72%
+    );
 }
 
 .repl-webAurora {
@@ -3156,29 +3240,93 @@
   animation-delay: -3s;
 }
 
+/*
+ * Upper part of the browser chat shell.
+ */
 .repl-webConversationWindow {
+  grid-column: 1;
+  grid-row: 1;
+
   position: relative;
   z-index: 1;
-  height: 100%;
-  width: min(100%, 40rem);
-  justify-self: left;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 2rem;
+
+  width: min(100%, var(--repl-web-card-width));
+  max-width: none;
+
+  height: auto;
+
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+
+  justify-self: center;
+  align-self: stretch;
+
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid var(--repl-web-card-border);
+  border-bottom: 0;
+
+  border-radius: 2rem 2rem 0 0;
+
+  background: var(--repl-web-card-background);
+
+  box-shadow:
+    0 18px 54px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+
+  overflow: hidden;
+  overscroll-behavior: none;
+
+  box-sizing: border-box;
 }
 
+.repl-webStickyHeader,
+.repl-webStickyPrompt {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/*
+ * The only primary vertical scrollbar.
+ */
 .repl-webScrollPane {
+  position: relative;
+
+  flex: 1 1 0;
+
+  width: 100%;
+
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
   padding: clamp(1rem, 2vw, 1.55rem);
+
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
+
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(217, 119, 87, 0.52) transparent;
+  scrollbar-color:
+    rgba(217, 119, 87, 0.52)
+    transparent;
+
+  -webkit-overflow-scrolling: touch;
+
+  box-sizing: border-box;
 }
 
 .repl-webScrollPane::-webkit-scrollbar {
   width: 0.72rem;
+}
+
+.repl-webScrollPane::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .repl-webScrollPane::-webkit-scrollbar-thumb {
@@ -3188,23 +3336,161 @@
   background-clip: padding-box;
 }
 
+/*
+ * Disable transcript-level nested scrolling.
+ */
+.repl-webScrollPane .repl-transcript,
+.repl-webScrollPane .repl-browserTranscript {
+  width: 100% !important;
+  max-width: none !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  margin-inline: 0 !important;
+
+  overflow: visible !important;
+}
+
+/*
+ * Fixed-layout content between transcript and composer.
+ */
+.repl-webNonscrollable {
+  display: block;
+
+  flex: 0 0 auto;
+
+  position: relative;
+  z-index: 5;
+
+  width: 100%;
+
+  min-width: 0;
+  min-height: 0;
+
+  overflow: visible;
+
+  box-sizing: border-box;
+}
+
+/*
+ * Lower part of the same browser chat shell.
+ */
+.repl-webComposerDock {
+  grid-column: 1;
+  grid-row: 2;
+
+  position: relative;
+  z-index: 20;
+
+  width: min(100%, var(--repl-web-card-width));
+  max-width: none;
+
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  justify-self: center;
+  align-self: end;
+
+  border: 1px solid var(--repl-web-card-border);
+  border-top: 0;
+
+  border-radius: 0 0 2rem 2rem;
+
+  background: var(--repl-web-card-background);
+
+  box-shadow:
+    0 22px 54px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.025);
+
+  overflow: visible;
+
+  box-sizing: border-box;
+}
+
+.repl-webComposerDock .repl-composerShell,
+.repl-webComposerDock .oc-claude-chat {
+  width: 100% !important;
+  max-width: none !important;
+
+  min-width: 0;
+
+  margin-inline: 0 !important;
+
+  box-sizing: border-box;
+}
+
+.repl-webComposerDock > * {
+  max-width: 100%;
+}
+
+.repl-webBottomFloat {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 30;
+
+  max-width:
+    calc(var(--repl-web-card-width) - 2rem);
+
+  transform: translateX(-50%);
+}
+
+.repl-webNewMessagesPill {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  z-index: 30;
+
+  transform: translateX(-50%);
+}
+
 .repl-webInlineOverlay {
   margin-top: 1rem;
   padding: 1rem;
+
   border: 1px solid rgba(217, 119, 87, 0.2);
   border-radius: 1.25rem;
+
   background: rgba(48, 48, 46, 0.72);
-  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.22);
+
+  box-shadow:
+    0 1rem 2.5rem rgba(0, 0, 0, 0.22);
 }
 
-.repl-webComposerDock {
-  position: relative;
-  z-index: 2;
-  width: min(100%, 72rem);
-  justify-self: center;
-  padding: 0 0 0.25rem;
+@media (max-width: 880px) {
+  .repl-webFullscreen {
+    grid-template-columns: minmax(0, 1fr);
+
+    padding: 0.35rem;
+
+    overflow: hidden;
+  }
+
+  .repl-webConversationWindow,
+  .repl-webComposerDock {
+    grid-column: 1;
+
+    width: 100%;
+    max-width: none;
+
+    justify-self: stretch;
+  }
+
+  .repl-webConversationWindow {
+    border-radius: 1.35rem 1.35rem 0 0;
+  }
+
+  .repl-webComposerDock {
+    border-radius: 0 0 1.35rem 1.35rem;
+  }
 }
 
+/* === REPL_CANONICAL_LEFT_CARD_END === */
 .repl-webNotifications {
   display: flex;
   flex-wrap: wrap;
@@ -3931,6 +4217,126 @@
   font-size: 0.78rem;
 }
 
+/* ModelPicker: reuse ProviderManager's compact provider-card design. */
+.repl-modelPickerSurface.repl-providerManagerSurface {
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  padding: 1.15rem;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPicker {
+  width: 100%;
+  margin: 0;
+  padding: 0.62rem;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(145deg, rgba(48, 48, 46, 0.94), rgba(34, 34, 32, 0.94)),
+    rgba(33, 33, 33, 0.96);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: none;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerHeader {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.62rem;
+  row-gap: 0.12rem;
+  padding: 0.1rem 0.22rem 0.52rem;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerHeader .repl-webPickerKicker {
+  grid-row: span 2;
+  border-color: rgba(217, 119, 87, 0.28);
+  background: rgba(217, 119, 87, 0.1);
+  color: #f3c3a7;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerHeader h2 {
+  color: #f4f1ea;
+  font-family: "Aptos", "Segoe UI Variable", "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 820;
+  letter-spacing: -0.01em;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerHeader p {
+  grid-column: 2;
+  color: rgba(244, 241, 234, 0.62);
+  font-size: 0.76rem;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerList {
+  max-height: min(34vh, 17rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.18rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 119, 87, 0.34) rgba(255, 255, 255, 0.05);
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOption {
+  min-height: 3.05rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.72rem;
+  padding: 0.55rem 0.64rem;
+  border-color: rgba(244, 241, 234, 0.08);
+  border-radius: 0.78rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    rgba(32, 32, 30, 0.78);
+  box-shadow: none;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOption:hover,
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOption:focus-visible,
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOption[data-focused='true'] {
+  border-color: rgba(217, 119, 87, 0.32);
+  background:
+    linear-gradient(135deg, rgba(217, 119, 87, 0.12), rgba(255, 255, 255, 0.025)),
+    rgba(38, 38, 36, 0.92);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.08);
+  transform: none;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOption[data-selected='true'] {
+  border-color: rgba(210, 153, 110, 0.48);
+  background:
+    linear-gradient(135deg, rgba(210, 153, 110, 0.16), rgba(255, 255, 255, 0.025)),
+    rgba(48, 48, 46, 0.88);
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOptionMark {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.48rem;
+  border-color: rgba(244, 241, 234, 0.1);
+  background: rgba(255, 255, 255, 0.055);
+  color: #d2996e;
+  font-size: 0.55rem;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOptionTitle {
+  color: #f4f1ea;
+  font-size: 0.88rem;
+  white-space: normal;
+}
+
+.repl-modelPickerSurface.repl-providerManagerSurface .repl-webPickerOptionDescription {
+  color: rgba(244, 241, 234, 0.58);
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.repl-webPickerControlStack {
+  display: grid;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+
 @keyframes repl-webFloat {
   from {
     transform: translate3d(0, 0, 0) scale(1);
@@ -3963,7 +4369,7 @@
   }
 
   .repl-webFullscreen {
-    overflow: auto;
+    overflow: hidden;
   }
 
   .repl-webConversationWindow,
@@ -3982,4 +4388,1342 @@
   .repl-mcpStatusGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* ModelPicker ProviderManager-style scroll fix.
+   Keep all options rendered, then scroll the option list instead of clipping it. */
+.repl-modelPickerSurface {
+  max-height: calc(100dvh - 4rem);
+  min-height: 0;
+}
+
+.repl-modelPickerSurface .repl-webPicker {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 6rem);
+  min-height: 0;
+}
+
+.repl-modelPickerSurface .repl-webPickerList,
+.repl-providerChoiceList .repl-webPickerList {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(52dvh, 28rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.repl-modelPickerSurface .repl-webPickerOption {
+  scroll-margin: 0.75rem;
+}
+
+@supports (height: 100svh) {
+  .repl-modelPickerSurface {
+    max-height: calc(100svh - 4rem);
+  }
+
+  .repl-modelPickerSurface .repl-webPicker {
+    max-height: calc(100svh - 6rem);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Claude Desktop inspired message rows
+   Migration target:
+   - Assistant: open document-style text, no heavy card.
+   - User: compact right-aligned rounded bubble.
+   - Tool/system: subtle command/result cards.
+   - Streaming: same assistant shell as final text, with a small breathing dot.
+   -------------------------------------------------------------------------- */
+
+.repl-webFullscreen,
+.repl-shell,
+.repl-workspace,
+.repl-transcript,
+.repl-browserTranscript {
+  --oc-chat-bg: #20201f;
+  --oc-chat-surface: #30302d;
+  --oc-chat-surface-hover: #3a3935;
+  --oc-chat-text: #ececec;
+  --oc-chat-muted: #9a9992;
+  --oc-chat-soft: #c9c7bd;
+  --oc-chat-accent: #d97757;
+  --oc-chat-border: rgba(255, 255, 255, 0.075);
+  --oc-chat-code: #171716;
+  color: var(--oc-chat-text);
+  font-family:
+    "Aptos",
+    "Segoe UI Variable",
+    "SF Pro Text",
+    "Segoe UI",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.repl-browserTranscript,
+.repl-transcript {
+  width: min(100%, 54rem);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+}
+
+.repl-messageRow.oc-messageRow {
+  display: grid;
+  width: 100%;
+  gap: 0.34rem;
+  margin: 1.05rem auto;
+  animation: oc-message-in 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'],
+.repl-messageRow.oc-messageRow[data-message-role='tool'],
+.repl-messageRow.oc-messageRow[data-message-role='system'],
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] {
+  justify-items: start;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='user'] {
+  justify-items: end;
+  margin-block: 0.72rem;
+}
+
+.repl-messageMeta.oc-messageMeta {
+  width: min(100%, 46rem);
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.48rem;
+  padding-inline: 0.1rem;
+  color: rgba(201, 199, 189, 0.54);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.repl-messageBubble.oc-messageBubble {
+  min-width: 0;
+  max-width: min(100%, 46rem);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  color: var(--oc-chat-text);
+  font-size: 0.98rem;
+  line-height: 1.62;
+}
+
+.repl-messageBubble.oc-messageBubble * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'] .repl-messageBubble.oc-messageBubble {
+  padding: 0.05rem 0.1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'][data-streaming='true'] .repl-messageBubble.oc-messageBubble {
+  color: rgba(236, 236, 236, 0.94);
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+  max-width: min(84%, 42rem);
+  padding: 0.78rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 1.15rem;
+  background: var(--oc-chat-surface);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='tool'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='system'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] .repl-messageBubble.oc-messageBubble {
+  width: min(100%, 46rem);
+  padding: 0.82rem 0.92rem;
+  border: 1px solid var(--oc-chat-border);
+  border-radius: 0.9rem;
+  background: rgba(48, 48, 45, 0.62);
+  box-shadow: none;
+  color: rgba(236, 236, 236, 0.9);
+}
+
+/* Code and command blocks: closer to Claude Desktop dark command cards. */
+.repl-messageBubble.oc-messageBubble pre,
+.repl-messageBubble.oc-messageBubble code,
+.repl-messageBubble.oc-messageBubble kbd {
+  border-radius: 0.58rem;
+  background: var(--oc-chat-code);
+  color: #f4f1ea;
+}
+
+.repl-messageBubble.oc-messageBubble pre {
+  margin: 0.72rem 0;
+  padding: 0.86rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  overflow-x: auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.repl-messageBubble.oc-messageBubble code {
+  padding: 0.12rem 0.32rem;
+}
+
+.repl-messageBubble.oc-messageBubble pre code {
+  padding: 0;
+  background: transparent;
+}
+
+/* Markdown spacing: document-like, compact, readable. */
+.repl-messageBubble.oc-messageBubble p {
+  margin: 0.55rem 0;
+}
+
+.repl-messageBubble.oc-messageBubble p:first-child {
+  margin-top: 0;
+}
+
+.repl-messageBubble.oc-messageBubble p:last-child {
+  margin-bottom: 0;
+}
+
+.repl-messageBubble.oc-messageBubble ul,
+.repl-messageBubble.oc-messageBubble ol {
+  margin: 0.55rem 0;
+  padding-left: 1.25rem;
+}
+
+.repl-messageBubble.oc-messageBubble li {
+  margin: 0.24rem 0;
+}
+
+.repl-messageBubble.oc-messageBubble hr {
+  margin: 1.2rem 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.repl-messageBubble.oc-messageBubble strong {
+  color: #f5f2ea;
+  font-weight: 750;
+}
+
+/* Streaming row */
+.oc-streamingRow {
+  margin-top: 0.85rem;
+}
+
+.oc-streamingContent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 0.58rem;
+}
+
+.oc-streamingDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: 0.58rem;
+  border-radius: 999px;
+  background: var(--oc-chat-accent);
+  box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.35);
+  animation: oc-streaming-pulse 1.35s ease-out infinite;
+}
+
+.repl-messageRow.oc-messageRow[data-streaming='true'] .repl-messageBubble.oc-messageBubble::after {
+  content: "";
+  display: inline-block;
+  width: 0.46rem;
+  height: 1em;
+  margin-left: 0.1rem;
+  transform: translateY(0.16em);
+  border-right: 2px solid rgba(217, 119, 87, 0.72);
+  animation: oc-caret-blink 1s steps(2, end) infinite;
+}
+
+.oc-streamingContent .repl-messageBubble.oc-messageBubble::after {
+  display: none;
+}
+
+/* Make old glass styles harmless when both class families exist. */
+.repl-messageRow.oc-messageRow .repl-messageBubble.oc-messageBubble {
+  backdrop-filter: none;
+}
+
+@keyframes oc-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.28rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oc-streaming-pulse {
+  0% {
+    opacity: 0.62;
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.34);
+  }
+
+  70% {
+    opacity: 1;
+    box-shadow: 0 0 0 0.5rem rgba(217, 119, 87, 0);
+  }
+
+  100% {
+    opacity: 0.62;
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0);
+  }
+}
+
+@keyframes oc-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .repl-browserTranscript,
+  .repl-transcript {
+    width: 100%;
+    padding-inline: 0.85rem;
+  }
+
+  .repl-messageBubble.oc-messageBubble {
+    max-width: 100%;
+    font-size: 0.96rem;
+  }
+
+  .repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repl-messageRow.oc-messageRow,
+  .oc-streamingDot,
+  .repl-messageRow.oc-messageRow[data-streaming='true'] .repl-messageBubble.oc-messageBubble::after {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Claude Desktop-style migrated chat rows
+   Removes the old TUI/CLI message shell from MessageRow and streaming preview.
+   -------------------------------------------------------------------------- */
+
+.repl-shell,
+.repl-workspace,
+.repl-transcript,
+.repl-browserTranscript {
+  --oc-chat-bg: #20201f;
+  --oc-chat-surface: #30302d;
+  --oc-chat-surface-hover: #383733;
+  --oc-chat-text: #ececec;
+  --oc-chat-muted: #a7a49b;
+  --oc-chat-soft: #cfcac0;
+  --oc-chat-accent: #d97757;
+  --oc-chat-border: rgba(255, 255, 255, 0.075);
+  --oc-chat-code: #171716;
+  color: var(--oc-chat-text);
+}
+
+.repl-transcript,
+.repl-browserTranscript {
+  width: min(100%, 54rem);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 2rem);
+}
+
+.oc-logoHeader {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.oc-unseenDivider,
+.oc-streamingThinking {
+  margin-top: 0.75rem;
+}
+
+.repl-messageRow.oc-messageRow {
+  display: grid;
+  width: 100%;
+  gap: 0.34rem;
+  margin: 1.05rem auto;
+  animation: oc-message-in 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'],
+.repl-messageRow.oc-messageRow[data-message-role='tool'],
+.repl-messageRow.oc-messageRow[data-message-role='system'],
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] {
+  justify-items: start;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='user'] {
+  justify-items: end;
+  margin-block: 0.72rem;
+}
+
+.repl-messageRow.oc-messageRow[data-continuation='true'] {
+  margin-top: 0.28rem;
+}
+
+.repl-messageMeta.oc-messageMeta {
+  width: min(100%, 46rem);
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.48rem;
+  padding-inline: 0.1rem;
+  color: rgba(207, 202, 192, 0.54);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.repl-messageBubble.oc-messageBubble {
+  min-width: 0;
+  max-width: min(100%, 46rem);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  color: var(--oc-chat-text);
+  font-size: 0.98rem;
+  line-height: 1.62;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.repl-messageBubble.oc-messageBubble * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'] .repl-messageBubble.oc-messageBubble {
+  padding: 0.05rem 0.1rem;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+  max-width: min(84%, 42rem);
+  padding: 0.78rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 1.15rem;
+  background: var(--oc-chat-surface);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='tool'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='system'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] .repl-messageBubble.oc-messageBubble {
+  width: min(100%, 46rem);
+  padding: 0.82rem 0.92rem;
+  border: 1px solid var(--oc-chat-border);
+  border-radius: 0.9rem;
+  background: rgba(48, 48, 45, 0.62);
+  color: rgba(236, 236, 236, 0.9);
+}
+
+.repl-messageBubble.oc-messageBubble p {
+  margin: 0.55rem 0;
+}
+
+.repl-messageBubble.oc-messageBubble p:first-child {
+  margin-top: 0;
+}
+
+.repl-messageBubble.oc-messageBubble p:last-child {
+  margin-bottom: 0;
+}
+
+.repl-messageBubble.oc-messageBubble ul,
+.repl-messageBubble.oc-messageBubble ol {
+  margin: 0.55rem 0;
+  padding-left: 1.25rem;
+}
+
+.repl-messageBubble.oc-messageBubble li {
+  margin: 0.24rem 0;
+}
+
+.repl-messageBubble.oc-messageBubble hr {
+  margin: 1.2rem 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.repl-messageBubble.oc-messageBubble strong {
+  color: #f5f2ea;
+  font-weight: 750;
+}
+
+.repl-messageBubble.oc-messageBubble pre,
+.repl-messageBubble.oc-messageBubble code,
+.repl-messageBubble.oc-messageBubble kbd {
+  border-radius: 0.58rem;
+  background: var(--oc-chat-code);
+  color: #f4f1ea;
+}
+
+.repl-messageBubble.oc-messageBubble pre {
+  margin: 0.72rem 0;
+  padding: 0.86rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  overflow-x: auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.repl-messageBubble.oc-messageBubble code {
+  padding: 0.12rem 0.32rem;
+}
+
+.repl-messageBubble.oc-messageBubble pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.oc-streamingRow {
+  margin-top: 0.85rem;
+}
+
+.oc-streamingContent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 0.58rem;
+}
+
+.oc-streamingDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: 0.58rem;
+  border-radius: 999px;
+  background: var(--oc-chat-accent);
+  box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.35);
+  animation: oc-streaming-pulse 1.35s ease-out infinite;
+}
+
+.repl-messageRow.oc-messageRow[data-streaming='true'] .repl-messageBubble.oc-messageBubble::after {
+  content: "";
+  display: inline-block;
+  width: 0.46rem;
+  height: 1em;
+  margin-left: 0.1rem;
+  transform: translateY(0.16em);
+  border-right: 2px solid rgba(217, 119, 87, 0.72);
+  animation: oc-caret-blink 1s steps(2, end) infinite;
+}
+
+.oc-streamingContent .repl-messageBubble.oc-messageBubble::after {
+  display: none;
+}
+
+@keyframes oc-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.28rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oc-streaming-pulse {
+  0% {
+    opacity: 0.62;
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.34);
+  }
+
+  70% {
+    opacity: 1;
+    box-shadow: 0 0 0 0.5rem rgba(217, 119, 87, 0);
+  }
+
+  100% {
+    opacity: 0.62;
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0);
+  }
+}
+
+@keyframes oc-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .repl-transcript,
+  .repl-browserTranscript {
+    width: 100%;
+    padding-inline: 0.85rem;
+  }
+
+  .repl-messageBubble.oc-messageBubble {
+    max-width: 100%;
+    font-size: 0.96rem;
+  }
+
+  .repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repl-messageRow.oc-messageRow,
+  .oc-streamingDot,
+  .repl-messageRow.oc-messageRow[data-streaming='true'] .repl-messageBubble.oc-messageBubble::after {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Claude Desktop exact-ish chat migration v3
+   - Plain assistant/user messages bypass CLI/TUI chrome in MessageRow.
+   - Assistant messages are document text, not cards.
+   - User messages are compact right-aligned Claude-style bubbles.
+   - Tool/system rows are muted cards.
+   - Finished messages never show the old orange fake streaming caret.
+   -------------------------------------------------------------------------- */
+
+.repl-webFullscreen,
+.repl-shell,
+.repl-workspace,
+.repl-transcript,
+.repl-browserTranscript {
+  --oc-bg: #1f1f1e;
+  --oc-bg-elevated: #262624;
+  --oc-surface: #30302d;
+  --oc-surface-hover: #383733;
+  --oc-border: rgba(255, 255, 255, 0.08);
+  --oc-border-soft: rgba(255, 255, 255, 0.045);
+  --oc-text: #ececec;
+  --oc-text-strong: #f4f3ee;
+  --oc-muted: #9a9992;
+  --oc-muted-2: #77756f;
+  --oc-accent: #d97757;
+  --oc-code-bg: #171716;
+  color: var(--oc-text) !important;
+  font-family:
+    "Aptos",
+    "Segoe UI Variable",
+    "SF Pro Text",
+    "Segoe UI",
+    ui-sans-serif,
+    system-ui,
+    sans-serif !important;
+}
+
+.repl-webFullscreen {
+  background: var(--oc-bg) !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.repl-webFullscreen::before,
+.repl-webFullscreen::after,
+.repl-webAurora {
+  display: none !important;
+}
+
+.repl-workspace,
+.repl-transcript {
+  background: transparent !important;
+}
+
+.repl-transcript,
+.repl-browserTranscript {
+  width: min(100%, 48.5rem) !important;
+  max-width: 48.5rem !important;
+  margin-inline: auto !important;
+  padding: 1.15rem clamp(1rem, 2.6vw, 1.6rem) 1rem !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 0 !important;
+  color: var(--oc-text) !important;
+}
+
+.oc-logoHeader,
+.oc-unseenDivider,
+.oc-streamingThinking {
+  width: 100%;
+  max-width: 48.5rem;
+  margin-inline: auto;
+}
+
+.oc-logoHeader {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.oc-unseenDivider,
+.oc-streamingThinking {
+  margin-block: 0.9rem;
+}
+
+/* Row placement */
+.repl-messageRow.oc-messageRow {
+  width: 100% !important;
+  display: grid !important;
+  gap: 0.28rem !important;
+  margin: 1.08rem 0 !important;
+  animation: oc-claude-row-in 150ms cubic-bezier(0.2, 0, 0, 1) both !important;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='assistant'] {
+  justify-items: start !important;
+  margin-top: 1.15rem !important;
+  margin-bottom: 1.15rem !important;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='user'] {
+  justify-items: end !important;
+  margin-top: 0.9rem !important;
+  margin-bottom: 0.9rem !important;
+}
+
+.repl-messageRow.oc-messageRow[data-message-role='tool'],
+.repl-messageRow.oc-messageRow[data-message-role='system'],
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] {
+  justify-items: stretch !important;
+  margin-block: 0.82rem !important;
+}
+
+.repl-messageRow.oc-messageRow[data-continuation='true'] {
+  margin-top: 0.3rem !important;
+}
+
+/* Message bubble reset */
+.repl-messageBubble.oc-messageBubble {
+  min-width: 0 !important;
+  max-width: min(100%, 46.5rem) !important;
+  color: var(--oc-text) !important;
+  font-family: inherit !important;
+  font-size: 0.96rem !important;
+  line-height: 1.64 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+}
+
+.repl-messageBubble.oc-messageBubble *,
+.repl-messageBubble.oc-messageBubble *:not(code):not(pre):not(kbd) {
+  font-family: inherit !important;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Assistant: Claude document text, no card */
+.repl-messageRow.oc-messageRow[data-message-role='assistant'] .repl-messageBubble.oc-messageBubble {
+  width: min(100%, 46.5rem) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.oc-assistantText {
+  color: var(--oc-text) !important;
+  font-size: 0.965rem !important;
+  line-height: 1.66 !important;
+}
+
+.oc-assistantText p {
+  margin: 0.58rem 0 !important;
+}
+
+.oc-assistantText p:first-child {
+  margin-top: 0 !important;
+}
+
+.oc-assistantText p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.oc-assistantText strong {
+  color: var(--oc-text-strong) !important;
+  font-weight: 720 !important;
+}
+
+.oc-assistantText ul,
+.oc-assistantText ol {
+  margin: 0.62rem 0 !important;
+  padding-left: 1.35rem !important;
+}
+
+.oc-assistantText li {
+  margin: 0.25rem 0 !important;
+}
+
+.oc-assistantText hr {
+  height: 1px !important;
+  border: 0 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  margin: 1.25rem 0 !important;
+}
+
+/* User: compact right-side Claude bubble */
+.repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+  max-width: min(82%, 38rem) !important;
+  padding: 0.76rem 0.95rem !important;
+  border: 1px solid var(--oc-border-soft) !important;
+  border-radius: 1.05rem !important;
+  background: var(--oc-surface) !important;
+  color: var(--oc-text) !important;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+}
+
+.oc-userText {
+  white-space: pre-wrap !important;
+  color: var(--oc-text) !important;
+  font-size: 0.96rem !important;
+  line-height: 1.55 !important;
+}
+
+/* Tool/system cards: subtle, not neon/glass */
+.repl-messageRow.oc-messageRow[data-message-role='tool'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='system'] .repl-messageBubble.oc-messageBubble,
+.repl-messageRow.oc-messageRow[data-message-role='attachment'] .repl-messageBubble.oc-messageBubble {
+  width: 100% !important;
+  max-width: 46.5rem !important;
+  padding: 0.8rem 0.92rem !important;
+  border: 1px solid var(--oc-border) !important;
+  border-radius: 0.88rem !important;
+  background: rgba(48, 48, 45, 0.54) !important;
+  color: rgba(236, 236, 236, 0.88) !important;
+  box-shadow: none !important;
+}
+
+/* Kill leftover old CLI/TUI dot/caret artifacts from previous migrations. */
+.repl-messageRow.oc-messageRow[data-streaming='true'] .repl-messageBubble.oc-messageBubble::after,
+.repl-messageBubble.oc-messageBubble::before,
+.repl-messageRow.oc-messageRow::before,
+.repl-messageRow.oc-messageRow::after {
+  content: none !important;
+  display: none !important;
+}
+
+.oc-streamingRow .oc-streamingMarkdown::after {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 1em;
+  margin-left: 0.06rem;
+  transform: translateY(0.16em);
+  border-right: 2px solid rgba(217, 119, 87, 0.72);
+  animation: oc-claude-caret 1s steps(2, end) infinite;
+}
+
+/* Code blocks: Claude-like dark blocks */
+.repl-messageBubble.oc-messageBubble pre {
+  margin: 0.78rem 0 !important;
+  padding: 0.86rem 0.95rem !important;
+  overflow-x: auto !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 0.72rem !important;
+  background: var(--oc-code-bg) !important;
+  color: #f4f1ea !important;
+  box-shadow: none !important;
+  white-space: pre !important;
+}
+
+.repl-messageBubble.oc-messageBubble code,
+.repl-messageBubble.oc-messageBubble kbd {
+  border-radius: 0.4rem !important;
+  background: var(--oc-code-bg) !important;
+  color: #f4f1ea !important;
+  font-family:
+    "SFMono-Regular",
+    "Cascadia Code",
+    "Cascadia Mono",
+    Consolas,
+    monospace !important;
+}
+
+.repl-messageBubble.oc-messageBubble :not(pre) > code {
+  padding: 0.1rem 0.3rem !important;
+}
+
+.repl-messageBubble.oc-messageBubble pre code {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+/* Metadata */
+.repl-messageMeta.oc-messageMeta {
+  width: min(100%, 46.5rem) !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  gap: 0.45rem !important;
+  color: rgba(154, 153, 146, 0.62) !important;
+  font-size: 0.72rem !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  margin: 0 0 0.18rem !important;
+  padding: 0 !important;
+}
+
+/* Composer: closer to Claude Desktop bottom composer */
+.repl-composerShell {
+  width: min(100%, 48.5rem) !important;
+  margin-inline: auto !important;
+  padding: 0 1rem 0.8rem !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
+  background:
+    linear-gradient(180deg, rgba(31, 31, 30, 0), var(--oc-bg) 32%) !important;
+}
+
+.repl-composerPanel,
+.oc-claude-inputShell {
+  border: 1px solid var(--oc-border-soft) !important;
+  border-radius: 1.18rem !important;
+  background: var(--oc-surface) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+  backdrop-filter: none !important;
+}
+
+.repl-composerPanel::before,
+.repl-composerPanel::after {
+  display: none !important;
+}
+
+.repl-composerPanel:focus-within,
+.oc-claude-inputShell:focus-within {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  box-shadow:
+    0 20px 52px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(217, 119, 87, 0.08) inset !important;
+}
+
+.repl-textarea,
+.repl-composerPanel textarea,
+.oc-claude-inputShell textarea {
+  background: transparent !important;
+  color: var(--oc-text) !important;
+  caret-color: var(--oc-accent) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-family: inherit !important;
+}
+
+.repl-textarea::placeholder,
+.repl-composerPanel textarea::placeholder,
+.oc-claude-inputShell textarea::placeholder {
+  color: rgba(183, 183, 178, 0.7) !important;
+}
+
+.repl-sendButton,
+.oc-claude-sendButton {
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: #7a5c45 !important;
+  color: #f4f1ea !important;
+  box-shadow: none !important;
+}
+
+.repl-sendButton:not(:disabled):hover,
+.oc-claude-sendButton:not(:disabled):hover {
+  background: #8a684e !important;
+}
+
+@keyframes oc-claude-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.18rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oc-claude-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .repl-transcript,
+  .repl-browserTranscript,
+  .repl-composerShell {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .repl-messageRow.oc-messageRow[data-message-role='user'] .repl-messageBubble.oc-messageBubble {
+    max-width: 90% !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repl-messageRow.oc-messageRow,
+  .oc-streamingRow .oc-streamingMarkdown::after {
+    animation: none !important;
+  }
+}
+
+/* WebUI overlay migration layer: keeps Ink overlays intact while giving the
+   browser path a Claude Desktop-style floating command surface. */
+.repl-webComposerOverlayLayer {
+  position: absolute;
+  left: clamp(0.75rem, 2vw, 1.35rem);
+  right: clamp(0.75rem, 2vw, 1.35rem);
+  bottom: calc(100% + 0.72rem);
+  z-index: 45;
+  display: grid;
+  gap: 0.72rem;
+  pointer-events: none;
+}
+
+.repl-webPromptOverlay {
+  width: 100%;
+  pointer-events: auto;
+  animation: repl-web-overlay-rise 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.repl-webPromptOverlayChrome {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(244, 241, 234, 0.1);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(135deg, rgba(50, 49, 45, 0.95), rgba(27, 27, 25, 0.94)),
+    radial-gradient(circle at 12% 0%, rgba(210, 153, 110, 0.16), transparent 16rem);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(217, 119, 87, 0.06) inset;
+  backdrop-filter: blur(22px) saturate(1.15);
+}
+
+.repl-webPromptOverlayChrome::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04), transparent 22%),
+    radial-gradient(circle at 86% 12%, rgba(217, 119, 87, 0.13), transparent 18rem);
+}
+
+.repl-webPromptOverlayHeader {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.95rem 0.52rem;
+  border-bottom: 1px solid rgba(244, 241, 234, 0.065);
+}
+
+.repl-webPromptOverlayKicker {
+  color: #f4d5bf;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.repl-webPromptOverlayHint {
+  color: rgba(244, 241, 234, 0.48);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.repl-webPromptSuggestions .repl-suggestionDeck {
+  position: relative;
+  z-index: 1;
+  max-height: min(46vh, 24rem);
+  padding: 0.42rem;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(210, 153, 110, 0.48) transparent;
+}
+
+.repl-webPromptSuggestions .repl-suggestionItem {
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  padding: 0.82rem 0.9rem;
+  background: transparent;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.repl-webPromptSuggestions .repl-suggestionItem[data-selected='true'] {
+  border-color: rgba(210, 153, 110, 0.25);
+  background:
+    linear-gradient(135deg, rgba(122, 92, 69, 0.34), rgba(38, 38, 36, 0.68));
+  transform: translateX(0.18rem);
+}
+
+.repl-webPromptSuggestions .repl-suggestionName {
+  color: rgba(250, 249, 245, 0.96);
+  font-weight: 820;
+}
+
+.repl-webPromptSuggestions .repl-suggestionDescription {
+  margin-top: 0.22rem;
+  color: rgba(244, 241, 234, 0.56);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.repl-webPromptDialogChrome {
+  padding: 0.95rem;
+}
+
+.repl-webNewMessagesPill {
+  min-height: 2.4rem !important;
+  border: 1px solid rgba(244, 241, 234, 0.12) !important;
+  padding: 0.62rem 0.98rem !important;
+  color: #fff7ed !important;
+  background:
+    linear-gradient(135deg, rgba(122, 92, 69, 0.92), rgba(92, 64, 47, 0.92)) !important;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.045) inset !important;
+  backdrop-filter: blur(16px);
+}
+
+.repl-webStickyPrompt {
+  background:
+    linear-gradient(135deg, rgba(38, 38, 36, 0.9), rgba(27, 27, 25, 0.92)) !important;
+}
+
+.repl-webStickyPromptMarker {
+  background: rgba(210, 153, 110, 0.12);
+}
+
+@keyframes repl-web-overlay-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem) scale(0.985);
+    filter: blur(0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repl-webPromptOverlay {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .repl-webComposerOverlayLayer {
+    left: 0.55rem;
+    right: 0.55rem;
+    bottom: calc(100% + 0.5rem);
+  }
+
+  .repl-webPromptOverlayHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.24rem;
+  }
+
+  .repl-webPromptOverlayHint {
+    white-space: normal;
+  }
+}
+
+/* Shared Ink-to-WebUI primitives. These are emitted by ThemedBox/ThemedText in
+   browser mode so existing src/components/* surfaces can render as DOM without
+   deleting their terminal Ink implementations. */
+.oc-webInkBox {
+  min-width: 0;
+  color: inherit;
+  font-family: inherit;
+}
+
+.oc-webInkBox[role='button'],
+.oc-webInkBox[tabindex],
+.oc-webInkBox[data-clickable='true'] {
+  cursor: pointer;
+}
+
+.oc-webInkBox:focus-visible,
+.oc-webInkText:focus-visible {
+  outline: 2px solid rgba(210, 153, 110, 0.72);
+  outline-offset: 3px;
+}
+
+.oc-webInkText {
+  color: inherit;
+  font-family: inherit;
+  line-height: 1.55;
+}
+
+.oc-webInkText[data-ink-text=''] {
+  display: inline;
+}
+
+.oc-webMessageBoundary {
+  --oc-message-glow: rgba(210, 153, 110, 0.12);
+  --oc-message-border: rgba(244, 241, 234, 0.1);
+  --oc-message-surface: rgba(33, 33, 31, 0.72);
+  display: flex;
+  width: 100%;
+  padding-inline: clamp(0.5rem, 2vw, 1.4rem);
+}
+
+.oc-webMessageBoundary .oc-messageBubble {
+  width: min(100%, 58rem);
+  border: 1px solid var(--oc-message-border);
+  border-radius: 1.28rem;
+  padding: 0.92rem 1.05rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  background:
+    radial-gradient(circle at 0% 0%, var(--oc-message-glow), transparent 18rem),
+    linear-gradient(135deg, var(--oc-message-surface), rgba(20, 24, 32, 0.72));
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.045) inset;
+  backdrop-filter: blur(18px);
+}
+
+.oc-webMessageBoundary[data-message-role='user'] {
+  justify-content: flex-end;
+}
+
+.oc-webMessageBoundary[data-message-role='assistant'],
+.oc-webMessageBoundary[data-message-role='tool'],
+.oc-webMessageBoundary[data-message-role='system'],
+.oc-webMessageBoundary[data-message-role='attachment'] {
+  justify-content: flex-start;
+}
+
+.oc-webMessageBoundary[data-message-role='user'] .oc-messageBubble {
+  --oc-message-glow: rgba(217, 119, 87, 0.18);
+  --oc-message-border: rgba(217, 119, 87, 0.22);
+  --oc-message-surface: rgba(69, 60, 52, 0.78);
+  max-width: min(82%, 48rem);
+}
+
+.oc-webMessageBoundary[data-message-role='assistant'] .oc-messageBubble {
+  --oc-message-glow: rgba(20, 184, 166, 0.12);
+  --oc-message-border: rgba(244, 241, 234, 0.12);
+  --oc-message-surface: rgba(31, 32, 30, 0.76);
+}
+
+.oc-webMessageBoundary[data-message-role='tool'] .oc-messageBubble,
+.oc-webMessageBoundary[data-message-role='attachment'] .oc-messageBubble {
+  --oc-message-glow: rgba(56, 189, 248, 0.1);
+  --oc-message-border: rgba(125, 211, 252, 0.16);
+  --oc-message-surface: rgba(15, 28, 38, 0.72);
+  max-width: min(92%, 54rem);
+}
+
+.oc-webMessageBoundary[data-message-role='system'] .oc-messageBubble {
+  --oc-message-glow: rgba(250, 204, 21, 0.08);
+  --oc-message-border: rgba(244, 241, 234, 0.08);
+  --oc-message-surface: rgba(25, 25, 23, 0.62);
+  max-width: min(92%, 52rem);
+}
+
+.oc-webMessageBoundary[data-continuation='true'] {
+  margin-top: -0.32rem;
+}
+
+.oc-webMessageContent {
+  min-width: 0;
+  color: rgba(250, 249, 245, 0.92);
+  font-family: inherit;
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+.oc-webMessageContent .oc-webInkBox {
+  max-width: 100%;
+}
+
+.oc-webMessageContent .oc-webInkText {
+  white-space: pre-wrap;
+}
+
+.oc-webMessageContent pre,
+.oc-webMessageContent code,
+.oc-webMessageContent kbd {
+  font-family: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", monospace;
+}
+
+.oc-webMessageContent pre {
+  max-width: 100%;
+  border: 1px solid rgba(244, 241, 234, 0.1);
+  border-radius: 0.95rem;
+  padding: 0.82rem 0.95rem;
+  overflow: auto;
+  background: rgba(3, 7, 18, 0.56);
+}
+
+.oc-webMessageResponse {
+  position: relative;
+  margin-top: 0.58rem;
+  border: 1px solid rgba(244, 241, 234, 0.08);
+  border-radius: 1rem;
+  padding: 0.68rem 0.78rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.oc-webMessageResponse:first-child {
+  margin-top: 0;
 }

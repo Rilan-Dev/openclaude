@@ -7,6 +7,11 @@ const unavailable = name => {
   throw new Error(`${name} is not available in the browser web UI`)
 }
 
+
+export function isBrowserRuntime() {
+  return process.env.OPENCLAUDE_RENDER_MODE === 'web'
+}
+
 export function c(size) {
   return new Array(size).fill(Symbol.for('react.memo_cache_sentinel'))
 }

@@ -8,6 +8,8 @@ import type { FocusEvent } from '../events/focus-event.js';
 import type { KeyboardEvent } from '../events/keyboard-event.js';
 import type { Styles } from '../styles.js';
 import * as warn from '../warn.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
+import { inkBoxStylesToCss } from '../../components/design-system/webInkStyles.js';
 export type Props = Except<Styles, 'textWrap'> & {
   /**
    * Tab order index. Nodes with `tabIndex >= 0` participate in
@@ -180,6 +182,9 @@ function BoxInner(t0, ref: React.ForwardedRef<DOMElement>) {
     $[26] = t3;
   } else {
     t3 = $[26];
+  }
+  if (isBrowserRuntime()) {
+    return <div ref={ref as React.ForwardedRef<HTMLDivElement>} className="oc-webInkBox" data-ink-box="" tabIndex={tabIndex} autoFocus={autoFocus} onClick={onClick as never} onFocus={onFocus as never} onFocusCapture={onFocusCapture as never} onBlur={onBlur as never} onBlurCapture={onBlurCapture as never} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onKeyDown={onKeyDown as never} onKeyDownCapture={onKeyDownCapture as never} style={inkBoxStylesToCss(t3)}>{children}</div>;
   }
   let t4;
   if ($[27] !== autoFocus || $[28] !== children || $[29] !== onBlur || $[30] !== onBlurCapture || $[31] !== onClick || $[32] !== onFocus || $[33] !== onFocusCapture || $[34] !== onKeyDown || $[35] !== onKeyDownCapture || $[36] !== onMouseEnter || $[37] !== onMouseLeave || $[38] !== ref || $[39] !== t3 || $[40] !== tabIndex) {

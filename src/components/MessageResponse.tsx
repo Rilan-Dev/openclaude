@@ -2,6 +2,7 @@ import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { useContext } from 'react';
 import { Box, NoSelect, Text } from '../ink.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { Ratchet } from './design-system/Ratchet.js';
 type Props = {
   children: React.ReactNode;
@@ -16,6 +17,9 @@ export function MessageResponse(t0) {
   const isMessageResponse = useContext(MessageResponseContext);
   if (isMessageResponse) {
     return children;
+  }
+  if (isBrowserRuntime()) {
+    return <MessageResponseProvider><div className="oc-webMessageResponse">{children}</div></MessageResponseProvider>;
   }
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {

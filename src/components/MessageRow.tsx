@@ -10,6 +10,7 @@ import { type buildMessageLookups, EMPTY_STRING_SET, getProgressMessagesFromLook
 import { hasThinkingContent, Message } from './Message.js';
 import { MessageModel } from './MessageModel.js';
 import { shouldRenderStatically } from './Messages.js';
+import { WebMessageBoundary, type WebMessageRole } from './messages/WebMessage.js';
 import { MessageTimestamp } from './MessageTimestamp.js';
 import { OffscreenFreeze } from './OffscreenFreeze.js';
 export type Props = {
@@ -252,7 +253,7 @@ function MessageRowImpl(t0: Props) {
   } else {
     t8 = $[54];
   }
-  const messageEl = t8;
+  const messageEl = <WebMessageBoundary role={getWebMessageRole(msg)} continuation={isUserContinuation}>{t8}</WebMessageBoundary>;
   if (!hasMetadata) {
     let t9;
     if ($[55] !== messageEl) {
@@ -380,3 +381,22 @@ export function areMessageRowPropsEqual(prev: Props, next: Props): boolean {
   return true;
 }
 export const MessageRow = React.memo(MessageRowImpl, areMessageRowPropsEqual);
+
+function getWebMessageRole(msg: RenderableMessage): WebMessageRole {
+  if (msg.type === 'attachment') return 'attachment';
+  if (msg.type === 'system') return 'system';
+  if (msg.type === 'grouped_tool_use' || msg.type === 'collapsed_read_search') {
+    return 'tool';
+  }
+  if (msg.type === 'assistant') {
+    const block = msg.message.content[0];
+    return block?.type === 'tool_use' || block?.type === 'server_tool_use'
+      ? 'tool'
+      : 'assistant';
+  }
+  if (msg.type === 'user') {
+    const block = msg.message.content[0];
+    return block?.type === 'tool_result' ? 'tool' : 'user';
+  }
+  return 'system';
+}

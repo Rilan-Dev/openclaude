@@ -2,6 +2,8 @@ import { c as _c } from "react-compiler-runtime";
 import type { ReactNode } from 'react';
 import React from 'react';
 import type { Color, Styles, TextStyles } from '../styles.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
+import { inkTextStylesToCss } from '../../components/design-system/webInkStyles.js';
 type BaseProps = {
   /**
    * Change text color. Accepts a raw color value (rgb, hex, ansi).
@@ -238,6 +240,19 @@ export default function Text(t0) {
     t14 = $[24];
   }
   const textStyles = t14;
+  if (isBrowserRuntime()) {
+    return <span className="oc-webInkText" data-ink-text="" style={inkTextStylesToCss({
+      color: textStyles.color,
+      backgroundColor: textStyles.backgroundColor,
+      bold: textStyles.bold,
+      dim: textStyles.dim,
+      italic: textStyles.italic,
+      underline: textStyles.underline,
+      strikethrough: textStyles.strikethrough,
+      inverse: textStyles.inverse,
+      wrap
+    })}>{children}</span>;
+  }
   const t15 = memoizedStylesForWrap[wrap];
   let t16;
   if ($[25] !== children || $[26] !== t15 || $[27] !== textStyles) {

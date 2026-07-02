@@ -4,7 +4,6 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
-import { isBrowserRuntime } from '../src/utils/imports'
 import {
   browserAliasesFromRootPackage,
   openClaudeCompatPlugin,

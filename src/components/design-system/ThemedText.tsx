@@ -3,8 +3,10 @@ import type { ReactNode } from 'react';
 import React, { useContext } from 'react';
 import Text from '../../ink/components/Text.js';
 import type { Color, Styles } from '../../ink/styles.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { getTheme, type Theme } from '../../utils/theme.js';
 import { useTheme } from './ThemeProvider.js';
+import { inkTextStylesToCss } from './webInkStyles.js';
 
 /** Colors uncolored ThemedText in the subtree. Precedence: explicit `color` >
  *  this > dimColor. Crosses Box boundaries (Ink's style cascade doesn't). */
@@ -103,6 +105,18 @@ export default function ThemedText(t0) {
   const hoverColor = useContext(TextHoverColorContext);
   const resolvedColor = !color && hoverColor ? resolveColor(hoverColor, theme) : dimColor ? theme.inactive as Color : resolveColor(color, theme);
   const resolvedBackgroundColor = backgroundColor ? theme[backgroundColor] as Color : undefined;
+  if (isBrowserRuntime()) {
+    return <span className="oc-webInkText" data-ink-text="" style={inkTextStylesToCss({
+      color: resolvedColor,
+      backgroundColor: resolvedBackgroundColor,
+      bold,
+      italic,
+      underline,
+      strikethrough,
+      inverse,
+      wrap
+    })}>{children}</span>;
+  }
   let t8;
   if ($[0] !== bold || $[1] !== children || $[2] !== inverse || $[3] !== italic || $[4] !== resolvedBackgroundColor || $[5] !== resolvedColor || $[6] !== strikethrough || $[7] !== underline || $[8] !== wrap) {
     t8 = <Text color={resolvedColor} backgroundColor={resolvedBackgroundColor} bold={bold} italic={italic} underline={underline} strikethrough={strikethrough} inverse={inverse} wrap={wrap}>{children}</Text>;

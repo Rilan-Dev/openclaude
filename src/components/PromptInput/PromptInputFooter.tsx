@@ -17,6 +17,7 @@ import type { PromptInputMode, VimMode } from '../../types/textInputTypes.js';
 import type { AutoUpdaterResult } from '../../utils/autoUpdater.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import { BuiltinStatusLine, builtinStatusLineShouldDisplay } from '../BuiltinStatusLine.js';
+import { isBrowserRuntime } from '../../utils/runtime.js'
 import { useCoordinatorTaskCount } from '../CoordinatorAgentStatus.js';
 import { getLastAssistantMessageId, StatusLine, statusLineShouldDisplay } from '../StatusLine.js';
 import { Notifications } from './Notifications.js';
@@ -155,20 +156,44 @@ function PromptInputFooter({
   } : null, [isFullscreen, suggestions, selectedSuggestion, maxColumnWidth]);
   useSetPromptOverlay(overlayData);
   if (suggestions.length && !isFullscreen) {
+    if (isBrowserRuntime()) {
+      return null;
+    }
     return <Box paddingX={2} paddingY={0}>
         <PromptInputFooterSuggestions suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} />
       </Box>;
   }
   if (helpOpen) {
+    if (isBrowserRuntime()) {
+      return <div className="repl-promptFooterHelp"><PromptInputHelpMenu dimColor={true} fixedWidth={true} paddingX={2} /></div>;
+    }
     return <PromptInputHelpMenu dimColor={true} fixedWidth={true} paddingX={2} />;
   }
+  if (isBrowserRuntime()) {
+    return <div className="repl-promptFooterBar" data-narrow={isNarrow ? 'true' : undefined}>
+        <div className="repl-promptFooterPrimary">
+          {footerStatusLine === 'custom' ? <StatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} vimMode={vimMode} /> : footerStatusLine === 'builtin' ? <BuiltinStatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} /> : null}
+          <PromptInputFooterLeftSide exitMessage={exitMessage} vimMode={vimMode} mode={mode} toolPermissionContext={toolPermissionContext} suppressHint={suppressHint} isLoading={isLoading} tasksSelected={pillSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} isPasting={isPasting} isSearching={isSearching} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={onOpenTasksDialog} />
+        </div>
+        <div className="repl-promptFooterSecondary">
+          {isFullscreen ? null : <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} isNarrow={isNarrow} />}
+          <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
+        </div>
+      </div>;
+  }
   return <>
-      <Box flexDirection={isNarrow ? 'column' : 'row'} justifyContent={isNarrow ? 'flex-start' : 'space-between'} paddingX={2} gap={isNarrow ? 0 : 1}>
+      <Box
+        flexDirection={isNarrow ? 'column' : 'row'}
+        justifyContent={isNarrow ? 'flex-start' : 'space-between'}
+        paddingX={2}
+        rowGap={0}
+        columnGap={isNarrow ? 0 : 1}
+      >
         <Box flexDirection="column" flexShrink={isNarrow ? 0 : 1}>
           {footerStatusLine === 'custom' ? <StatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} vimMode={vimMode} /> : footerStatusLine === 'builtin' ? <BuiltinStatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} /> : null}
           <PromptInputFooterLeftSide exitMessage={exitMessage} vimMode={vimMode} mode={mode} toolPermissionContext={toolPermissionContext} suppressHint={suppressHint} isLoading={isLoading} tasksSelected={pillSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} isPasting={isPasting} isSearching={isSearching} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={onOpenTasksDialog} />
         </Box>
-        <Box flexShrink={1} gap={1}>
+        <Box flexShrink={1} rowGap={0} columnGap={1}>
           {isFullscreen ? null : <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} isNarrow={isNarrow} />}
           <BridgeStatusIndicator bridgeSelected={bridgeSelected} />
         </Box>

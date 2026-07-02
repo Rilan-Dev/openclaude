@@ -151,6 +151,144 @@ function rewriteMainForWebRender(code: string, normalizedId: string): string {
   )
 
   out = out.replace(
+    /initializeWarningHandler\(\);/,
+    `initializeWarningHandler();
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx warning handler initialized')
+  }`,
+  )
+
+  out = out.replace(
+    /profileCheckpoint\('main_before_run'\);\s*await run\(\);/,
+    `profileCheckpoint('main_before_run');
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx before run()')
+  }
+  await run();
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx after run()')
+  }`,
+  )
+
+  out = out.replace(
+    /async function run\(\): Promise<CommanderCommand> \{\s*profileCheckpoint\('run_function_start'\);/,
+    `async function run(): Promise<CommanderCommand> {
+  profileCheckpoint('run_function_start');
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx run() started')
+  }`,
+  )
+
+  out = out.replace(
+    /profileCheckpoint\('run_commander_initialized'\);/,
+    `profileCheckpoint('run_commander_initialized');
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx commander initialized')
+  }`,
+  )
+
+  out = out.replace(
+    /program\.hook\('preAction', async thisCommand => \{\s*await Promise\.all\(\[ensureMdmSettingsLoaded\(\), ensureKeychainPrefetchCompleted\(\)\]\);\s*await init\(\);/,
+    `program.hook('preAction', async thisCommand => {
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx preAction started')
+    }
+    await Promise.all([ensureMdmSettingsLoaded(), ensureKeychainPrefetchCompleted()]);
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx preAction settings/keychain ready')
+    }
+    await init();
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx preAction init complete')
+    }`,
+  )
+
+  out = out.replace(
+    /action\(async \(prompt, options\) => \{\s*profileCheckpoint\('action_handler_start'\);/,
+    `action(async (prompt, options) => {
+    profileCheckpoint('action_handler_start');
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx default action started', { prompt, optionKeys: Object.keys(options ?? {}) })
+    }`,
+  )
+
+  out = out.replace(
+    /profileCheckpoint\('action_before_setup'\);\s*logForDebugging\('\[STARTUP\] Running setup\(\)\.\.\.'\);/,
+    `profileCheckpoint('action_before_setup');
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx before setup()')
+    }
+    logForDebugging('[STARTUP] Running setup()...');`,
+  )
+
+  out = out.replace(
+    /await setupPromise;\s*logForDebugging\(`\[STARTUP\] setup\(\) completed in \$\{Date\.now\(\) - setupStart\}ms`\);/,
+    `await setupPromise;
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx after setup()')
+    }
+    logForDebugging(\`[STARTUP] setup() completed in \${Date.now() - setupStart}ms\`);`,
+  )
+
+  out = out.replace(
+    /const \[commands, agentDefinitionsResult\] = await Promise\.all\(\[commandsPromise \?\? getCommands\(currentCwd\), agentDefsPromise \?\? getAgentDefinitionsWithOverrides\(currentCwd\)\]\);/,
+    `if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx before commands/agents load')
+    }
+    const [commands, agentDefinitionsResult] = await Promise.all([commandsPromise ?? getCommands(currentCwd), agentDefsPromise ?? getAgentDefinitionsWithOverrides(currentCwd)]);
+    if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+      console.log('[OpenClaude WebUI trace] src/main.tsx after commands/agents load', { commands: commands.length, activeAgents: agentDefinitionsResult.activeAgents.length })
+    }`,
+  )
+
+  out = out.replace(
+    /const ctx = getRenderContext\(false\);\s*getFpsMetrics = ctx\.getFpsMetrics;\s*stats = ctx\.stats;\s*const \{\s*createRoot\s*\} = await import\('\.\/ink\.js'\);\s*root = await createRoot\(ctx\.renderOptions\);/,
+    `if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+        console.log('[OpenClaude WebUI trace] src/main.tsx before ink root setup')
+      }
+      const ctx = getRenderContext(false);
+      getFpsMetrics = ctx.getFpsMetrics;
+      stats = ctx.stats;
+      if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+        root = {
+          render: () => undefined,
+          unmount: () => undefined,
+          waitUntilExit: async () => undefined,
+        }
+        console.log('[OpenClaude WebUI trace] src/main.tsx using browser root adapter')
+      } else {
+        const {
+          createRoot
+        } = await import('./ink.js');
+        root = await createRoot(ctx.renderOptions);
+      }`,
+  )
+
+  out = out.replace(
+    /const onboardingShown = await showSetupScreens\(root, permissionMode, allowDangerouslySkipPermissions, commands, enableClaudeInChrome, devChannels\);/,
+    `if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+        console.log('[OpenClaude WebUI trace] src/main.tsx before showSetupScreens()')
+      }
+      const onboardingShown = await showSetupScreens(root, permissionMode, allowDangerouslySkipPermissions, commands, enableClaudeInChrome, devChannels);
+      if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+        console.log('[OpenClaude WebUI trace] src/main.tsx after showSetupScreens()')
+      }`,
+  )
+
+  out = out.replace(
+    /profileCheckpoint\('run_before_parse'\);\s*await program\.parseAsync\(process\.argv\);\s*profileCheckpoint\('run_after_parse'\);/g,
+    `profileCheckpoint('run_before_parse');
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx before program.parseAsync()', process.argv)
+  }
+  await program.parseAsync(process.argv);
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx after program.parseAsync()')
+  }
+  profileCheckpoint('run_after_parse');`,
+  )
+
+  out = out.replace(
     /await\s+launchRepl\(\s*root\s*,\s*\{/g,
     "if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {\n          console.log('[OpenClaude WebUI trace] src/main.tsx calling launchRepl()')\n        }\n        await launchRepl(root, {\n        renderMode: 'web',",
   )
@@ -206,11 +344,75 @@ function rewriteInteractiveSetupForWeb(code: string, normalizedId: string): stri
   let out = code
 
   out = out.replace(
+    /export async function showSetupScreens\(root: Root, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, commands\?: Command\[], claudeInChrome\?: boolean, devChannels\?: ChannelEntry\[]\): Promise<boolean> \{/,
+    `export async function showSetupScreens(root: Root, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, commands?: Command[], claudeInChrome?: boolean, devChannels?: ChannelEntry[]): Promise<boolean> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/interactiveHelpers.tsx skipping blocking setup screens for browser render')
+    setSessionTrustAccepted(true)
+    resetGrowthBook()
+    void initializeGrowthBook()
+    void getSystemContext()
+    applyConfigEnvironmentVariables()
+    return false
+  }`,
+  )
+
+  out = out.replace(
     /export async function renderAndRun\(root: Root, element: React\.ReactNode\): Promise<void> \{\s*root\.render\(element\);\s*startDeferredPrefetches\(\);\s*await root\.waitUntilExit\(\);\s*await gracefulShutdown\(0\);\s*\}/,
     `export async function renderAndRun(root: Root, element: React.ReactNode): Promise<void> {
   if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
-    console.log('[OpenClaude WebUI trace] src/replLauncher.tsx handed REPL to Ink root.render()')
-    root.render(element)
+    console.log('[OpenClaude WebUI trace] src/interactiveHelpers.tsx rendering REPL into browser Ink adapter')
+    const [
+      { createRoot: createBrowserRoot },
+      { default: InternalInkApp },
+      { TerminalWriteProvider },
+    ] = await Promise.all([
+      import('react-dom/client'),
+      import('./ink/components/App.js'),
+      import('./ink/useTerminalNotification.js'),
+    ])
+    const mountId = (globalThis as typeof globalThis & { __OPENCLAUDE_WEB_ROOT_ID__?: string }).__OPENCLAUDE_WEB_ROOT_ID__ ?? 'root'
+    const mount = globalThis.document?.getElementById(mountId)
+    if (!mount) {
+      throw new Error(\`OpenClaude WebUI root element #\${mountId} was not found\`)
+    }
+    const browserRoot = createBrowserRoot(mount)
+    browserRoot.render(
+      <InternalInkApp
+        stdin={process.stdin}
+        stdout={process.stdout}
+        stderr={process.stderr}
+        exitOnCtrlC={false}
+        onExit={() => undefined}
+        terminalColumns={Math.max(96, Math.floor((globalThis.innerWidth ?? 1200) / 8))}
+        terminalRows={Math.max(32, Math.floor((globalThis.innerHeight ?? 800) / 18))}
+        selection={{
+          anchor: null,
+          focus: null,
+          isDragging: false,
+          anchorSpan: null,
+          scrolledOffAbove: [],
+          scrolledOffBelow: [],
+          scrolledOffAboveSW: [],
+          scrolledOffBelowSW: [],
+          lastPressHadAlt: false,
+        }}
+        onSelectionChange={() => undefined}
+        onClickAt={() => false}
+        onHoverAt={() => undefined}
+        getHyperlinkAt={() => undefined}
+        onOpenHyperlink={() => undefined}
+        onMultiClick={() => undefined}
+        onSelectionDrag={() => undefined}
+        onStdinResume={() => undefined}
+        onCursorDeclaration={() => undefined}
+        dispatchKeyboardEvent={() => undefined}
+      >
+        <TerminalWriteProvider value={() => undefined}>
+          {element}
+        </TerminalWriteProvider>
+      </InternalInkApp>,
+    )
     startDeferredPrefetches()
     return
   }

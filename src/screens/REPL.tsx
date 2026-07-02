@@ -18,6 +18,7 @@ import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { openFileInExternalEditor } from '../utils/editor.js';
 import { writeFile } from 'fs/promises';
 import { Box, Text, useStdin, useTheme, useTerminalFocus, useTerminalTitle, useTabStatus } from '../ink.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { IdleReturnDialog } from '../components/IdleReturnDialog.js';
@@ -511,47 +512,60 @@ const TITLE_ANIMATION_INTERVAL_MS = 960;
  * entire REPL tree. Before extraction, the tick was ~1 REPL render/sec for
  * the duration of every turn, dragging PromptInput and friends along.
  */
-function AnimatedTerminalTitle(t0) {
-  const $ = _c(6);
-  const {
-    isAnimating,
-    title,
-    disabled,
-    noPrefix
-  } = t0;
+function AnimatedTerminalTitle({
+  isAnimating,
+  title,
+  disabled,
+  noPrefix
+}: {
+  isAnimating: boolean;
+  title: string;
+  disabled: boolean;
+  noPrefix: boolean;
+}) {
+  const browserRuntime = isBrowserRuntime();
   const terminalFocused = useTerminalFocus();
   const [frame, setFrame] = useState(0);
-  let t1;
-  let t2;
-  if ($[0] !== disabled || $[1] !== isAnimating || $[2] !== noPrefix || $[3] !== terminalFocused) {
-    t1 = () => {
-      if (disabled || noPrefix || !isAnimating || !terminalFocused) {
-        return;
-      }
-      const interval = setInterval(_temp2, TITLE_ANIMATION_INTERVAL_MS, setFrame);
-      return () => clearInterval(interval);
-    };
-    t2 = [disabled, noPrefix, isAnimating, terminalFocused];
-    $[0] = disabled;
-    $[1] = isAnimating;
-    $[2] = noPrefix;
-    $[3] = terminalFocused;
-    $[4] = t1;
-    $[5] = t2;
-  } else {
-    t1 = $[4];
-    t2 = $[5];
-  }
-  useEffect(t1, t2);
+
+  useEffect(() => {
+    const terminalTitleIsSuppressed = !browserRuntime && (disabled || noPrefix);
+    if (terminalTitleIsSuppressed || !isAnimating || !terminalFocused) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setFrame(currentFrame => (currentFrame + 1) % TITLE_ANIMATION_FRAMES.length);
+    }, TITLE_ANIMATION_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [browserRuntime, disabled, isAnimating, noPrefix, terminalFocused]);
+
   const prefix = isAnimating ? TITLE_ANIMATION_FRAMES[frame] ?? TITLE_STATIC_PREFIX : TITLE_STATIC_PREFIX;
-  useTerminalTitle(disabled ? null : noPrefix ? title : `${prefix} ${title}`);
+  const resolvedTitle = disabled ? null : noPrefix ? title : `${prefix} ${title}`;
+
+  useTerminalTitle(browserRuntime ? null : resolvedTitle);
+
+  useEffect(() => {
+    if (!browserRuntime || resolvedTitle === null) {
+      return;
+    }
+
+    const documentRef = globalThis.document;
+    if (!documentRef) {
+      return;
+    }
+
+    const previousTitle = documentRef.title;
+    documentRef.title = resolvedTitle;
+
+    return () => {
+      if (documentRef.title === resolvedTitle) {
+        documentRef.title = previousTitle;
+      }
+    };
+  }, [browserRuntime, resolvedTitle]);
+
   return null;
-}
-function _temp2(setFrame_0) {
-  return setFrame_0(_temp);
-}
-function _temp(f) {
-  return (f + 1) % TITLE_ANIMATION_FRAMES.length;
 }
 function getAbortReasonLabel(reason: unknown): string | undefined {
   if (reason === undefined) return undefined;
@@ -4825,7 +4839,7 @@ export function REPL({
         {compactProgressRatio !== null && feature('RESUME_COMPACT_PROMPT') && <CompactProgressBar ratio={compactProgressRatio} />}
         {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
         {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
-      </>} bottom={<Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
+      </>} nonscrollable={<Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
         {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
         <Box flexDirection="column" flexGrow={1}>
           {permissionStickyFooter}

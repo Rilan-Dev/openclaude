@@ -8,11 +8,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { every } from 'src/utils/set.js';
 import { getIsRemoteMode } from '../bootstrap/state.js';
 import type { Command } from '../commands.js';
-import { BLACK_CIRCLE } from '../constants/figures.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
-import { Box, Text } from '../ink.js';
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js';
 import type { Screen } from '../screens/REPL.js';
 import type { Tools } from '../Tool.js';
@@ -68,7 +66,7 @@ const LogoHeader = React.memo(function LogoHeader(t0: {
   }
   let t2;
   if ($[1] !== agentDefinitions) {
-    t2 = <OffscreenFreeze><Box flexDirection="column" gap={1}>{t1}<React.Suspense fallback={null}><StatusNotices agentDefinitions={agentDefinitions} /></React.Suspense></Box></OffscreenFreeze>;
+    t2 = <OffscreenFreeze><div className="oc-logoHeader">{t1}<React.Suspense fallback={null}><StatusNotices agentDefinitions={agentDefinitions} /></React.Suspense></div></OffscreenFreeze>;
     $[1] = agentDefinitions;
     $[2] = t2;
   } else {
@@ -502,11 +500,11 @@ const MessagesImpl = ({
       includeSnipped: true
     });
     const messagesToShowNotTruncated = reorderMessagesInUI(compactAwareMessages.filter((msg_2): msg_2 is Exclude<NormalizedMessage, ProgressMessageType> => msg_2.type !== 'progress')
-    // CC-724: drop attachment messages that AttachmentMessage renders as
-    // null (hook_success, hook_additional_context, hook_cancelled, etc.)
-    // BEFORE counting/slicing so they don't inflate the "N messages"
-    // count in ctrl-o or consume slots in the 200-message render cap.
-    .filter(msg_3 => !isNullRenderingAttachment(msg_3)).filter(_ => shouldShowUserMessage(_, isTranscriptMode)), syntheticStreamingToolUseMessages);
+      // CC-724: drop attachment messages that AttachmentMessage renders as
+      // null (hook_success, hook_additional_context, hook_cancelled, etc.)
+      // BEFORE counting/slicing so they don't inflate the "N messages"
+      // count in ctrl-o or consume slots in the 200-message render cap.
+      .filter(msg_3 => !isNullRenderingAttachment(msg_3)).filter(_ => shouldShowUserMessage(_, isTranscriptMode)), syntheticStreamingToolUseMessages);
     // Three-tier filtering. Transcript mode (ctrl+o screen) is truly unfiltered.
     // Brief-only: SendUserMessage + user input only. Default: drop redundant
     // assistant text in turns where SendUserMessage was called (the model's
@@ -570,7 +568,7 @@ const MessagesImpl = ({
     const k = expandKey(msg_4);
     setExpandedKeys(prev => {
       const next = new Set(prev);
-      if (next.has(k)) next.delete(k);else next.add(k);
+      if (next.has(k)) next.delete(k); else next.add(k);
       return next;
     });
   }, []);
@@ -631,12 +629,10 @@ const MessagesImpl = ({
     // Per-row Provider — only 2 rows re-render on selection change.
     // Wrapped BEFORE divider branch so both return paths get it.
     const wrapped = <MessageActionsSelectedContext.Provider key={k_0} value={index === selectedIdx}>
-        {row}
-      </MessageActionsSelectedContext.Provider>;
+      {row}
+    </MessageActionsSelectedContext.Provider>;
     if (unseenDivider && index === dividerBeforeIndex) {
-      return [<Box key="unseen-divider" marginTop={1}>
-          <Divider title={`${unseenDivider.count} new ${plural(unseenDivider.count, 'message')}`} width={columns} color="inactive" />
-        </Box>, wrapped];
+      return [<div key="unseen-divider" className="oc-unseenDivider"><Divider title={`${unseenDivider.count} new ${plural(unseenDivider.count, 'message')}`} width={columns} color="inactive" /></div>, wrapped];
     }
     return wrapped;
   };
@@ -680,20 +676,20 @@ const MessagesImpl = ({
     return lowered;
   }, [tools, lookups_0]);
   return <>
-      {/* Logo */}
-      {!hideLogo && !(renderRange && renderRange[0] > 0) && <LogoHeader agentDefinitions={agentDefinitions} />}
+    {/* Logo */}
+    {!hideLogo && !(renderRange && renderRange[0] > 0) && <LogoHeader agentDefinitions={agentDefinitions} />}
 
-      {/* Truncation indicator */}
-      {hasTruncatedMessages_0 && <Divider title={`${toggleShowAllShortcut} to show ${chalk.bold(hiddenMessageCount_0)} previous messages`} width={columns} />}
+    {/* Truncation indicator */}
+    {hasTruncatedMessages_0 && <Divider title={`${toggleShowAllShortcut} to show ${chalk.bold(hiddenMessageCount_0)} previous messages`} width={columns} />}
 
-      {/* Show all indicator */}
-      {isTranscriptMode && showAllInTranscript && hiddenMessageCount_0 > 0 &&
-    // disableRenderCap (e.g. [ dump-to-scrollback) means we're uncapped
-    // as a one-shot escape hatch, not a toggle — ctrl+e is dead and
-    // nothing is actually "hidden" to restore.
-    !disableRenderCap && <Divider title={`${toggleShowAllShortcut} to hide ${chalk.bold(hiddenMessageCount_0)} previous messages`} width={columns} />}
+    {/* Show all indicator */}
+    {isTranscriptMode && showAllInTranscript && hiddenMessageCount_0 > 0 &&
+      // disableRenderCap (e.g. [ dump-to-scrollback) means we're uncapped
+      // as a one-shot escape hatch, not a toggle — ctrl+e is dead and
+      // nothing is actually "hidden" to restore.
+      !disableRenderCap && <Divider title={`${toggleShowAllShortcut} to hide ${chalk.bold(hiddenMessageCount_0)} previous messages`} width={columns} />}
 
-      {/* Messages - rendered as memoized MessageRow components.
+    {/* Messages - rendered as memoized MessageRow components.
           flatMap inserts the unseen-divider as a separate keyed sibling so
           (a) non-fullscreen renders pay no per-message Fragment wrap, and
           (b) divider toggle in fullscreen preserves all MessageRows by key.
@@ -701,28 +697,32 @@ const MessagesImpl = ({
           each row - React Compiler pins props in the fiber's memoCache, so
           passing the array would accumulate every historical version
           (~1-2MB over a 7-turn session). */}
-      {virtualScrollRuntimeGate ? <InVirtualListContext.Provider value={true}>
-          <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} extractSearchText={extractSearchText} />
-        </InVirtualListContext.Provider> : renderableMessages.flatMap(renderMessageRow)}
+    {virtualScrollRuntimeGate ? <InVirtualListContext.Provider value={true}>
+      <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} extractSearchText={extractSearchText} />
+    </InVirtualListContext.Provider> : renderableMessages.flatMap(renderMessageRow)}
 
-      {streamingText && !isBriefOnly && <Box alignItems="flex-start" flexDirection="row" marginTop={1} width="100%">
-          <Box flexDirection="row">
-            <Box minWidth={2}>
-              <Text color="text">{BLACK_CIRCLE}</Text>
-            </Box>
-            <Box flexDirection="column">
-              <StreamingMarkdown>{streamingText}</StreamingMarkdown>
-            </Box>
-          </Box>
-        </Box>}
+    {streamingText && !isBriefOnly && (
+      <div
+        className="repl-messageRow oc-messageRow oc-streamingRow"
+        data-message-role="assistant"
+        data-streaming="true"
+        data-plain="true"
+      >
+        <div className="repl-messageBubble oc-messageBubble">
+          <div className="oc-assistantText oc-streamingMarkdown">
+            <StreamingMarkdown>{streamingText}</StreamingMarkdown>
+          </div>
+        </div>
+      </div>
+    )}
 
-      {isStreamingThinkingVisible && streamingThinking && !isBriefOnly && <Box marginTop={1}>
-          <AssistantThinkingMessage param={{
+    {isStreamingThinkingVisible && streamingThinking && !isBriefOnly && <div className="oc-streamingThinking">
+      <AssistantThinkingMessage param={{
         type: 'thinking',
         thinking: streamingThinking.thinking
       }} addMargin={false} isTranscriptMode={true} verbose={verbose} hideInTranscript={false} />
-        </Box>}
-    </>;
+    </div>}
+  </>;
 };
 
 /** Key for click-to-expand: tool_use_id where available (so tool_use + its

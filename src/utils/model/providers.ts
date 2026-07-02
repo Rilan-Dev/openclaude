@@ -34,6 +34,7 @@ export function getAPIProvider(): LegacyAPIProvider {
   }
 
   const activeRouteId = resolveActiveRouteIdFromEnv(process.env)
+
   switch (activeRouteId) {
     case 'gemini':
       return 'gemini'

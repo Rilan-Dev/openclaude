@@ -1,4 +1,11 @@
-import type { ChildProcess } from 'child_process'
+import { type ChildProcess, spawn } from 'child_process'
+import {
+  createMessageConnection,
+  type MessageConnection,
+  StreamMessageReader,
+  StreamMessageWriter,
+  Trace,
+} from 'vscode-jsonrpc/node.js'
 import type {
   InitializeParams,
   InitializeResult,
@@ -8,69 +15,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { isBrowserRuntime } from '@/utils/imports.js'
-
-type MessageConnection = {
-  listen(): void
-  dispose(): void
-  onError(handler: (args: [Error, unknown, unknown]) => void): void
-  onClose(handler: () => void): void
-  trace(trace: unknown, tracer: { log(message: string): void }): Promise<void>
-  sendRequest<TResult = unknown>(
-    method: string,
-    params: unknown,
-  ): Promise<TResult>
-  sendNotification(method: string, params: unknown): Promise<void>
-  onNotification(method: string, handler: (params: unknown) => void): void
-  onRequest<TParams, TResult>(
-    method: string,
-    handler: (params: TParams) => TResult | Promise<TResult>,
-  ): void
-}
-
-type JsonRpcNodeModule = {
-  createMessageConnection(
-    reader: unknown,
-    writer: unknown,
-  ): MessageConnection
-  StreamMessageReader: new (stream: unknown) => unknown
-  StreamMessageWriter: new (stream: unknown) => unknown
-  Trace: { Verbose: unknown }
-}
-
-type ChildProcessModule = {
-  spawn: typeof import('child_process').spawn
-}
-
-const VSCODE_JSONRPC_NODE_PACKAGE = 'vscode-jsonrpc/node.js'
-
-function createBrowserLspUnavailableError(serverName: string): Error {
-  return new Error(
-    `LSP server "${serverName}" cannot run in the browser runtime. ` +
-      `LSP requires Node.js child_process and vscode-jsonrpc/node.js.`,
-  )
-}
-
-async function loadJsonRpcNode(): Promise<JsonRpcNodeModule> {
-  if (isBrowserRuntime()) {
-    throw new Error(
-      'vscode-jsonrpc/node.js cannot be loaded in the browser runtime.',
-    )
-  }
-
-  return (await import(
-    /* @vite-ignore */ VSCODE_JSONRPC_NODE_PACKAGE
-  )) as JsonRpcNodeModule
-}
-
-async function loadChildProcess(): Promise<ChildProcessModule> {
-  if (isBrowserRuntime()) {
-    throw new Error('child_process cannot be loaded in the browser runtime.')
-  }
-
-  return (await import(/* @vite-ignore */ 'child_process')) as ChildProcessModule
-}
-
 /**
  * LSP client interface.
  */
@@ -96,50 +40,6 @@ export type LSPClient = {
   stop: () => Promise<void>
 }
 
-function createBrowserLSPClient(serverName: string): LSPClient {
-  const unavailable = (): never => {
-    throw createBrowserLspUnavailableError(serverName)
-  }
-
-  return {
-    get capabilities(): ServerCapabilities | undefined {
-      return undefined
-    },
-
-    get isInitialized(): boolean {
-      return false
-    },
-
-    async start(): Promise<void> {
-      unavailable()
-    },
-
-    async initialize(): Promise<InitializeResult> {
-      unavailable()
-    },
-
-    async sendRequest<TResult>(): Promise<TResult> {
-      unavailable()
-    },
-
-    async sendNotification(): Promise<void> {
-      unavailable()
-    },
-
-    onNotification(): void {
-      // No-op in browser.
-    },
-
-    onRequest(): void {
-      // No-op in browser.
-    },
-
-    async stop(): Promise<void> {
-      // No-op in browser.
-    },
-  }
-}
-
 /**
  * Create an LSP client wrapper using vscode-jsonrpc.
  * Manages communication with an LSP server process via stdio.
@@ -152,10 +52,7 @@ export function createLSPClient(
   serverName: string,
   onCrash?: (error: Error) => void,
 ): LSPClient {
-  if (isBrowserRuntime()) {
-    return createBrowserLSPClient(serverName)
-  }
-
+  // State variables in closure
   let process: ChildProcess | undefined
   let connection: MessageConnection | undefined
   let capabilities: ServerCapabilities | undefined
@@ -197,11 +94,6 @@ export function createLSPClient(
       },
     ): Promise<void> {
       try {
-        const [{ spawn }, jsonRpc] = await Promise.all([
-          loadChildProcess(),
-          loadJsonRpcNode(),
-        ])
-
         // 1. Spawn LSP server process
         process = spawn(command, args, {
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -286,9 +178,9 @@ export function createLSPClient(
         })
 
         // 2. Create JSON-RPC connection
-        const reader = new jsonRpc.StreamMessageReader(process.stdout)
-        const writer = new jsonRpc.StreamMessageWriter(process.stdin)
-        connection = jsonRpc.createMessageConnection(reader, writer)
+        const reader = new StreamMessageReader(process.stdout)
+        const writer = new StreamMessageWriter(process.stdin)
+        connection = createMessageConnection(reader, writer)
 
         // 2.5. Register error/close handlers BEFORE listen() to catch all errors
         // This prevents unhandled promise rejections when the server crashes or closes unexpectedly
@@ -322,7 +214,7 @@ export function createLSPClient(
         // process has already exited. We catch and log the error rather than letting
         // it become an unhandled promise rejection.
         connection
-          .trace(jsonRpc.Trace.Verbose, {
+          .trace(Trace.Verbose, {
             log: (message: string) => {
               logForDebugging(`[LSP PROTOCOL ${serverName}] ${message}`)
             },
@@ -447,7 +339,7 @@ export function createLSPClient(
         // Queue handler for application when connection is ready (lazy initialization)
         pendingHandlers.push({ method, handler })
         logForDebugging(
-          `Queued notification handler for ${serverName}.${method} because connection is not ready`,
+          `Queued notification handler for ${serverName}.${method} (connection not ready)`,
         )
         return
       }
@@ -468,7 +360,7 @@ export function createLSPClient(
           handler: handler as (params: unknown) => unknown | Promise<unknown>,
         })
         logForDebugging(
-          `Queued request handler for ${serverName}.${method} because connection is not ready`,
+          `Queued request handler for ${serverName}.${method} (connection not ready)`,
         )
         return
       }
@@ -518,7 +410,6 @@ export function createLSPClient(
           if (process.stdin) {
             process.stdin.removeAllListeners('error')
           }
-
           if (process.stderr) {
             process.stderr.removeAllListeners('data')
           }
@@ -528,7 +419,7 @@ export function createLSPClient(
           } catch (error) {
             // Process might already be dead, which is fine
             logForDebugging(
-              `Process kill failed for ${serverName}: ${errorMessage(error)}`,
+              `Process kill failed for ${serverName} (may already be dead): ${errorMessage(error)}`,
             )
           }
           process = undefined

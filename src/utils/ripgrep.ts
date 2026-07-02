@@ -27,13 +27,6 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error
 }
 
-function toExecFileException(
-  error: Error | NodeJS.ErrnoException,
-  cmd: string,
-): ExecFileException {
-  return Object.assign(error, { cmd }) as ExecFileException
-}
-
 /**
  * Returns the ripgrep binary path provided by the @vscode/ripgrep package.
  * The package downloads a platform/arch-specific binary at npm install time
@@ -220,7 +213,6 @@ function ripGrepRaw(
   // Use single-threaded mode only if explicitly requested for this call's retry
   const threadArgs = singleThread ? ['-j', '1'] : []
   const fullArgs = [...rgArgs, ...threadArgs, ...args, target]
-  const cmd = [rgPath, ...fullArgs].join(' ')
   // Allow timeout to be configured via env var (in seconds), otherwise use platform defaults
   // WSL has severe performance penalty for file reads (3-5x slower on WSL2)
   const defaultTimeout = getPlatform() === 'wsl' ? 60_000 : 20_000
@@ -289,9 +281,8 @@ function ripGrepRaw(
         // 0 = matches found, 1 = no matches (both are success)
         callback(null, stdout, stderr)
       } else {
-        const error = toExecFileException(
-          new Error(`ripgrep exited with code ${code}`),
-          cmd,
+        const error: ExecFileException = new Error(
+          `ripgrep exited with code ${code}`,
         )
         error.code = code ?? undefined
         error.signal = signal ?? undefined
@@ -304,7 +295,7 @@ function ripGrepRaw(
       settled = true
       clearTimeout(timeoutId)
       clearTimeout(killTimeoutId)
-      const error = toExecFileException(err, cmd)
+      const error: ExecFileException = err
       callback(error, stdout, stderr)
     })
 

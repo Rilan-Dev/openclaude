@@ -1,7 +1,7 @@
+import { AsyncLocalStorage } from 'async_hooks'
 import { getCwdState, getOriginalCwd } from '../bootstrap/state.js'
-import { createAsyncContextStorage } from './imports.js'
 
-const cwdOverrideStorage = createAsyncContextStorage<string>()
+const cwdOverrideStorage = new AsyncLocalStorage<string>()
 
 /**
  * Run a function with an overridden working directory for the current async context.

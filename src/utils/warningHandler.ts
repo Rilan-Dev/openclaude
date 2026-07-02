@@ -6,7 +6,6 @@ import {
 import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getPlatform } from './platform.js'
-import { isBrowserRuntime } from './imports.js'
 
 // Track warnings to avoid spam — bounded to prevent unbounded memory growth
 export const MAX_WARNING_KEYS = 1000
@@ -87,36 +86,31 @@ export function resetWarningHandler(): void {
 }
 
 export function initializeWarningHandler(): void {
-  if (isBrowserRuntime()) {
-    return
-  }
-
-  if (
-    typeof process.listeners !== 'function' ||
-    typeof process.on !== 'function' ||
-    typeof process.removeAllListeners !== 'function'
-  ) {
-    return
-  }
-
+  // Only set up handler once - check if our handler is already installed
   const currentListeners = process.listeners('warning')
-
   if (warningHandler && currentListeners.includes(warningHandler)) {
     return
   }
 
+  // For external users, remove default Node.js handler to suppress stderr output
+  // For internal users, only keep default warnings for development builds
+  // Check development mode directly to avoid async call in init
+  // This preserves the same logic as getCurrentInstallationType() without async
   const isDevelopment =
     process.env.NODE_ENV === 'development' || isRunningFromBuildDirectory()
-
   if (!isDevelopment) {
     process.removeAllListeners('warning')
   }
 
+  // Create and store our warning handler
   warningHandler = (warning: Error) => {
     try {
       const warningKey = `${warning.name}: ${warning.message.slice(0, 50)}`
       const count = warningCounts.get(warningKey) || 0
 
+      // Bound the map to prevent unbounded memory growth from unique warning keys.
+      // Once the cap is reached, new unique keys are not tracked — their
+      // occurrence_count will always be reported as 1 in analytics.
       if (
         warningCounts.has(warningKey) ||
         warningCounts.size < MAX_WARNING_KEYS
@@ -126,6 +120,8 @@ export function initializeWarningHandler(): void {
 
       const isInternal = isInternalWarning(warning)
 
+      // Always log to Statsig for monitoring
+      // Include full details for ant users only, since they may contain code or filepaths
       logEvent('tengu_node_warning', {
         is_internal: isInternal ? 1 : 0,
         occurrence_count: count + 1,
@@ -137,15 +133,18 @@ export function initializeWarningHandler(): void {
         }),
       })
 
+      // In debug mode, show all warnings with context
       if (isEnvTruthy(process.env.CLAUDE_DEBUG)) {
         logForDebugging(formatDebugWarning(warning, isInternal), {
           level: 'warn',
         })
       }
+      // Hide all warnings from users - they are only logged to Statsig for monitoring
     } catch {
-      // fail silently
+      // Fail silently - we don't want the warning handler to cause issues
     }
   }
 
+  // Install the warning handler
   process.on('warning', warningHandler)
 }

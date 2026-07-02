@@ -6,7 +6,6 @@ import type { Screen } from '../screens/REPL.js';
 import type { Tools } from '../Tool.js';
 import type { RenderableMessage } from '../types/message.js';
 import { getDisplayMessageFromCollapsed, getToolSearchOrReadInfo, getToolUseIdsFromCollapsedGroup, hasAnyToolInProgress } from '../utils/collapseReadSearch.js';
-import { isBrowserRuntime } from '../utils/imports.js';
 import { type buildMessageLookups, EMPTY_STRING_SET, getProgressMessagesFromLookup, getSiblingToolUseIDsFromLookup, getToolUseID } from '../utils/messages.js';
 import { hasThinkingContent, Message } from './Message.js';
 import { MessageModel } from './MessageModel.js';
@@ -231,7 +230,7 @@ function MessageRowImpl(t0: Props) {
   const t7 = hasMetadata ? undefined : columns;
   let t8;
   if ($[37] !== commands || $[38] !== inProgressToolUseIDs || $[39] !== isActiveCollapsedGroup || $[40] !== isStatic || $[41] !== isTranscriptMode || $[42] !== isUserContinuation || $[43] !== lastThinkingBlockId || $[44] !== latestBashOutputUUID || $[45] !== lookups || $[46] !== msg || $[47] !== onOpenRateLimitOptions || $[48] !== progressMessagesForMessage || $[49] !== shouldAnimate || $[50] !== t6 || $[51] !== t7 || $[52] !== tools || $[53] !== verbose) {
-    t8 = <Message message={msg} lookups={lookups} addMargin={t6} containerWidth={t7} tools={tools} commands={commands} verbose={verbose} inProgressToolUseIDs={inProgressToolUseIDs} progressMessagesForMessage={progressMessagesForMessage} shouldAnimate={shouldAnimate} shouldShowDot={!isBrowserRuntime()} isTranscriptMode={isTranscriptMode} isStatic={isStatic} onOpenRateLimitOptions={onOpenRateLimitOptions} isActiveCollapsedGroup={isActiveCollapsedGroup} isUserContinuation={isUserContinuation} lastThinkingBlockId={lastThinkingBlockId} latestBashOutputUUID={latestBashOutputUUID} />;
+    t8 = <Message message={msg} lookups={lookups} addMargin={t6} containerWidth={t7} tools={tools} commands={commands} verbose={verbose} inProgressToolUseIDs={inProgressToolUseIDs} progressMessagesForMessage={progressMessagesForMessage} shouldAnimate={shouldAnimate} shouldShowDot={true} isTranscriptMode={isTranscriptMode} isStatic={isStatic} onOpenRateLimitOptions={onOpenRateLimitOptions} isActiveCollapsedGroup={isActiveCollapsedGroup} isUserContinuation={isUserContinuation} lastThinkingBlockId={lastThinkingBlockId} latestBashOutputUUID={latestBashOutputUUID} />;
     $[37] = commands;
     $[38] = inProgressToolUseIDs;
     $[39] = isActiveCollapsedGroup;
@@ -254,14 +253,6 @@ function MessageRowImpl(t0: Props) {
     t8 = $[54];
   }
   const messageEl = t8;
-  if (isBrowserRuntime()) {
-    const role = getBrowserMessageRole(displayMsg);
-    const hasVisibleMetadata = Boolean(hasMetadata);
-    return <div className="repl-messageRow" data-message-role={role} data-static={isStatic ? 'true' : undefined} data-active={isActiveCollapsedGroup ? 'true' : undefined}>
-        {hasVisibleMetadata ? <div className="repl-messageMeta"><MessageTimestamp message={displayMsg} isTranscriptMode={isTranscriptMode} /><MessageModel message={displayMsg} isTranscriptMode={isTranscriptMode} /></div> : null}
-        <div className="repl-messageBubble">{messageEl}</div>
-      </div>;
-  }
   if (!hasMetadata) {
     let t9;
     if ($[55] !== messageEl) {
@@ -301,13 +292,6 @@ function MessageRowImpl(t0: Props) {
  */
 function _temp(c) {
   return c.type === "text";
-}
-function getBrowserMessageRole(message: RenderableMessage): string {
-  if (message.type === 'user') return 'user';
-  if (message.type === 'assistant') return 'assistant';
-  if (message.type === 'grouped_tool_use' || message.type === 'collapsed_read_search') return 'tool';
-  if (message.type === 'attachment') return 'attachment';
-  return 'system';
 }
 export function isMessageStreaming(msg: RenderableMessage, streamingToolUseIDs: Set<string>): boolean {
   if (msg.type === 'grouped_tool_use') {

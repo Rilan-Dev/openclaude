@@ -1,44 +1,7 @@
-import { runtimeRequire } from './imports.js'
+import { execFile as execFileCb } from 'child_process'
+import { promisify } from 'util'
 
-function isBrowserRuntime(): boolean {
-  return typeof window !== 'undefined' && typeof document !== 'undefined'
-}
-
-type ExecFileOptions = {
-  cwd?: string
-  timeout?: number
-}
-
-type ExecFileResult = {
-  stdout: string
-}
-
-function execFileAsync(
-  command: string,
-  args: string[],
-  options?: ExecFileOptions,
-): Promise<ExecFileResult> {
-  if (isBrowserRuntime()) {
-    return Promise.resolve({ stdout: '' })
-  }
-
-  const { execFile } = runtimeRequire<typeof import('child_process')>(
-    'child_process',
-  )
-
-  return new Promise((resolve, reject) => {
-    execFile(command, args, options, (error, stdout) => {
-      if (error) {
-        reject(error)
-        return
-      }
-
-      resolve({
-        stdout: typeof stdout === 'string' ? stdout : String(stdout ?? ''),
-      })
-    })
-  })
-}
+const execFileAsync = promisify(execFileCb)
 
 /**
  * Portable worktree detection using only child_process — no analytics,

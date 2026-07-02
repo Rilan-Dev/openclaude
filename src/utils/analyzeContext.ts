@@ -6,7 +6,7 @@ import {
 } from 'src/constants/prompts.js'
 import { microcompactMessages } from 'src/services/compact/microCompact.js'
 import { getSdkBetas } from '../bootstrap/state.js'
-import { getCommandName } from '../types/command.js'
+import { getCommandName } from '../commands.js'
 import { getSystemContext } from '../context.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import {
@@ -176,7 +176,7 @@ export interface SystemPromptSectionDetail {
 
 interface Agent {
   agentType: string
-  source: SettingSource | 'built-in' | 'plugin'
+  source: SettingSource | 'built-in' | 'plugin' | 'sdk'
   tokens: number
 }
 

@@ -1,5 +1,5 @@
 import { logForDebugging } from 'src/utils/debug.js'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
@@ -28,14 +28,6 @@ export const LogEventNotificationSchema = lazySchema(() =>
     }),
   }),
 )
-
-type LogEventNotification = {
-  method: 'log_event'
-  params: {
-    eventName: string
-    eventData: Record<string, unknown>
-  }
-}
 
 // Store the VSCode MCP client reference for sending notifications
 let vscodeMcpClient: ConnectedMCPServer | null = null
@@ -77,8 +69,8 @@ export function setupVscodeSdkMcp(sdkClients: MCPServerConnection[]): void {
     vscodeMcpClient = client
 
     client.client.setNotificationHandler(
-      LogEventNotificationSchema as any,
-      async (notification: LogEventNotification) => {
+      LogEventNotificationSchema(),
+      async notification => {
         const { eventName, eventData } = notification.params
         logEvent(
           `tengu_vscode_${eventName}`,

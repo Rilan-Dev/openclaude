@@ -37,7 +37,7 @@ import type {
   ScreenshotResult,
 } from '@ant/computer-use-mcp'
 
-import { runtimeRequire } from '../imports.js'
+import { API_RESIZE_PARAMS, targetImageSize } from '@ant/computer-use-mcp'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { execFileNoThrow } from '../execFileNoThrow.js'
@@ -56,27 +56,6 @@ import { requireComputerUseSwift } from './swiftLoader.js'
 
 const SCREENSHOT_JPEG_QUALITY = 0.75
 
-const COMPUTER_USE_MCP_PACKAGE = ['@ant', 'computer-use-mcp'].join('/')
-
-type ComputerUseMcpRuntime = {
-  API_RESIZE_PARAMS: unknown
-  targetImageSize: (
-    width: number,
-    height: number,
-    params: unknown,
-  ) => [number, number]
-}
-
-let computerUseMcpRuntime: ComputerUseMcpRuntime | undefined
-
-function getComputerUseMcpRuntime(): ComputerUseMcpRuntime {
-  if (!computerUseMcpRuntime) {
-    computerUseMcpRuntime =
-      runtimeRequire<ComputerUseMcpRuntime>(COMPUTER_USE_MCP_PACKAGE)
-  }
-  return computerUseMcpRuntime
-}
-
 /** Logical → physical → API target dims. See `targetImageSize` + COORDINATES.md. */
 function computeTargetDims(
   logicalW: number,
@@ -85,7 +64,6 @@ function computeTargetDims(
 ): [number, number] {
   const physW = Math.round(logicalW * scaleFactor)
   const physH = Math.round(logicalH * scaleFactor)
-  const { targetImageSize, API_RESIZE_PARAMS } = getComputerUseMcpRuntime()
   return targetImageSize(physW, physH, API_RESIZE_PARAMS)
 }
 
@@ -635,10 +613,7 @@ export function createCliExecutor(opts: {
     async getFrontmostApp(): Promise<FrontmostApp | null> {
       const info = requireComputerUseInput().getFrontmostAppInfo()
       if (!info || !info.bundleId) return null
-      return {
-        bundleId: info.bundleId,
-        displayName: info.appName ?? info.bundleId,
-      }
+      return { bundleId: info.bundleId, displayName: info.appName }
     },
 
     async appUnderPoint(

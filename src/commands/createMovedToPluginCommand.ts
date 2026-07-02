@@ -1,7 +1,6 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.js'
 import type { Command } from '../commands.js'
 import type { ToolUseContext } from '../Tool.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 
 type Options = {
   name: string
@@ -9,7 +8,7 @@ type Options = {
   progressMessage: string
   pluginName: string
   pluginCommand: string
-  allowedTools?: string[] | (() => string[])
+  allowedTools?: string[]
   /**
    * The prompt to use while the marketplace is private.
    * External users will get this prompt. Once the marketplace is public,
@@ -41,13 +40,10 @@ export function createMovedToPluginCommand({
     },
     source: 'builtin',
     get allowedTools() {
-      if (isBrowserRuntime()) {
-        return Array.isArray(allowedTools) ? allowedTools : []
-      }
       // The ant branch only returns a plugin-install notice that doesn't
       // need any tools — avoid granting turn-scoped permissions for it.
       if (process.env.USER_TYPE === 'ant') return undefined
-      return typeof allowedTools === 'function' ? allowedTools() : allowedTools
+      return allowedTools
     },
     async getPromptForCommand(
       args: string,

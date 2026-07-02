@@ -1,5 +1,4 @@
 import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
-import { isBrowserInkRuntime } from '../browser-dom.js'
 import { TerminalSizeContext } from '../components/TerminalSizeContext.js'
 import type { DOMElement } from '../dom.js'
 
@@ -28,14 +27,14 @@ type ViewportEntry = {
  * return <Box ref={ref}><Animation enabled={entry.isVisible}>...</Animation></Box>
  */
 export function useTerminalViewport(): [
-  ref: (element: DOMElement | HTMLElement | null) => void,
+  ref: (element: DOMElement | null) => void,
   entry: ViewportEntry,
 ] {
   const terminalSize = useContext(TerminalSizeContext)
-  const elementRef = useRef<DOMElement | HTMLElement | null>(null)
+  const elementRef = useRef<DOMElement | null>(null)
   const entryRef = useRef<ViewportEntry>({ isVisible: true })
 
-  const setElement = useCallback((el: DOMElement | HTMLElement | null) => {
+  const setElement = useCallback((el: DOMElement | null) => {
     elementRef.current = el
   }, [])
 
@@ -46,29 +45,7 @@ export function useTerminalViewport(): [
   // references after yoga tree rebuilds.
   useLayoutEffect(() => {
     const element = elementRef.current
-    if (!element) {
-      return
-    }
-
-    if (isBrowserInkRuntime()) {
-      if ('getBoundingClientRect' in element) {
-        const rect = element.getBoundingClientRect()
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth
-        const visible =
-          rect.bottom > 0 &&
-          rect.right > 0 &&
-          rect.top < viewportHeight &&
-          rect.left < viewportWidth
-
-        if (visible !== entryRef.current.isVisible) {
-          entryRef.current = { isVisible: visible }
-        }
-      }
-      return
-    }
-
-    if (!('yogaNode' in element) || !terminalSize) {
+    if (!element?.yogaNode || !terminalSize) {
       return
     }
 

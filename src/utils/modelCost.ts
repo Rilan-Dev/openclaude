@@ -12,12 +12,14 @@ import {
   CLAUDE_OPUS_4_5_CONFIG,
   CLAUDE_OPUS_4_6_CONFIG,
   CLAUDE_OPUS_4_7_CONFIG,
+  CLAUDE_OPUS_4_8_CONFIG,
   CLAUDE_OPUS_4_CONFIG,
   CLAUDE_SONNET_4_5_CONFIG,
   CLAUDE_SONNET_4_6_CONFIG,
   CLAUDE_SONNET_4_CONFIG,
 } from './model/configs.js'
 import {
+  firstPartyNameToCanonical,
   getCanonicalName,
   getDefaultMainLoopModelSetting,
   type ModelShortName,
@@ -102,18 +104,31 @@ export function getOpus46CostTier(fastMode: boolean): ModelCosts {
 // Costs from https://platform.claude.com/docs/en/about-claude/pricing
 // Web search cost: $10 per 1000 requests = $0.01 per request
 export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
-  'claude-3-5-haiku': COST_HAIKU_35,
-  'claude-haiku-4-5': COST_HAIKU_45,
-  'claude-3-5-sonnet': COST_TIER_3_15,
-  'claude-3-7-sonnet': COST_TIER_3_15,
-  'claude-sonnet-4': COST_TIER_3_15,
-  'claude-sonnet-4-5': COST_TIER_3_15,
-  'claude-sonnet-4-6': COST_TIER_3_15,
-  'claude-opus-4': COST_TIER_15_75,
-  'claude-opus-4-1': COST_TIER_15_75,
-  'claude-opus-4-5': COST_TIER_5_25,
-  'claude-opus-4-6': COST_TIER_5_25,
-  'claude-opus-4-7': COST_TIER_5_25,
+  [firstPartyNameToCanonical(CLAUDE_3_5_HAIKU_CONFIG.firstParty)]:
+    COST_HAIKU_35,
+  [firstPartyNameToCanonical(CLAUDE_HAIKU_4_5_CONFIG.firstParty)]:
+    COST_HAIKU_45,
+  [firstPartyNameToCanonical(CLAUDE_3_5_V2_SONNET_CONFIG.firstParty)]:
+    COST_TIER_3_15,
+  [firstPartyNameToCanonical(CLAUDE_3_7_SONNET_CONFIG.firstParty)]:
+    COST_TIER_3_15,
+  [firstPartyNameToCanonical(CLAUDE_SONNET_4_CONFIG.firstParty)]:
+    COST_TIER_3_15,
+  [firstPartyNameToCanonical(CLAUDE_SONNET_4_5_CONFIG.firstParty)]:
+    COST_TIER_3_15,
+  [firstPartyNameToCanonical(CLAUDE_SONNET_4_6_CONFIG.firstParty)]:
+    COST_TIER_3_15,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_CONFIG.firstParty)]: COST_TIER_15_75,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_1_CONFIG.firstParty)]:
+    COST_TIER_15_75,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_5_CONFIG.firstParty)]:
+    COST_TIER_5_25,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_6_CONFIG.firstParty)]:
+    COST_TIER_5_25,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_7_CONFIG.firstParty)]:
+    COST_TIER_5_25,
+  [firstPartyNameToCanonical(CLAUDE_OPUS_4_8_CONFIG.firstParty)]:
+    COST_TIER_5_25,
 }
 
 /**
@@ -135,8 +150,15 @@ function tokensToUSDCost(modelCosts: ModelCosts, usage: Usage): number {
 export function getModelCosts(model: string, usage: Usage): ModelCosts {
   const shortName = getCanonicalName(model)
 
-  // Check if this is an Opus 4.6 model with fast mode active.
-  if (shortName === 'claude-opus-4-6') {
+  // Check if this is a fast-mode-capable Opus model (4.8/4.7/4.6) with fast mode
+  // active. These share the elevated fast-mode pricing the picker advertises, so
+  // the tracked cost must match the displayed price for the current default
+  // (4.8). Non-fast usage stays COST_TIER_5_25, same as the MODEL_COSTS entry.
+  if (
+    shortName === firstPartyNameToCanonical(CLAUDE_OPUS_4_8_CONFIG.firstParty) ||
+    shortName === firstPartyNameToCanonical(CLAUDE_OPUS_4_7_CONFIG.firstParty) ||
+    shortName === firstPartyNameToCanonical(CLAUDE_OPUS_4_6_CONFIG.firstParty)
+  ) {
     const isFastMode = usage.speed === 'fast'
     return getOpus46CostTier(isFastMode)
   }

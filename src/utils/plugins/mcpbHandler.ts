@@ -21,9 +21,6 @@ import {
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { getSystemDirectories } from '../systemDirectories.js'
 import { classifyFetchError, logPluginFetch } from './fetchTelemetry.js'
-
-const MCPB_PACKAGE = '@anthropic-ai/mcpb'
-
 /**
  * User configuration values for MCPB
  */
@@ -420,7 +417,7 @@ async function generateMcpConfig(
 ): Promise<McpServerConfig> {
   // Lazy import: @anthropic-ai/mcpb barrel pulls in zod v3 schemas (~700KB of
   // bound closures). See dxt/helpers.ts for details.
-  const { getMcpConfigForManifest } = await import(/* @vite-ignore */ MCPB_PACKAGE)
+  const { getMcpConfigForManifest } = await import('@anthropic-ai/mcpb')
   const mcpConfig = await getMcpConfigForManifest({
     manifest,
     extensionPath: extractedPath,

@@ -56,10 +56,6 @@ function WarningNoticeRow({
     </Box>;
 }
 
-function isFirstPartyAnthropicProviderActive(): boolean {
-  return getAPIProvider() === 'firstParty';
-}
-
 // Individual notice definitions
 const largeMemoryFilesNotice: StatusNoticeDefinition = {
   id: 'large-memory-files',
@@ -91,9 +87,6 @@ const claudeAiSubscriberExternalTokenNotice: StatusNoticeDefinition = {
   id: 'claude-ai-external-token',
   type: 'warning',
   isActive: () => {
-    if (!isFirstPartyAnthropicProviderActive()) {
-      return false;
-    }
     const authTokenInfo = getAuthTokenSource();
     return isClaudeAISubscriber() && (authTokenInfo.source === 'ANTHROPIC_AUTH_TOKEN' || authTokenInfo.source === 'apiKeyHelper');
   },
@@ -112,9 +105,6 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
   id: 'api-key-conflict',
   type: 'warning',
   isActive: () => {
-    if (!isFirstPartyAnthropicProviderActive()) {
-      return false;
-    }
     const {
       source: apiKeySource
     } = getAnthropicApiKeyWithSource({
@@ -140,9 +130,6 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   id: 'both-auth-methods',
   type: 'warning',
   isActive: () => {
-    if (!isFirstPartyAnthropicProviderActive()) {
-      return false;
-    }
     const {
       source: apiKeySource
     } = getAnthropicApiKeyWithSource({

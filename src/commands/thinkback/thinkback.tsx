@@ -1,7 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
-import { getExeca } from '../../utils/imports.js';
+import { execa } from 'execa';
 import { readFile } from 'fs/promises';
-import { join } from '../../utils/imports.js';
+import { join } from 'path';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import type { CommandResultDisplay } from '../../commands.js';
@@ -109,7 +109,7 @@ export async function playAnimation(skillDir: string): Promise<{
   }
   inkInstance.enterAlternateScreen();
   try {
-    await getExeca()('node', [playerPath], {
+    await execa('node', [playerPath], {
       stdio: 'inherit',
       cwd: skillDir,
       reject: false

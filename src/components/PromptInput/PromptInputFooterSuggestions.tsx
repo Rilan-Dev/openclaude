@@ -4,7 +4,6 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { Box, Text } from '../../ink.js'
 import { truncatePathMiddle, truncateToWidth } from '../../utils/format.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 import type { Theme } from '../../utils/theme.js'
 
 export type SuggestionItem = {
@@ -44,46 +43,6 @@ function isUnifiedSuggestion(itemId: string): boolean {
     itemId.startsWith('file-') ||
     itemId.startsWith('mcp-resource-') ||
     itemId.startsWith('agent-')
-  )
-}
-
-function getBrowserMaxWidth(maxColumnWidth?: number): string {
-  if (maxColumnWidth === undefined) {
-    return 'min(100%, 42ch)'
-  }
-
-  return `min(100%, ${Math.max(24, Math.min(maxColumnWidth + 6, 72))}ch)`
-}
-
-function BrowserSuggestionItemRow({
-  item,
-  maxColumnWidth,
-  isSelected,
-}: {
-  item: SuggestionItem
-  maxColumnWidth?: number
-  isSelected: boolean
-}): ReactNode {
-  const icon = getIcon(item.id)
-  const unified = isUnifiedSuggestion(item.id)
-
-  return (
-    <div
-      className="repl-suggestionItem"
-      data-selected={isSelected ? 'true' : undefined}
-      data-unified={unified ? 'true' : undefined}
-      role="option"
-      aria-selected={isSelected}
-    >
-      <div className="repl-suggestionItemMain">
-        <span className="repl-suggestionIcon">{icon}</span>
-        <span className="repl-suggestionName">{item.displayText}</span>
-        {item.tag ? <span className="repl-suggestionTag">{item.tag}</span> : null}
-      </div>
-      {item.description ? (
-        <div className="repl-suggestionDescription">{item.description}</div>
-      ) : null}
-    </div>
   )
 }
 
@@ -213,11 +172,7 @@ export function PromptInputFooterSuggestions({
   overlay,
 }: Props): ReactNode {
   const { rows } = useTerminalSize()
-  const maxVisibleItems = overlay
-    ? OVERLAY_MAX_ITEMS
-    : isBrowserRuntime()
-      ? Math.min(6, Math.max(1, suggestions.length))
-      : Math.min(6, Math.max(1, rows - 3))
+  const maxVisibleItems = overlay ? OVERLAY_MAX_ITEMS : Math.min(6, Math.max(1, rows - 3))
 
   if (suggestions.length === 0) {
     return null
@@ -238,40 +193,19 @@ export function PromptInputFooterSuggestions({
   const visibleItems = suggestions.slice(startIndex, endIndex)
 
   return (
-    isBrowserRuntime() ? (
-      <div
-        className="repl-suggestionDeck"
-        data-overlay={overlay ? 'true' : undefined}
-        role="listbox"
-        aria-label="Prompt suggestions"
-        style={{
-          width: '100%',
-        }}
-      >
-        {suggestions.map(item => (
-          <BrowserSuggestionItemRow
-            key={`${item.id}:${item.id === suggestions[selectedSuggestion]?.id ? 'selected' : 'idle'}`}
-            item={item}
-            maxColumnWidth={maxColumnWidth}
-            isSelected={item.id === suggestions[selectedSuggestion]?.id}
-          />
-        ))}
-      </div>
-    ) : (
-      <Box
-        flexDirection="column"
-        justifyContent={overlay ? undefined : 'flex-end'}
-      >
-        {visibleItems.map(item => (
-          <SuggestionItemRow
-            key={`${item.id}:${item.id === suggestions[selectedSuggestion]?.id ? 'selected' : 'idle'}`}
-            item={item}
-            maxColumnWidth={maxColumnWidth}
-            isSelected={item.id === suggestions[selectedSuggestion]?.id}
-          />
-        ))}
-      </Box>
-    )
+    <Box
+      flexDirection="column"
+      justifyContent={overlay ? undefined : 'flex-end'}
+    >
+      {visibleItems.map(item => (
+        <SuggestionItemRow
+          key={`${item.id}:${item.id === suggestions[selectedSuggestion]?.id ? 'selected' : 'idle'}`}
+          item={item}
+          maxColumnWidth={maxColumnWidth}
+          isSelected={item.id === suggestions[selectedSuggestion]?.id}
+        />
+      ))}
+    </Box>
   )
 }
 

@@ -35,6 +35,85 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+#root {
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+ink-box,
+ink-text,
+ink-virtual-text,
+ink-link {
+  box-sizing: border-box;
+}
+
+ink-box {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  color: inherit;
+}
+
+ink-text,
+ink-virtual-text,
+ink-link {
+  display: inline;
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#root > ink-box {
+  min-height: 100vh;
+  width: 100%;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(217, 119, 87, 0.13), transparent 26rem),
+    radial-gradient(circle at 84% 18%, rgba(20, 184, 166, 0.10), transparent 24rem),
+    linear-gradient(135deg, #111317 0%, #1e1f1d 52%, #181512 100%);
+  color: #f6efe7;
+  font: 13px/1.5 "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.openclaude-web-runtime {
+  background: #151515;
+  color: #f8efe2;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  width: 100%;
+}
+
+.openclaude-web-runtime__repl {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.openclaude-web-runtime__repl > ink-box {
+  height: 100% !important;
+  min-height: 0;
+  width: 100%;
+}
+
+.openclaude-web-inkTerminal,
+.openclaude-web-startupTerminal {
+  background: #151515;
+  color: #f8efe2;
+  flex: 0 0 auto;
+  font:
+    14px/1.28 "Cascadia Code", "JetBrains Mono", ui-monospace,
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  margin: 0;
+  max-height: min(64vh, 490px);
+  overflow: hidden;
+  padding: 14px 20px 4px;
+  tab-size: 2;
+  white-space: pre;
+}
+
 a {
   color: var(--accent);
   cursor: pointer;
@@ -664,4 +743,33 @@ pre {
     border-left: 0;
     border-top: 1px solid rgba(148, 163, 184, 0.14);
   }
+}
+
+.openclaude-web-tuiBoot {
+  background: #151515;
+  color: #f8efe2;
+  display: block;
+  font-family:
+    "Cascadia Code", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono",
+    monospace;
+  min-height: 100vh;
+  padding: 14px 20px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.openclaude-web-tuiBoot__terminal {
+  background: transparent;
+  border: 0;
+  box-sizing: border-box;
+  color: #f8efe2;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.28;
+  margin: 0;
+  overflow: auto;
+  padding: 0;
+  tab-size: 2;
+  white-space: pre;
 }

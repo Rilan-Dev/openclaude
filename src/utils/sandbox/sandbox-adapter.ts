@@ -15,8 +15,15 @@ import type {
   SandboxRuntimeConfig,
   SandboxViolationEvent,
 } from '@anthropic-ai/sandbox-runtime'
+import {
+  SandboxManager as BaseSandboxManager,
+  SandboxRuntimeConfigSchema,
+  SandboxViolationStore,
+} from '@anthropic-ai/sandbox-runtime'
+import { rmSync, statSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { memoize } from 'lodash-es'
-import { join, pathSeparator, resolve, runtimeRequire } from '../imports.js'
+import { join, resolve, sep } from 'path'
 import {
   getAdditionalDirectoriesForClaudeMd,
   getCwdState,
@@ -38,101 +45,6 @@ import {
   updateSettingsForSource,
 } from '../settings/settings.js'
 import type { SettingsJson } from '../settings/types.js'
-
-type SandboxRuntimeModule = typeof import('@anthropic-ai/sandbox-runtime')
-
-function getFsModule(): typeof import('fs') {
-  return runtimeRequire<typeof import('fs')>('fs')
-}
-
-function getFsPromisesModule(): typeof import('fs/promises') {
-  return runtimeRequire<typeof import('fs/promises')>('fs/promises')
-}
-
-function createSandboxRuntimeStub(): Pick<
-  SandboxRuntimeModule,
-  'SandboxManager' | 'SandboxRuntimeConfigSchema' | 'SandboxViolationStore'
-> {
-  class BrowserSandboxViolationStore {
-    private events: unknown[] = []
-
-    add(event: unknown): void {
-      this.events.push(event)
-    }
-
-    getEvents(): unknown[] {
-      return this.events
-    }
-
-    clear(): void {
-      this.events = []
-    }
-  }
-
-  const browserSandboxManager = {
-    checkDependencies: () => ({ available: false, missing: ['browser'] }),
-    isSupportedPlatform: () => false,
-    wrapWithSandbox: (command: string) => command,
-    initialize: async () => undefined,
-    updateConfig: () => undefined,
-    reset: () => undefined,
-    getFsReadConfig: () => undefined,
-    getFsWriteConfig: () => undefined,
-    getNetworkRestrictionConfig: () => undefined,
-    getIgnoreViolations: () => undefined,
-    getAllowUnixSockets: () => false,
-    getAllowLocalBinding: () => false,
-    getEnableWeakerNestedSandbox: () => false,
-    getProxyPort: () => undefined,
-    getSocksProxyPort: () => undefined,
-    getLinuxHttpSocketPath: () => undefined,
-    getLinuxSocksSocketPath: () => undefined,
-    waitForNetworkInitialization: async () => undefined,
-    getSandboxViolationStore: () => new BrowserSandboxViolationStore(),
-    annotateStderrWithSandboxFailures: (_command: string, stderr: string) =>
-      stderr,
-    cleanupAfterCommand: () => undefined,
-  }
-
-  return {
-    SandboxManager:
-      browserSandboxManager as unknown as SandboxRuntimeModule['SandboxManager'],
-    SandboxRuntimeConfigSchema: {
-      safeParse: (input: unknown) => ({ success: true, data: input }),
-    } as unknown as SandboxRuntimeModule['SandboxRuntimeConfigSchema'],
-    SandboxViolationStore:
-      BrowserSandboxViolationStore as unknown as SandboxRuntimeModule['SandboxViolationStore'],
-  }
-}
-
-function loadSandboxRuntime(): Pick<
-  SandboxRuntimeModule,
-  'SandboxManager' | 'SandboxRuntimeConfigSchema' | 'SandboxViolationStore'
-> {
-  if (typeof window !== 'undefined') {
-    return createSandboxRuntimeStub()
-  }
-  try {
-    return runtimeRequire<
-      Pick<
-        SandboxRuntimeModule,
-        'SandboxManager' | 'SandboxRuntimeConfigSchema' | 'SandboxViolationStore'
-      >
-    >('@anthropic-ai/sandbox-runtime')
-  } catch {
-    return createSandboxRuntimeStub()
-  }
-}
-
-const {
-  SandboxManager: BaseSandboxManager,
-  SandboxRuntimeConfigSchema,
-  SandboxViolationStore,
-} = loadSandboxRuntime()
-
-type SandboxViolationStoreInstance = ReturnType<
-  typeof BaseSandboxManager.getSandboxViolationStore
->
 
 // ============================================================================
 // Settings Converter
@@ -368,7 +280,7 @@ export function convertToSandboxRuntimeConfig(
       const p = resolve(dir, gitFile)
       try {
         // eslint-disable-next-line custom-rules/no-sync-fs -- refreshConfig() must be sync
-        getFsModule().statSync(p)
+        statSync(p)
         denyWrite.push(p)
       } catch {
         bareGitRepoScrubPaths.push(p)
@@ -502,7 +414,7 @@ function scrubBareGitRepoFiles(): void {
   for (const p of bareGitRepoScrubPaths) {
     try {
       // eslint-disable-next-line custom-rules/no-sync-fs -- cleanupAfterCommand must be sync (Shell.ts:367)
-      getFsModule().rmSync(p, { recursive: true })
+      rmSync(p, { recursive: true })
       logForDebugging(`[Sandbox] scrubbed planted bare-repo file: ${p}`)
     } catch {
       // ENOENT is the expected common case — nothing was planted
@@ -519,9 +431,7 @@ function scrubBareGitRepoFiles(): void {
 async function detectWorktreeMainRepoPath(cwd: string): Promise<string | null> {
   const gitPath = join(cwd, '.git')
   try {
-    const gitContent = await getFsPromisesModule().readFile(gitPath, {
-      encoding: 'utf8',
-    })
+    const gitContent = await readFile(gitPath, { encoding: 'utf8' })
     const gitdirMatch = gitContent.match(/^gitdir:\s*(.+)$/m)
     if (!gitdirMatch?.[1]) {
       return null
@@ -531,8 +441,7 @@ async function detectWorktreeMainRepoPath(cwd: string): Promise<string | null> {
     // gitdir format: /path/to/main/repo/.git/worktrees/worktree-name
     // Match the /.git/worktrees/ segment specifically — indexOf('.git') alone
     // would false-match paths like /home/user/.github-projects/...
-    const pathSep = pathSeparator()
-    const marker = `${pathSep}.git${pathSep}worktrees${pathSep}`
+    const marker = `${sep}.git${sep}worktrees${sep}`
     const markerIndex = gitdir.lastIndexOf(marker)
     if (markerIndex > 0) {
       return gitdir.substring(0, markerIndex)
@@ -1023,7 +932,7 @@ export interface ISandboxManager {
     abortSignal?: AbortSignal,
   ): Promise<string>
   cleanupAfterCommand(): void
-  getSandboxViolationStore(): SandboxViolationStoreInstance
+  getSandboxViolationStore(): SandboxViolationStore
   annotateStderrWithSandboxFailures(command: string, stderr: string): string
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void

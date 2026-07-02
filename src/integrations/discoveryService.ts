@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   getCachedModels,
   isCacheStale,
@@ -28,9 +29,9 @@ import {
   probeAtomicChatReadiness,
   probeOllamaGenerationReadiness,
 } from '../utils/providerDiscovery.js'
+import { firstUsableCredential, hasInvalidCredentialPlaceholder } from '../services/api/credentialPool.js'
 import { parseCustomHeadersEnv } from '../utils/providerCustomHeaders.js'
 import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
-import { hashContent } from '../utils/hash.js'
 
 export type RouteDiscoveryResult = {
   routeId: string
@@ -112,7 +113,10 @@ function normalizeDiscoveryCacheHeaders(
 }
 
 function hashDiscoveryCachePartition(value: unknown): string {
-  return hashContent(JSON.stringify(value)).slice(0, 16)
+  return createHash('sha256')
+    .update(JSON.stringify(value))
+    .digest('hex')
+    .slice(0, 16)
 }
 
 export function getDiscoveryCacheKey(
@@ -152,14 +156,21 @@ function getRouteDiscoveryApiKey(
     return undefined
   }
 
-  if (options?.apiKey?.trim()) {
-    return options.apiKey.trim()
+  if (hasInvalidCredentialPlaceholder(options?.apiKey)) {
+    return undefined
   }
 
-  return resolveRouteCredentialValue({
-    routeId,
-    processEnv: process.env,
-  })
+  const optionCredential = firstUsableCredential(options?.apiKey)
+  if (optionCredential) {
+    return optionCredential
+  }
+
+  return firstUsableCredential(
+    resolveRouteCredentialValue({
+      routeId,
+      processEnv: process.env,
+    }),
+  )
 }
 
 function getRouteDiscoveryHeaders(
@@ -442,14 +453,17 @@ export async function refreshStartupDiscoveryForActiveRoute(
     headers:
       options?.headers ??
       parseCustomHeadersEnv(processEnv.ANTHROPIC_CUSTOM_HEADERS),
-    apiKey:
-      options?.apiKey ??
-      resolveRouteCredentialValue({
-        routeId,
-        baseUrl,
-        processEnv,
-        activeProfileProvider: options?.activeProfileProvider,
-      }),
+    apiKey: hasInvalidCredentialPlaceholder(options?.apiKey)
+      ? undefined
+      : firstUsableCredential(options?.apiKey) ??
+        firstUsableCredential(
+          resolveRouteCredentialValue({
+            routeId,
+            baseUrl,
+            processEnv,
+            activeProfileProvider: options?.activeProfileProvider,
+          }),
+        ),
   })
 }
 

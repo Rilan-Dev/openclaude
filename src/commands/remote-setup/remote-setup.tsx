@@ -1,4 +1,4 @@
-import { getExeca } from '../../utils/imports.js';
+import { execa } from 'execa';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { Select } from '../../components/CustomSelect/index.js';
@@ -42,7 +42,7 @@ async function checkLoginState(): Promise<CheckResult> {
   // (telemetry-safe); spawn once more with stdout:'pipe' to read the token.
   const {
     stdout
-  } = await getExeca()('gh', ['auth', 'token'], {
+  } = await execa('gh', ['auth', 'token'], {
     stdout: 'pipe',
     stderr: 'ignore',
     timeout: 5000,

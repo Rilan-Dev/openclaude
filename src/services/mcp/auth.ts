@@ -27,6 +27,7 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import axios from 'axios'
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { mkdir } from 'fs/promises'
+import { createServer, type Server } from 'http'
 import { join } from 'path'
 import { parse } from 'url'
 import xss from 'xss'
@@ -35,10 +36,6 @@ import { openBrowser } from '../../utils/browser.js'
 import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
-import {
-  createHttpServer,
-  type HttpServer,
-} from '../../utils/imports.js'
 import * as lockfile from '../../utils/lockfile.js'
 import { logMCPDebug } from '../../utils/log.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -1050,7 +1047,7 @@ export async function performMCPOAuthFlow(
     const oauthState = await provider.state()
 
     // Store the server, timeout, and abort listener references for cleanup
-    let server: HttpServer | null = null
+    let server: Server | null = null
     let timeoutId: NodeJS.Timeout | null = null
     let abortHandler: (() => void) | null = null
 
@@ -1145,7 +1142,7 @@ export async function performMCPOAuthFlow(
         })
       }
 
-      void createHttpServer((req, res) => {
+      server = createServer((req, res) => {
         const parsedUrl = parse(req.url || '', true)
 
         if (parsedUrl.pathname === '/callback') {
@@ -1194,79 +1191,68 @@ export async function performMCPOAuthFlow(
           resolveOnce(result.code)
         }
       })
-        .then(createdServer => {
-          server = createdServer
 
-          server.on('error', (err: NodeJS.ErrnoException) => {
-            cleanup()
-            if (err.code === 'EADDRINUSE') {
-              const findCmd =
-                getPlatform() === 'windows'
-                  ? `netstat -ano | findstr :${port}`
-                  : `lsof -ti:${port} -sTCP:LISTEN`
-              rejectOnce(
-                new Error(
-                  `OAuth callback port ${port} is already in use — another process may be holding it. ` +
-                    `Run \`${findCmd}\` to find it.`,
-                ),
-              )
-            } else {
-              rejectOnce(
-                new Error(`OAuth callback server failed: ${err.message}`),
-              )
-            }
-          })
-
-          server.listen(port, '127.0.0.1', async () => {
-            try {
-              logMCPDebug(serverName, `Starting SDK auth`)
-              logMCPDebug(serverName, `Server URL: ${serverConfig.url}`)
-
-              // First call to start the auth flow - should redirect
-              // Pass the scope and resource_metadata from WWW-Authenticate header if available
-              const result = await sdkAuth(provider, {
-                serverUrl: serverConfig.url,
-                scope: wwwAuthParams.scope,
-                resourceMetadataUrl: wwwAuthParams.resourceMetadataUrl,
-              })
-              logMCPDebug(serverName, `Initial auth result: ${result}`)
-
-              if (result !== 'REDIRECT') {
-                logMCPDebug(
-                  serverName,
-                  `Unexpected auth result, expected REDIRECT: ${result}`,
-                )
-              }
-            } catch (error) {
-              logMCPDebug(serverName, `SDK auth error: ${error}`)
-              cleanup()
-              rejectOnce(new Error(`SDK auth failed: ${errorMessage(error)}`))
-            }
-          })
-
-          // Don't let the callback server or timeout pin the event loop — if the UI
-          // component unmounts without aborting (e.g. parent intercepts Esc), we'd
-          // rather let the process exit than stay alive for 5 minutes holding the
-          // port. The abortSignal is the intended lifecycle management.
-          server.unref?.()
-
-          timeoutId = setTimeout(
-            (cleanup, rejectOnce) => {
-              cleanup()
-              rejectOnce(new Error('Authentication timeout'))
-            },
-            5 * 60 * 1000, // 5 minutes
-            cleanup,
-            rejectOnce,
-          )
-          timeoutId.unref()
-        })
-        .catch(error => {
-          cleanup()
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        cleanup()
+        if (err.code === 'EADDRINUSE') {
+          const findCmd =
+            getPlatform() === 'windows'
+              ? `netstat -ano | findstr :${port}`
+              : `lsof -ti:${port} -sTCP:LISTEN`
           rejectOnce(
-            new Error(`OAuth callback server failed: ${errorMessage(error)}`),
+            new Error(
+              `OAuth callback port ${port} is already in use — another process may be holding it. ` +
+                `Run \`${findCmd}\` to find it.`,
+            ),
           )
-        })
+        } else {
+          rejectOnce(new Error(`OAuth callback server failed: ${err.message}`))
+        }
+      })
+
+      server.listen(port, '127.0.0.1', async () => {
+        try {
+          logMCPDebug(serverName, `Starting SDK auth`)
+          logMCPDebug(serverName, `Server URL: ${serverConfig.url}`)
+
+          // First call to start the auth flow - should redirect
+          // Pass the scope and resource_metadata from WWW-Authenticate header if available
+          const result = await sdkAuth(provider, {
+            serverUrl: serverConfig.url,
+            scope: wwwAuthParams.scope,
+            resourceMetadataUrl: wwwAuthParams.resourceMetadataUrl,
+          })
+          logMCPDebug(serverName, `Initial auth result: ${result}`)
+
+          if (result !== 'REDIRECT') {
+            logMCPDebug(
+              serverName,
+              `Unexpected auth result, expected REDIRECT: ${result}`,
+            )
+          }
+        } catch (error) {
+          logMCPDebug(serverName, `SDK auth error: ${error}`)
+          cleanup()
+          rejectOnce(new Error(`SDK auth failed: ${errorMessage(error)}`))
+        }
+      })
+
+      // Don't let the callback server or timeout pin the event loop — if the UI
+      // component unmounts without aborting (e.g. parent intercepts Esc), we'd
+      // rather let the process exit than stay alive for 5 minutes holding the
+      // port. The abortSignal is the intended lifecycle management.
+      server.unref()
+
+      timeoutId = setTimeout(
+        (cleanup, rejectOnce) => {
+          cleanup()
+          rejectOnce(new Error('Authentication timeout'))
+        },
+        5 * 60 * 1000, // 5 minutes
+        cleanup,
+        rejectOnce,
+      )
+      timeoutId.unref()
     })
 
     authorizationCodeObtained = true

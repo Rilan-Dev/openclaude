@@ -7,7 +7,7 @@ const SOURCE_FILE_RE = /\.[cm]?[jt]sx?(?:$|\?)/
 // require('../x.js')
 // require('./x?raw')
 const REQUIRE_RE =
-  /\brequire\s*\(\s*(['"])(\.{1,2}\/(?:[^'"\\]|\\.)+)\1\s*\)/g
+  /\brequire\s*\(\s*(['"])(\.{1,2}\/(?:[^'"\\]|\\.)+)\1\s*,?\s*\)/g
 
 function escapeForTemplateLiteral(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')

@@ -6,8 +6,8 @@
 process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ZodError } from 'zod'
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import {
   CallToolRequestSchema,
   type CallToolResult,
@@ -30,7 +30,6 @@ import { getTools } from '../tools.js'
 import { createAbortController } from '../utils/abortController.js'
 import { createFileStateCacheWithSizeLimit } from '../utils/fileStateCache.js'
 import { logError } from '../utils/log.js'
-import { createStdioServerTransport } from '../utils/imports.js'
 import { createAssistantMessage } from '../utils/messages.js'
 import { getMainLoopModel } from '../utils/model/model.js'
 import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
@@ -235,9 +234,7 @@ export async function startMCPServer(
             content: [
               {
                 type: 'text',
-                text: `Tool ${name} input is invalid:\n${error.issues
-                  .map(e => `- ${e.path.join('.')}: ${e.message}`)
-                  .join('\n')}`,
+                text: `Tool ${name} input is invalid:\n${error.errors.map(e => `- ${e.path.join('.')}: ${e.message}`).join('\n')}`,
               },
             ],
           }
@@ -261,7 +258,7 @@ export async function startMCPServer(
   )
 
   async function runServer() {
-    const transport = await createStdioServerTransport<Transport>()
+    const transport = new StdioServerTransport()
     await server.connect(transport)
   }
 

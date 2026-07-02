@@ -13,6 +13,8 @@
  * dynamicTeamContext, then env vars.
  */
 
+import { AsyncLocalStorage } from 'async_hooks'
+
 /**
  * Runtime context for in-process teammates.
  * Stored in AsyncLocalStorage for concurrent access.
@@ -36,9 +38,7 @@ export type TeammateContext = {
   abortController: AbortController
 }
 
-import { createAsyncContextStorage } from './imports.js'
-
-const teammateContextStorage = createAsyncContextStorage<TeammateContext>()
+const teammateContextStorage = new AsyncLocalStorage<TeammateContext>()
 
 /**
  * Get the current in-process teammate context, if running as one.

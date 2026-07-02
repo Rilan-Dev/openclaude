@@ -1,16 +1,11 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import axios from 'axios'
+import { execa } from 'execa'
 import capitalize from 'lodash-es/capitalize.js'
 import memoize from 'lodash-es/memoize.js'
-import {
-  basename,
-  getExeca,
-  homedir,
-  join,
-  resolve,
-  runtimeRequire,
-  tmpdir,
-} from './imports.js'
+import { createConnection } from 'net'
+import * as os from 'os'
+import { basename, join, sep as pathSeparator, resolve } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getIsScrollDraining, getOriginalCwd } from '../bootstrap/state.js'
 import { callIdeRpc } from '../services/mcp/client.js'
@@ -50,33 +45,6 @@ import {
 } from './idePathConversion.js'
 import { sleep } from './sleep.js'
 import { jsonParse } from './slowOperations.js'
-
-type NetSocketLike = {
-  on(event: 'connect' | 'error' | 'timeout', handler: () => void): void
-  destroy(): void
-}
-
-const NET_PACKAGE = ['ne', 't'].join('')
-
-async function createNetConnection(options: {
-  host: string
-  port: number
-  timeout: number
-}): Promise<NetSocketLike> {
-  if (typeof window !== 'undefined') {
-    throw new Error('IDE socket checks are not available in the browser web UI')
-  }
-  const { createConnection } = await import(/* @vite-ignore */ NET_PACKAGE)
-  return createConnection(options) as NetSocketLike
-}
-
-function hasPathBoundary(pathValue: string, candidate: string): boolean {
-  return (
-    pathValue === candidate ||
-    pathValue.startsWith(`${candidate}/`) ||
-    pathValue.startsWith(`${candidate}\\`)
-  )
-}
 
 function isProcessRunning(pid: number): boolean {
   try {
@@ -404,7 +372,7 @@ async function readIdeLockfile(path: string): Promise<IdeLockfileInfo | null> {
     }
 
     // Extract the port from the filename (e.g., 12345.lock -> 12345)
-    const filename = path.split(/[\\/]/).pop()
+    const filename = path.split(pathSeparator).pop()
     if (!filename) return null
 
     const port = filename.replace('.lock', '')
@@ -437,13 +405,13 @@ async function checkIdeConnection(
   timeout = 500,
 ): Promise<boolean> {
   try {
-    const socket = await createNetConnection({
-      host,
-      port,
-      timeout,
-    })
-
     return new Promise(resolve => {
+      const socket = createConnection({
+        host: host,
+        port: port,
+        timeout: timeout,
+      })
+
       socket.on('connect', () => {
         socket.destroy()
         void resolve(true)
@@ -752,7 +720,10 @@ export async function detectIDEs(
             // Try both the original path and the converted path
             // This handles cases where the IDE might report either format
             const resolvedOriginal = resolve(localPath).normalize('NFC')
-            if (cwd === resolvedOriginal || hasPathBoundary(cwd, resolvedOriginal)) {
+            if (
+              cwd === resolvedOriginal ||
+              cwd.startsWith(resolvedOriginal + pathSeparator)
+            ) {
               return true
             }
 
@@ -776,11 +747,13 @@ export async function detectIDEs(
             )
             return (
               normalizedCwd === normalizedResolvedPath ||
-              hasPathBoundary(normalizedCwd, normalizedResolvedPath)
+              normalizedCwd.startsWith(normalizedResolvedPath + pathSeparator)
             )
           }
 
-          return cwd === resolvedPath || hasPathBoundary(cwd, resolvedPath)
+          return (
+            cwd === resolvedPath || cwd.startsWith(resolvedPath + pathSeparator)
+          )
         })
       }
 
@@ -1106,7 +1079,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
     const platform = getPlatform()
     if (platform === 'macos') {
       // On macOS, use ps with process name matching
-      const result = await getExeca()(
+      const result = await execa(
         'ps aux | grep -E "Visual Studio Code|Code Helper|Cursor Helper|Windsurf Helper|IntelliJ IDEA|PyCharm|WebStorm|PhpStorm|RubyMine|CLion|GoLand|Rider|DataGrip|AppCode|DataSpell|Aqua|Gateway|Fleet|Android Studio" | grep -v grep',
         { shell: true, reject: false },
       )
@@ -1121,7 +1094,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
       }
     } else if (platform === 'windows') {
       // On Windows, use tasklist with findstr for multiple patterns
-      const result = await getExeca()(
+      const result = await execa(
         'tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phpstorm64.exe rubymine64.exe clion64.exe goland64.exe rider64.exe datagrip64.exe appcode.exe dataspell64.exe aqua64.exe gateway64.exe fleet.exe studio64.exe"',
         { shell: true, reject: false },
       )
@@ -1139,7 +1112,7 @@ async function detectRunningIDEsImpl(): Promise<IdeType[]> {
       }
     } else if (platform === 'linux') {
       // On Linux, use ps with process name matching
-      const result = await getExeca()(
+      const result = await execa(
         'ps aux | grep -E "code|cursor|windsurf|idea|pycharm|webstorm|phpstorm|rubymine|clion|goland|rider|datagrip|dataspell|aqua|gateway|fleet|android-studio" | grep -v grep',
         { shell: true, reject: false },
       )
@@ -1391,7 +1364,7 @@ const detectHostIP = memoize(
     // Windows, then we must use a different IP address to connect to the extension.
     // https://learn.microsoft.com/en-us/windows/wsl/networking
     try {
-      const routeResult = await getExeca()('ip route show | grep -i default', {
+      const routeResult = await execa('ip route show | grep -i default', {
         shell: true,
         reject: false,
       })
@@ -1424,7 +1397,7 @@ async function installFromArtifactory(command: string): Promise<string> {
   }
   const npmrcAuthPrefix = `//${artifactoryBaseUrl.replace(/^https?:\/\//, '')}/api/npm/npm-all/:_authToken=`
   // Read auth token from ~/.npmrc
-  const npmrcPath = join(homedir(), '.npmrc')
+  const npmrcPath = join(os.homedir(), '.npmrc')
   let authToken: string | null = null
   const fs = getFsImplementation()
 
@@ -1467,7 +1440,7 @@ async function installFromArtifactory(command: string): Promise<string> {
     // Download the .vsix file from artifactory
     const vsixUrl = `${artifactoryBaseUrl}/armorcode-claude-code-internal/claude-vscode-releases/${version}/claude-code.vsix`
     const tempVsixPath = join(
-      tmpdir(),
+      os.tmpdir(),
       `claude-code-${version}-${Date.now()}.vsix`,
     )
 

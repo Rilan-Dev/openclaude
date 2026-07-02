@@ -21,7 +21,6 @@ import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { GrepTool } from '../tools/GrepTool/GrepTool.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import type { HookCallback } from '../types/hooks.js'
-import { isBrowserRuntime } from './imports.js'
 import {
   detectSessionFileType,
   detectSessionPatternType,
@@ -133,7 +132,7 @@ export function isMemoryFileAccess(
   if (
     filePath &&
     (isAutoMemFile(filePath) ||
-      (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths?.isTeamMemFile(filePath)))
+      (feature('TEAMMEM') && teamMemPaths!.isTeamMemFile(filePath)))
   ) {
     return true
   }
@@ -187,7 +186,7 @@ async function handleSessionFileAccess(
   }
 
   // Team memory access tracking
-  if (!isBrowserRuntime() && feature('TEAMMEM') && filePath && teamMemPaths?.isTeamMemFile(filePath)) {
+  if (feature('TEAMMEM') && filePath && teamMemPaths!.isTeamMemFile(filePath)) {
     logEvent('tengu_team_mem_accessed', {
       tool: input.tool_name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       ...subagentProps,
@@ -208,7 +207,7 @@ async function handleSessionFileAccess(
     }
   }
 
-  if (!isBrowserRuntime() && feature('MEMORY_SHAPE_TELEMETRY') && filePath) {
+  if (feature('MEMORY_SHAPE_TELEMETRY') && filePath) {
     const scope = memoryScopeForPath(filePath)
     if (
       scope !== null &&

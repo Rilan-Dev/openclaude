@@ -12,6 +12,7 @@ import {
   getVendor,
   resolveProfileRoute,
 } from './index.js'
+import { hasUsableOpenAICredential } from '../services/api/credentialPool.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 
 export type RouteDescriptor = GatewayDescriptor | VendorDescriptor
@@ -200,13 +201,34 @@ function readFirstNonEmptyEnvValue(
   envVars: readonly string[],
 ): string | undefined {
   for (const envVar of envVars) {
-    const value = processEnv[envVar]?.trim()
-    if (value) {
-      return value
+    const value = processEnv[envVar]
+    if (hasUsableEnvCredentialValue(envVar, value)) {
+      return value!.trim()
     }
   }
 
   return undefined
+}
+
+function hasUsableEnvCredentialValue(
+  envVar: string,
+  value: string | undefined,
+): boolean {
+  if (typeof value !== 'string') {
+    return false
+  }
+
+  if (envVar === 'OPENAI_API_KEYS' || envVar === 'OPENAI_API_KEY') {
+    return hasUsableOpenAICredential(value)
+  }
+  return value.trim() !== ''
+}
+
+function hasAnyUsableOpenAICredential(processEnv: NodeJS.ProcessEnv): boolean {
+  return (
+    hasUsableEnvCredentialValue('OPENAI_API_KEYS', processEnv.OPENAI_API_KEYS) ||
+    hasUsableEnvCredentialValue('OPENAI_API_KEY', processEnv.OPENAI_API_KEY)
+  )
 }
 
 function hasNonEmptyEnvValue(value: string | undefined): boolean {
@@ -339,6 +361,35 @@ export function isFireworksBaseUrl(value: string | undefined): boolean {
   }
 }
 
+export function isClinePassBaseUrl(value: string | undefined): boolean {
+  const trimmed = value?.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  try {
+    return new URL(trimmed).hostname.toLowerCase() === 'api.cline.bot'
+  } catch {
+    return false
+  }
+}
+
+export function getClinePassBaseUrlOverride(
+  processEnv: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  const openAIBaseUrl = processEnv.OPENAI_BASE_URL?.trim()
+  if (isClinePassBaseUrl(openAIBaseUrl)) {
+    return openAIBaseUrl
+  }
+
+  const openAIApiBase = processEnv.OPENAI_API_BASE?.trim()
+  if (isClinePassBaseUrl(openAIApiBase)) {
+    return openAIApiBase
+  }
+
+  return undefined
+}
+
 export function getNearaiBaseUrlOverride(
   processEnv: NodeJS.ProcessEnv = process.env,
 ): string | undefined {
@@ -460,6 +511,7 @@ export function hasXaiEnvOnlyProviderIntent(
 ): boolean {
   return (
     hasNonEmptyEnvValue(processEnv.XAI_API_KEY) &&
+    !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isXaiBaseUrl) &&
     hasNoExplicitNonOpenAICompatibleProvider(processEnv)
   )
@@ -478,8 +530,9 @@ export function hasMiniMaxEnvOnlyProviderIntent(
     hasMiniMaxCredential &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isMiniMaxBaseUrl) &&
     (hasExplicitMiniMaxIntent ||
-      (!hasNonEmptyEnvValue(processEnv.OPENAI_API_KEY) &&
+      (!hasAnyUsableOpenAICredential(processEnv) &&
         !hasNonEmptyEnvValue(processEnv.XAI_API_KEY) &&
+        !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
         hasNoExplicitNonOpenAICompatibleProvider(processEnv)))
   )
 }
@@ -489,9 +542,10 @@ export function hasVeniceEnvOnlyProviderIntent(
 ): boolean {
   return (
     hasNonEmptyEnvValue(processEnv.VENICE_API_KEY) &&
-    !hasNonEmptyEnvValue(processEnv.OPENAI_API_KEY) &&
+    !hasAnyUsableOpenAICredential(processEnv) &&
     !hasNonEmptyEnvValue(processEnv.XAI_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.MINIMAX_API_KEY) &&
+    !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isVeniceBaseUrl) &&
     hasNoExplicitNonOpenAICompatibleProvider(processEnv)
   )
@@ -502,10 +556,11 @@ export function hasXiaomiMimoEnvOnlyProviderIntent(
 ): boolean {
   return (
     hasNonEmptyEnvValue(processEnv.MIMO_API_KEY) &&
-    !hasNonEmptyEnvValue(processEnv.OPENAI_API_KEY) &&
+    !hasAnyUsableOpenAICredential(processEnv) &&
     !hasNonEmptyEnvValue(processEnv.XAI_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.MINIMAX_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.VENICE_API_KEY) &&
+    !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isXiaomiMimoBaseUrl) &&
     hasNoExplicitNonOpenAICompatibleProvider(processEnv)
   )
@@ -521,6 +576,7 @@ export function hasNearaiEnvOnlyProviderIntent(
     !hasNonEmptyEnvValue(processEnv.VENICE_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.MIMO_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.FIREWORKS_API_KEY) &&
+    !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isNearaiBaseUrl) &&
     hasNoExplicitNonOpenAICompatibleProvider(processEnv)
   )
@@ -541,14 +597,30 @@ export function hasFireworksEnvOnlyProviderIntent(
     !hasNonEmptyEnvValue(processEnv.VENICE_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.MIMO_API_KEY) &&
     !hasNonEmptyEnvValue(processEnv.NEARAI_API_KEY) &&
+    !hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
     !hasConflictingOpenAIBaseUrlForRoute(processEnv, isFireworksBaseUrl) &&
+    hasNoExplicitNonOpenAICompatibleProvider(processEnv)
+  )
+}
+
+/**
+ * Detects whether the process environment is configured to route traffic
+ * exclusively through ClinePass based on the presence of CLINE_API_KEY
+ * and the absence of conflicting env vars for other providers.
+ */
+export function hasClinePassEnvOnlyProviderIntent(
+  processEnv: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return (
+    hasNonEmptyEnvValue(processEnv.CLINE_API_KEY) &&
+    !hasConflictingOpenAIBaseUrlForRoute(processEnv, isClinePassBaseUrl) &&
     hasNoExplicitNonOpenAICompatibleProvider(processEnv)
   )
 }
 
 export function resolveEnvOnlyProviderRouteId(
   processEnv: NodeJS.ProcessEnv = process.env,
-): 'xai' | 'minimax' | 'venice' | 'xiaomi-mimo' | 'nearai' | 'fireworks' | null {
+): 'xai' | 'minimax' | 'venice' | 'xiaomi-mimo' | 'nearai' | 'fireworks' | 'clinepass' | null {
   if (
     hasMiniMaxRouteIntent(processEnv) &&
     hasMiniMaxEnvOnlyProviderIntent(processEnv)
@@ -580,6 +652,10 @@ export function resolveEnvOnlyProviderRouteId(
     return 'fireworks'
   }
 
+  if (hasClinePassEnvOnlyProviderIntent(processEnv)) {
+    return 'clinepass'
+  }
+
   return null
 }
 
@@ -587,7 +663,7 @@ export function getRouteCredentialEnvVars(
   routeId: string,
 ): string[] {
   if (routeId === 'custom') {
-    return ['OPENAI_API_KEY']
+    return ['OPENAI_API_KEYS', 'OPENAI_API_KEY']
   }
 
   const descriptor = getRouteDescriptor(routeId)
@@ -600,9 +676,14 @@ export function getRouteCredentialEnvVars(
     (descriptor.transportConfig.kind === 'openai-compatible' ||
       descriptor.transportConfig.kind === 'local') &&
     !descriptor.setup.dedicatedCredentialsOnly &&
-    !envVars.includes('OPENAI_API_KEY')
+    !envVars.includes('OPENAI_API_KEYS')
   ) {
-    envVars.push('OPENAI_API_KEY')
+    const openAIFallbackIndex = envVars.indexOf('OPENAI_API_KEY')
+    if (openAIFallbackIndex === -1) {
+      envVars.push('OPENAI_API_KEYS', 'OPENAI_API_KEY')
+    } else {
+      envVars.splice(openAIFallbackIndex, 0, 'OPENAI_API_KEYS')
+    }
   }
 
   return uniqueEnvVars(envVars)
@@ -767,6 +848,7 @@ export function resolveActiveRouteIdFromEnv(
   processEnv: NodeJS.ProcessEnv = process.env,
   options?: {
     activeProfileProvider?: string
+    activeProfileBaseUrl?: string
   },
 ): string | null {
   if (isEnvTruthy(processEnv.CLAUDE_CODE_USE_GEMINI)) {
@@ -793,10 +875,11 @@ export function resolveActiveRouteIdFromEnv(
       processEnv.OPENAI_BASE_URL ?? processEnv.OPENAI_API_BASE
     const matchedRoute = resolveRouteIdFromBaseUrl(baseUrl)
 
-    if (
-      processEnv.CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED === '1' &&
-      options?.activeProfileProvider
-    ) {
+    if (matchedRoute) {
+      return matchedRoute
+    }
+
+    if (options?.activeProfileProvider) {
       const route = resolveProfileRoute(options.activeProfileProvider)
       if (
         route.routeId !== 'unknown-fallback' &&
@@ -805,10 +888,14 @@ export function resolveActiveRouteIdFromEnv(
       ) {
         return route.routeId
       }
-    }
-
-    if (matchedRoute) {
-      return matchedRoute
+      // A custom/unknown profile may still target a known gateway via its
+      // saved base URL; prefer that route over the generic openai/custom path.
+      const profileBaseUrlRoute = resolveRouteIdFromBaseUrl(
+        options.activeProfileBaseUrl,
+      )
+      if (profileBaseUrlRoute) {
+        return profileBaseUrlRoute
+      }
     }
 
     const normalizedBaseUrl = normalizeComparableBaseUrl(baseUrl)
@@ -821,6 +908,25 @@ export function resolveActiveRouteIdFromEnv(
     }
 
     return 'custom'
+  }
+
+  if (options?.activeProfileProvider) {
+    const route = resolveProfileRoute(options.activeProfileProvider)
+    if (
+      route.routeId !== 'unknown-fallback' &&
+      route.routeId !== 'openai' &&
+      route.routeId !== 'custom'
+    ) {
+      return route.routeId
+    }
+    // A custom/unknown profile may still target a known gateway via its
+    // saved base URL; prefer that route over the generic anthropic fallback.
+    const profileBaseUrlRoute = resolveRouteIdFromBaseUrl(
+      options.activeProfileBaseUrl,
+    )
+    if (profileBaseUrlRoute) {
+      return profileBaseUrlRoute
+    }
   }
 
   return 'anthropic'

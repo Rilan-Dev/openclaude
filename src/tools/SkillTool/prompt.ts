@@ -1,5 +1,10 @@
 import { memoize } from 'lodash-es'
-import { isBrowserRuntime, runtimeImport } from '../../utils/imports.js'
+import type { Command } from 'src/commands.js'
+import {
+  getCommandName,
+  getSkillToolCommands,
+  getSlashCommandToolSkills,
+} from 'src/commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import {
@@ -11,7 +16,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { toError } from '../../utils/errors.js'
 import { truncate } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
-import { type Command, getCommandName } from '../../types/command.js'
 
 // Skill listing gets 1% of the context window (in characters)
 export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
@@ -209,7 +213,7 @@ export async function getSkillToolInfo(cwd: string): Promise<{
   totalCommands: number
   includedCommands: number
 }> {
-  const agentCommands = await getLimitedSkillToolCommands(cwd)
+  const agentCommands = await getSkillToolCommands(cwd)
 
   return {
     totalCommands: agentCommands.length,
@@ -221,16 +225,7 @@ export async function getSkillToolInfo(cwd: string): Promise<{
 // All commands are always included (descriptions may be truncated to fit budget).
 // Used by analyzeContext to count skill tokens.
 export function getLimitedSkillToolCommands(cwd: string): Promise<Command[]> {
-  if (isBrowserRuntime()) {
-    return Promise.resolve([])
-  }
-
-  return (async () => {
-    const { getSkillToolCommands } =
-      await runtimeImport<typeof import('../../commands.js')>('../../commands.js')
-
-    return getSkillToolCommands(cwd)
-  })()
+  return getSkillToolCommands(cwd)
 }
 
 export function clearPromptCache(): void {
@@ -242,16 +237,6 @@ export async function getSkillInfo(cwd: string): Promise<{
   includedSkills: number
 }> {
   try {
-    if (isBrowserRuntime()) {
-      return {
-        totalSkills: 0,
-        includedSkills: 0,
-      }
-    }
-
-    const { getSlashCommandToolSkills } =
-      await runtimeImport<typeof import('../../commands.js')>('../../commands.js')
-
     const skills = await getSlashCommandToolSkills(cwd)
 
     return {

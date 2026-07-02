@@ -1,5 +1,4 @@
 import { useContext } from 'react'
-import { isBrowserRuntime } from '../../utils/imports.js'
 import TerminalFocusContext from '../components/TerminalFocusContext.js'
 
 /**
@@ -12,10 +11,6 @@ import TerminalFocusContext from '../components/TerminalFocusContext.js'
  * @returns true if the terminal is focused (or focus state is unknown)
  */
 export function useTerminalFocus(): boolean {
-  if (isBrowserRuntime()) {
-    return true
-  }
-
   const { isTerminalFocused } = useContext(TerminalFocusContext)
   return isTerminalFocused
 }

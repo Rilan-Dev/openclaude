@@ -16,7 +16,7 @@ import {
   writeFile,
 } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
-import { basename, dirname, isBrowserRuntime, join } from './imports.js'
+import { basename, dirname, join } from 'path'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
@@ -51,6 +51,7 @@ import {
   type LogOption,
   type PersistedWorktreeSession,
   type SerializedMessage,
+  type SessionBranchEntry,
   sortLogs,
   type TranscriptMessage,
 } from '../types/logs.js'
@@ -102,18 +103,9 @@ let builtInCommandNamesCache: Set<string> | undefined
 
 function getBuiltInCommandNames(): Set<string> {
   if (builtInCommandNamesCache) return builtInCommandNamesCache
-  let names: Set<string>
-  try {
-    const commands =
-      require('../commands.js') as typeof import('../commands.js')
-    const maybeNames =
-      typeof commands.builtInCommandNames === 'function'
-        ? commands.builtInCommandNames()
-        : undefined
-    names = maybeNames instanceof Set ? maybeNames : new Set<string>()
-  } catch {
-    names = new Set<string>()
-  }
+  const commands =
+    require('../commands.js') as typeof import('../commands.js')
+  const names = commands.builtInCommandNames()
   builtInCommandNamesCache = names
   return names
 }
@@ -579,6 +571,7 @@ class Project {
   currentSessionPrUrl: string | undefined
   currentSessionPrRepository: string | undefined
   currentSessionGoal: GoalStateEntry['goal'] | undefined
+  currentSessionBranch: SessionBranchEntry | undefined
 
   sessionFile: string | null = null
   // Entries buffered while sessionFile is null. Flushed by materializeSessionFile
@@ -881,6 +874,12 @@ class Project {
         goal: this.currentSessionGoal,
       })
     }
+    if (this.currentSessionBranch) {
+      appendEntryToFile(this.sessionFile, {
+        ...this.currentSessionBranch,
+        sessionId,
+      })
+    }
   }
 
   async flush(): Promise<void> {
@@ -1102,20 +1101,16 @@ class Project {
         await this.appendEntry(transcriptMessage)
         const shouldTrackReplay = !this.shouldSkipPersistence()
         if (shouldTrackReplay && !isSidechain && message.type === 'user') {
-          try {
-            const content = getFirstMeaningfulUserMessageTextContent([message])
-            if (content) {
-              try {
-                getReplayIndexBuilder().trackUserMessage(
-                  content,
-                  message.timestamp ?? new Date().toISOString(),
-                )
-              } catch {
-                // Replay tracking is best-effort and must not affect transcript writes.
-              }
+          const content = getFirstMeaningfulUserMessageTextContent([message])
+          if (content) {
+            try {
+              getReplayIndexBuilder().trackUserMessage(
+                content,
+                message.timestamp ?? new Date().toISOString(),
+              )
+            } catch {
+              // Replay tracking is best-effort and must not affect transcript writes.
             }
-          } catch {
-            // Transcript classification is best-effort and must not affect writes.
           }
         }
         if (shouldTrackReplay && !isSidechain && message.type === 'system') {
@@ -1303,6 +1298,8 @@ class Project {
       void this.enqueueWrite(targetFile, entry)
     } else if (entry.type === 'goal-state') {
       await this.appendToFile(sessionFile, jsonStringify(entry) + '\n')
+    } else if (entry.type === 'session-branch') {
+      void this.enqueueWrite(sessionFile, entry)
     } else if (entry.type === 'marble-origami-commit') {
       // Always append. Commit order matters for restore (later commits may
       // reference earlier commits' summary messages), so these must be
@@ -1316,7 +1313,7 @@ class Project {
       if (entry.type === 'queue-operation') {
         // Queue operations are always appended to the session file
         void this.enqueueWrite(sessionFile, entry)
-      } else {
+      } else if (isTranscriptMessage(entry)) {
         // At this point, entry must be a TranscriptMessage (user/assistant/attachment/system)
         // All other entry types have been handled above
         const isAgentSidechain =
@@ -1358,6 +1355,13 @@ class Project {
             }
           }
         }
+      } else {
+        const entryType = (entry as { type?: string }).type ?? 'unknown'
+        // Exhaustiveness guard: entry is never here when every Entry variant
+        // has an append policy above.
+        const _exhaustive: never = entry
+        void _exhaustive
+        throw new Error(`Unhandled session storage entry type: ${entryType}`)
       }
     }
   }
@@ -1509,48 +1513,41 @@ export async function recordTranscript(
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
 ): Promise<UUID | null> {
-  try {
-    const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
-    const sessionId = getSessionId() as UUID
-    const messageSet = await getSessionMessages(sessionId)
-    const newMessages: typeof cleanedMessages = []
-    let startingParentUuid: UUID | undefined = startingParentUuidHint
-    let seenNewMessage = false
-    for (const m of cleanedMessages) {
-      if (messageSet.has(m.uuid as UUID)) {
-        // Only track skipped messages that form a prefix. After compaction,
-        // messagesToKeep appear AFTER new CB/summary, so this skips them.
-        if (!seenNewMessage && isChainParticipant(m)) {
-          startingParentUuid = m.uuid as UUID
-        }
-      } else {
-        newMessages.push(m)
-        seenNewMessage = true
+  const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
+  const sessionId = getSessionId() as UUID
+  const messageSet = await getSessionMessages(sessionId)
+  const newMessages: typeof cleanedMessages = []
+  let startingParentUuid: UUID | undefined = startingParentUuidHint
+  let seenNewMessage = false
+  for (const m of cleanedMessages) {
+    if (messageSet.has(m.uuid as UUID)) {
+      // Only track skipped messages that form a prefix. After compaction,
+      // messagesToKeep appear AFTER new CB/summary, so this skips them.
+      if (!seenNewMessage && isChainParticipant(m)) {
+        startingParentUuid = m.uuid as UUID
       }
+    } else {
+      newMessages.push(m)
+      seenNewMessage = true
     }
-    if (newMessages.length > 0) {
-      await getProject().insertMessageChain(
-        newMessages,
-        false,
-        undefined,
-        startingParentUuid,
-        teamInfo,
-      )
-    }
-    // Return the last ACTUALLY recorded chain-participant's UUID, OR the
-    // prefix-tracked UUID if no new chain participants were recorded. This lets
-    // callers (useLogMessages) maintain the correct parent chain even when the
-    // slice is all-recorded (rewind, /resume scenarios where every message is
-    // already in messageSet). Progress is skipped — it's written to the JSONL
-    // but nothing chains TO it (see isChainParticipant).
-    const lastRecorded = newMessages.findLast(isChainParticipant)
-    return (lastRecorded?.uuid as UUID | undefined) ?? startingParentUuid ?? null
-  } catch (error) {
-    if (isBrowserRuntime()) {
-      return null
-    }
-    throw error
   }
+  if (newMessages.length > 0) {
+    await getProject().insertMessageChain(
+      newMessages,
+      false,
+      undefined,
+      startingParentUuid,
+      teamInfo,
+    )
+  }
+  // Return the last ACTUALLY recorded chain-participant's UUID, OR the
+  // prefix-tracked UUID if no new chain participants were recorded. This lets
+  // callers (useLogMessages) maintain the correct parent chain even when the
+  // slice is all-recorded (rewind, /resume scenarios where every message is
+  // already in messageSet). Progress is skipped — it's written to the JSONL
+  // but nothing chains TO it (see isChainParticipant).
+  const lastRecorded = newMessages.findLast(isChainParticipant)
+  return (lastRecorded?.uuid as UUID | undefined) ?? startingParentUuid ?? null
 }
 
 export async function recordSidechainTranscript(
@@ -1888,11 +1885,10 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
       const commandNameTag = extractTag(textContent, COMMAND_NAME_TAG)
       if (commandNameTag) {
         const commandName = commandNameTag.replace(/^\//, '')
-        const builtInCommandNames = getBuiltInCommandNames()
 
         // If it's a built-in command, then it's unlikely to provide
         // meaningful context (e.g. `/model sonnet`)
-        if (builtInCommandNames?.has?.(commandName)) {
+        if (getBuiltInCommandNames().has(commandName)) {
           continue
         } else {
           // Otherwise, for custom commands, then keep it only if it has
@@ -2674,6 +2670,7 @@ export async function loadTranscriptFromFile(
       contentReplacements,
       worktreeStates,
       goalStates,
+      sessionBranches,
     } = await loadTranscriptFile(filePath)
 
     if (messages.size === 0) {
@@ -2720,6 +2717,7 @@ export async function loadTranscriptFromFile(
         ? worktreeStates.get(sessionId)
         : undefined,
       goal: goalStates.get(sessionId),
+      sessionBranch: sessionBranches.get(sessionId),
     }
   }
 
@@ -3135,6 +3133,7 @@ export function restoreSessionMetadata(meta: {
   prUrl?: string
   prRepository?: string
   goal?: GoalStateEntry['goal']
+  sessionBranch?: SessionBranchEntry
 }): void {
   const project = getProject()
   // ??= so --name (cacheSessionTitle) wins over the resumed
@@ -3155,6 +3154,9 @@ export function restoreSessionMetadata(meta: {
   // resumed session has no goal. Clear any cached goal so adopt/re-append
   // cannot persist a previous session's active goal into this transcript.
   project.currentSessionGoal = meta.goal ?? undefined
+  // Branch lineage is structural metadata. Absence means this session is not
+  // a branch, so clear stale branch cache before it can be re-appended.
+  project.currentSessionBranch = meta.sessionBranch ?? undefined
 }
 
 /**
@@ -3176,6 +3178,7 @@ export function clearSessionMetadata(): void {
   project.currentSessionPrUrl = undefined
   project.currentSessionPrRepository = undefined
   project.currentSessionGoal = undefined
+  project.currentSessionBranch = undefined
 }
 
 /**
@@ -3350,6 +3353,7 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       attributionSnapshots,
       contentReplacements,
       goalStates,
+      sessionBranches,
       contextCollapseCommits,
       contextCollapseSnapshot,
       leafUuids,
@@ -3414,6 +3418,9 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
         ? (contentReplacements.get(sessionId) ?? [])
         : log.contentReplacements,
       goal: sessionId ? goalStates.get(sessionId) : log.goal,
+      sessionBranch: sessionId
+        ? (sessionBranches.get(sessionId) ?? log.sessionBranch)
+        : log.sessionBranch,
       // Filter to the resumed session's entries. loadTranscriptFile reads
       // the file sequentially so the array is already in commit order;
       // filter preserves that.
@@ -3444,9 +3451,7 @@ export async function searchSessionsByCustomTitle(
 ): Promise<LogOption[]> {
   const { limit, exact } = options || {}
   // Use worktree-aware loading to search across same-repo sessions
-  const worktreePaths = isBrowserRuntime()
-    ? []
-    : await getWorktreePaths(getOriginalCwd())
+  const worktreePaths = await getWorktreePaths(getOriginalCwd())
   const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths)
   // Enrich all logs to access customTitle metadata
   const { logs } = await enrichLogs(allStatLogs, 0, allStatLogs.length)
@@ -3499,9 +3504,10 @@ const METADATA_TYPE_MARKERS = [
   '"type":"worktree-state"',
   '"type":"pr-link"',
   '"type":"goal-state"',
+  '"type":"session-branch"',
 ]
 const METADATA_MARKER_BUFS = METADATA_TYPE_MARKERS.map(m => Buffer.from(m))
-// Longest marker is 22 bytes; +1 for leading `{` = 23.
+// Longest marker plus the leading `{` fits within this bound.
 const METADATA_PREFIX_BOUND = 25
 
 // null = carry spans whole chunk. Skips concat when carry provably isn't
@@ -3869,6 +3875,7 @@ export async function loadTranscriptFile(
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
   goalStates: Map<UUID, GoalStateEntry['goal']>
+  sessionBranches: Map<UUID, SessionBranchEntry>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
   leafUuids: Set<UUID>
@@ -3893,6 +3900,7 @@ export async function loadTranscriptFile(
     ContentReplacementRecord[]
   >()
   const goalStates = new Map<UUID, GoalStateEntry['goal']>()
+  const sessionBranches = new Map<UUID, SessionBranchEntry>()
   // Array, not Map — commit order matters (nested collapses).
   const contextCollapseCommits: ContextCollapseCommitEntry[] = []
   // Last-wins — later entries supersede.
@@ -3994,6 +4002,8 @@ export async function loadTranscriptFile(
           prRepositories.set(entry.sessionId, entry.prRepository)
         } else if (entry.type === 'goal-state' && entry.sessionId) {
           goalStates.set(entry.sessionId, entry.goal)
+        } else if (entry.type === 'session-branch' && entry.sessionId) {
+          sessionBranches.set(entry.sessionId, entry)
         }
       })
     }
@@ -4060,6 +4070,8 @@ export async function loadTranscriptFile(
         prRepositories.set(entry.sessionId, entry.prRepository)
       } else if (entry.type === 'goal-state' && entry.sessionId) {
         goalStates.set(entry.sessionId, entry.goal)
+      } else if (entry.type === 'session-branch' && entry.sessionId) {
+        sessionBranches.set(entry.sessionId, entry)
       } else if (entry.type === 'file-history-snapshot') {
         fileHistorySnapshots.set(entry.messageId, entry)
       } else if (entry.type === 'attribution-snapshot') {
@@ -4197,6 +4209,7 @@ export async function loadTranscriptFile(
     contentReplacements,
     agentContentReplacements,
     goalStates,
+    sessionBranches,
     contextCollapseCommits,
     contextCollapseSnapshot,
     leafUuids,
@@ -4217,6 +4230,7 @@ async function loadSessionFile(sessionId: UUID): Promise<{
   attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   goalStates: Map<UUID, GoalStateEntry['goal']>
+  sessionBranches: Map<UUID, SessionBranchEntry>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
 }> {
@@ -4273,6 +4287,7 @@ export async function getLastSessionLog(
     attributionSnapshots,
     contentReplacements,
     goalStates,
+    sessionBranches,
     contextCollapseCommits,
     contextCollapseSnapshot,
   } = await loadSessionFile(sessionId)
@@ -4315,6 +4330,7 @@ export async function getLastSessionLog(
     ),
     worktreeSession: worktreeStates.get(sessionId),
     goal: goalStates.get(sessionId),
+    sessionBranch: sessionBranches.get(sessionId),
     contextCollapseCommits: contextCollapseCommits.filter(
       e => e.sessionId === sessionId,
     ),
@@ -4983,6 +4999,79 @@ type LiteMetadata = {
   prNumber?: number
   prUrl?: string
   prRepository?: string
+  sessionBranch?: SessionBranchEntry
+}
+
+const SESSION_BRANCH_ENTRY_PREFIX = '{"type":"session-branch"'
+const SESSION_BRANCH_ENTRY_PREFIX_SPACED = '{"type": "session-branch"'
+
+function startsWithSessionBranchEntryPrefix(lineStart: string): boolean {
+  return (
+    lineStart.startsWith(SESSION_BRANCH_ENTRY_PREFIX) ||
+    lineStart.startsWith(SESSION_BRANCH_ENTRY_PREFIX_SPACED)
+  )
+}
+
+function isSessionBranchEntry(
+  entry: unknown,
+  sessionId?: string,
+): entry is SessionBranchEntry {
+  if (typeof entry !== 'object' || entry === null) return false
+  const candidate = entry as Partial<SessionBranchEntry>
+  return (
+    candidate.type === 'session-branch' &&
+    typeof candidate.sessionId === 'string' &&
+    (sessionId === undefined || candidate.sessionId === sessionId) &&
+    typeof candidate.parentSessionId === 'string' &&
+    typeof candidate.rootSessionId === 'string' &&
+    typeof candidate.branchedFromSessionId === 'string' &&
+    typeof candidate.branchedAt === 'string' &&
+    (candidate.branchName === undefined ||
+      typeof candidate.branchName === 'string') &&
+    (candidate.branchedAtMessageId === undefined ||
+      typeof candidate.branchedAtMessageId === 'string')
+  )
+}
+
+function parseSessionBranchMetadataLine(
+  line: string,
+  sessionId?: string,
+): SessionBranchEntry | undefined {
+  const trimmed = line.trim()
+  if (!startsWithSessionBranchEntryPrefix(trimmed)) {
+    return undefined
+  }
+  try {
+    const entry = jsonParse(trimmed)
+    return isSessionBranchEntry(entry, sessionId) ? entry : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function extractSessionBranchMetadataFromChunk(
+  chunk: string,
+  sessionId?: string,
+): SessionBranchEntry | undefined {
+  const lines = chunk.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const entry = parseSessionBranchMetadataLine(lines[i] ?? '', sessionId)
+    if (entry) return entry
+  }
+  return undefined
+}
+
+function extractSessionBranchMetadata(
+  head: string,
+  tail: string,
+  sessionId?: string,
+): SessionBranchEntry | undefined {
+  return (
+    extractSessionBranchMetadataFromChunk(tail, sessionId) ??
+    (head === tail
+      ? undefined
+      : extractSessionBranchMetadataFromChunk(head, sessionId))
+  )
 }
 
 /**
@@ -5009,6 +5098,7 @@ export async function loadAllLogsFromSessionFile(
     attributionSnapshots,
     contentReplacements,
     goalStates,
+    sessionBranches,
     leafUuids,
   } = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
 
@@ -5083,6 +5173,7 @@ export async function loadAllLogsFromSessionFile(
       ),
       contentReplacements: contentReplacements.get(sessionId) ?? [],
       goal: goalStates.get(sessionId),
+      sessionBranch: sessionBranches.get(sessionId),
     })
   }
 
@@ -5136,6 +5227,7 @@ async function readLiteMetadata(
   filePath: string,
   fileSize: number,
   buf: Buffer,
+  sessionId?: string,
 ): Promise<LiteMetadata> {
   const { head, tail } = await readHeadAndTail(filePath, fileSize, buf)
   if (!head) return { firstPrompt: '', isSidechain: false }
@@ -5191,6 +5283,7 @@ async function readLiteMetadata(
       if (num > 0) prNumber = num
     }
   }
+  const sessionBranch = extractSessionBranchMetadata(head, tail, sessionId)
 
   return {
     firstPrompt,
@@ -5205,6 +5298,7 @@ async function readLiteMetadata(
     prNumber,
     prUrl,
     prRepository,
+    sessionBranch,
   }
 }
 
@@ -5422,7 +5516,12 @@ async function enrichLog(
 ): Promise<LogOption | null> {
   if (!log.isLite || !log.fullPath) return log
 
-  const meta = await readLiteMetadata(log.fullPath, log.fileSize ?? 0, readBuf)
+  const meta = await readLiteMetadata(
+    log.fullPath,
+    log.fileSize ?? 0,
+    readBuf,
+    log.sessionId,
+  )
 
   const enriched: LogOption = {
     ...log,
@@ -5438,6 +5537,7 @@ async function enrichLog(
     prNumber: meta.prNumber,
     prUrl: meta.prUrl,
     prRepository: meta.prRepository,
+    sessionBranch: meta.sessionBranch,
     projectPath: meta.projectPath ?? log.projectPath,
   }
 

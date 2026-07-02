@@ -2,7 +2,7 @@
  * High-performance token counter with cache invalidation on content change.
  */
 
-import { hashContent } from './hash.js'
+import { createHash } from 'crypto'
 import { roughTokenCountEstimation, roughTokenCountEstimationForMessages } from '../services/tokenEstimation.js'
 import type { Message } from '../types/message.js'
 
@@ -39,7 +39,7 @@ function getMessageHash(messages: readonly Message[]): string {
     return c
   }).join('|')
 
-  return hashContent(fullContent).slice(0, 16)
+  return createHash('sha256').update(fullContent).digest('hex').slice(0, 16)
 }
 
 /**

@@ -1,6 +1,6 @@
 import { feature } from 'bun:bundle'
 import { randomBytes } from 'crypto'
-import { getExeca } from './imports.js'
+import { execa } from 'execa'
 import { basename, extname, isAbsolute, join } from 'path'
 import {
   IMAGE_MAX_HEIGHT,
@@ -210,7 +210,7 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
   const { commands, screenshotPath } = getClipboardCommands()
   try {
     // Check if clipboard has image
-    const checkResult = await getExeca()(commands.checkImage, {
+    const checkResult = await execa(commands.checkImage, {
       shell: true,
       reject: false,
     })
@@ -219,7 +219,7 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
     }
 
     // Save the image
-    const saveResult = await getExeca()(commands.saveImage, {
+    const saveResult = await execa(commands.saveImage, {
       shell: true,
       reject: false,
     })
@@ -253,7 +253,7 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
     const mediaType = detectImageFormatFromBase64(base64Image)
 
     // Cleanup (fire-and-forget, don't await)
-    void getExeca()(commands.deleteFile, { shell: true, reject: false })
+    void execa(commands.deleteFile, { shell: true, reject: false })
 
     return {
       base64: base64Image,
@@ -270,7 +270,7 @@ export async function getImagePathFromClipboard(): Promise<string | null> {
 
   try {
     // Try to get text from clipboard
-    const result = await getExeca()(commands.getPath, {
+    const result = await execa(commands.getPath, {
       shell: true,
       reject: false,
     })

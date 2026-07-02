@@ -15,21 +15,6 @@ import { getFsImplementation } from './fsOperations.js'
 import { which } from './which.js'
 
 type Platform = 'win32' | 'darwin' | 'linux'
-type ProcessLike = {
-  env: Record<string, string | undefined>
-  platform: string
-  arch: string
-  version: string
-  stdout?: { isTTY?: boolean }
-}
-
-const process = (globalThis.process ?? {
-  env: {},
-  platform: 'browser',
-  arch: 'browser',
-  version: '',
-  stdout: undefined,
-}) as ProcessLike
 
 export function resolveGlobalClaudeFile(options: {
   configDirEnv?: string
@@ -300,7 +285,7 @@ function detectTerminal(): string | null {
   }
 
   // Detect non-interactive environment
-  if (!process.stdout?.isTTY) return 'non-interactive'
+  if (!process.stdout.isTTY) return 'non-interactive'
 
   return null
 }

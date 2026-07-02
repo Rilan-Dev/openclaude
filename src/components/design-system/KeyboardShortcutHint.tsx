@@ -1,7 +1,6 @@
 import { c as _c } from "react-compiler-runtime";
 import React from 'react';
 import Text from '../../ink/components/Text.js';
-import { isBrowserRuntime } from '../../utils/imports.js';
 type Props = {
   /** The key or chord to display (e.g., "ctrl+o", "Enter", "↑/↓") */
   shortcut: string;
@@ -46,14 +45,6 @@ export function KeyboardShortcutHint(t0) {
   } = t0;
   const parens = t1 === undefined ? false : t1;
   const bold = t2 === undefined ? false : t2;
-  if (isBrowserRuntime()) {
-    return <span className="repl-keyHint">
-      {parens ? <span>(</span> : null}
-      <span className="repl-keyHintChord" data-bold={bold ? 'true' : undefined}>{shortcut}</span>
-      <span className="repl-keyHintAction"> to {action}</span>
-      {parens ? <span>)</span> : null}
-    </span>;
-  }
   let t3;
   if ($[0] !== bold || $[1] !== shortcut) {
     t3 = bold ? <Text bold={true}>{shortcut}</Text> : shortcut;

@@ -1,6 +1,10 @@
 import { useCallback, useEffect } from 'react'
-import { isBrowserRuntime, runtimeImport } from '../utils/imports.js'
-import type { Command } from '../types/command.js'
+import type { Command } from '../commands.js'
+import {
+  clearCommandMemoizationCaches,
+  clearCommandsCache,
+  getCommands,
+} from '../commands.js'
 import { onGrowthBookRefresh } from '../services/analytics/growthbook.js'
 import { logError } from '../utils/log.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
@@ -22,11 +26,8 @@ export function useSkillsChange(
   onCommandsChange: (commands: Command[]) => void,
 ): void {
   const handleChange = useCallback(async () => {
-    if (!cwd || isBrowserRuntime()) return
+    if (!cwd) return
     try {
-      const { clearCommandsCache, getCommands } = await runtimeImport<
-        typeof import('../commands.js')
-      >('../commands.js')
       // Clear all command caches to ensure fresh load
       clearCommandsCache()
       const commands = await getCommands(cwd)
@@ -39,17 +40,11 @@ export function useSkillsChange(
     }
   }, [cwd, onCommandsChange])
 
-  useEffect(() => {
-    if (isBrowserRuntime()) return
-    return skillChangeDetector.subscribe(handleChange)
-  }, [handleChange])
+  useEffect(() => skillChangeDetector.subscribe(handleChange), [handleChange])
 
   const handleGrowthBookRefresh = useCallback(async () => {
-    if (!cwd || isBrowserRuntime()) return
+    if (!cwd) return
     try {
-      const { clearCommandMemoizationCaches, getCommands } = await runtimeImport<
-        typeof import('../commands.js')
-      >('../commands.js')
       clearCommandMemoizationCaches()
       const commands = await getCommands(cwd)
       onCommandsChange(commands)
@@ -61,10 +56,7 @@ export function useSkillsChange(
   }, [cwd, onCommandsChange])
 
   useEffect(
-    () => {
-      if (isBrowserRuntime()) return
-      return onGrowthBookRefresh(handleGrowthBookRefresh)
-    },
+    () => onGrowthBookRefresh(handleGrowthBookRefresh),
     [handleGrowthBookRefresh],
   )
 }

@@ -1,34 +1,28 @@
 import type { BetaMessageStreamParams } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
+import { realpathSync } from 'fs'
 import sumBy from 'lodash-es/sumBy.js'
-import type { HookEvent, ModelUsage } from '../entrypoints/agentSdkTypes.js'
-import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
-import type { HookCallbackMatcher } from '../types/hooks.js'
+import { cwd } from 'process'
+import type { HookEvent, ModelUsage } from 'src/entrypoints/agentSdkTypes.js'
+import type { AgentColorName } from 'src/tools/AgentTool/agentColorManager.js'
+import type { HookCallbackMatcher } from 'src/types/hooks.js'
 // Indirection for browser-sdk build (package.json "browser" field swaps
 // crypto.ts for crypto.browser.ts). Pure leaf re-export of node:crypto —
 // zero circular-dep risk. Path-alias import bypasses bootstrap-isolation
 // (rule only checks ./ and / prefixes); explicit disable documents intent.
 // eslint-disable-next-line custom-rules/bootstrap-isolation
-import { randomUUID } from '../utils/imports'
-import { cwd as processCwd, realpathSync } from '../utils/imports.js'
-import type { ModelSetting } from '../utils/model/model.js'
-import type { ModelStrings } from '../utils/model/modelStrings.js'
-import type { SettingSource } from '../utils/settings/constants.js'
-import { resetSettingsCache } from '../utils/settings/settingsCache.js'
-import type { PluginHookMatcher } from '../utils/settings/types.js'
-import { createSignal } from '../utils/signal.js'
-import { ReplayIndexBuilder } from '../utils/replayIndexBuilder.js'
-import { createAsyncContextStorage } from '../utils/imports.js'
-
-type ProcessLike = {
-  env: Record<string, string | undefined>
-}
-
-const processLike = (globalThis.process ?? { env: {} }) as ProcessLike
+import { randomUUID } from 'src/utils/crypto.js'
+import type { ModelSetting } from 'src/utils/model/model.js'
+import type { ModelStrings } from 'src/utils/model/modelStrings.js'
+import type { SettingSource } from 'src/utils/settings/constants.js'
+import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
+import type { PluginHookMatcher } from 'src/utils/settings/types.js'
+import { createSignal } from 'src/utils/signal.js'
 
 // Union type for registered hooks - can be SDK callbacks or native plugin hooks
 type RegisteredHookMatcher = HookCallbackMatcher | PluginHookMatcher
 
-import type { SessionId } from '../types/ids.js'
+import type { SessionId } from 'src/types/ids.js'
+import type { ReplayIndexBuilder } from 'src/utils/replayIndexBuilder.js'
 
 type ReplayIndexBuilderEntry = {
   builder: ReplayIndexBuilder
@@ -253,8 +247,12 @@ function getInitialState(): State {
   // Resolve symlinks in cwd to match behavior of shell.ts setCwd
   // This ensures consistency with how paths are sanitized for session storage
   let resolvedCwd = ''
-  if (typeof realpathSync === 'function') {
-    const rawCwd = processCwd()
+  if (
+    typeof process !== 'undefined' &&
+    typeof process.cwd === 'function' &&
+    typeof realpathSync === 'function'
+  ) {
+    const rawCwd = cwd()
     try {
       resolvedCwd = realpathSync(rawCwd).normalize('NFC')
     } catch {
@@ -361,7 +359,7 @@ function getInitialState(): State {
     mainThreadAgentType: undefined,
     // Remote mode
     isRemoteMode: false,
-    ...(processLike.env.USER_TYPE === 'ant'
+    ...(process.env.USER_TYPE === 'ant'
       ? {
           replBridgeActive: false,
         }
@@ -419,7 +417,9 @@ type SdkContext = {
   parentSessionId?: SessionId
 }
 
-const sdkContextStorage = createAsyncContextStorage<SdkContext>()
+import { AsyncLocalStorage } from 'async_hooks'
+
+const sdkContextStorage = new AsyncLocalStorage<SdkContext>()
 
 /**
  * Run a function with an SDK-specific context that overrides global state.
@@ -964,7 +964,7 @@ export function setCostStateForRestore({
 
 // Only used in tests
 export function resetStateForTests(): void {
-  if (processLike.env.NODE_ENV !== 'test') {
+  if (process.env.NODE_ENV !== 'test') {
     throw new Error('resetStateForTests can only be called in tests')
   }
   Object.entries(getInitialState()).forEach(([key, value]) => {
@@ -1690,6 +1690,9 @@ export function getReplayIndexBuilder(): ReplayIndexBuilder {
   const sessionId = getSessionId()
   let entry = STATE.replayIndexBuilders.get(sessionId)
   if (!entry) {
+    // Lazy import to avoid circular dependencies
+    const { ReplayIndexBuilder } =
+      require('src/utils/replayIndexBuilder.js') as typeof import('src/utils/replayIndexBuilder.js')
     entry = {
       builder: new ReplayIndexBuilder(),
       projectDir: getSessionProjectDir(),

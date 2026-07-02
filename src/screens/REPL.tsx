@@ -1,13 +1,12 @@
 import { c as _c } from "react-compiler-runtime";
 // biome-ignore-all assist/source/organizeImports: internal-only import markers must not be reordered
 import { feature } from 'bun:bundle';
-import { spawnSync } from '../utils/imports.js';
+import { spawnSync } from 'child_process';
 import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTokens, getBudgetContinuationCount, getTotalInputTokens } from '../bootstrap/state.js';
 import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
-import { dirname, join } from '../utils/imports.js';
-import { tmpdir } from '../utils/imports.js';
-import { isBrowserRuntime } from '../utils/imports.js';
+import { dirname, join } from 'path';
+import { tmpdir } from 'os';
 import figures from 'figures';
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- / n N Esc [ v are bare letters in transcript modal context, same class as g/G/j/k in ScrollKeybindingHandler
 import { useInput } from '../ink.js';
@@ -17,7 +16,7 @@ import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { openFileInExternalEditor } from '../utils/editor.js';
-import { writeFile } from '../utils/imports.js';
+import { writeFile } from 'fs/promises';
 import { Box, Text, useStdin, useTheme, useTerminalFocus, useTerminalTitle, useTabStatus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
@@ -99,20 +98,18 @@ import { isHumanTurn } from '../utils/messagePredicates.js';
 import { logError } from '../utils/log.js';
 // Dead code elimination: conditional imports
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const hasNodeRequire = typeof require === 'function';
-const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
+const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
   stripTrailing: () => 0,
   handleKeyEvent: () => { },
-  resetAnchor: () => { },
-  interimRange: null
+  resetAnchor: () => { }
 });
-const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') && hasNodeRequire ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
+const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Dead code elimination: conditional import for coordinator mode
 const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
   name: string;
 }>, scratchpadDir?: string) => {
   [k: string]: string;
-} = feature('COORDINATOR_MODE') && hasNodeRequire ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
+} = feature('COORDINATOR_MODE') ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import useCanUseTool from '../hooks/useCanUseTool.js';
 import type { ToolPermissionContext, Tool } from '../Tool.js';
@@ -158,7 +155,7 @@ import { useTasksV2WithCollapseEffect } from '../hooks/useTasksV2.js';
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
-import { randomUUID, type UUID } from '../utils/imports.js';
+import { randomUUID, type UUID } from 'crypto';
 import { processSessionStartHooks } from '../utils/sessionStart.js';
 import { executeSessionEndHooks, getSessionEndHookTimeoutMs } from '../utils/hooks.js';
 import { type IDESelection, useIdeSelection } from '../hooks/useIdeSelection.js';
@@ -194,11 +191,11 @@ import { getActiveSessionAgentModelSelection } from './replActiveAgentModel.js';
 import type { ModelSetting } from '../utils/model/model.js';
 // Dead code elimination: conditional import for loop mode
 /* eslint-disable @typescript-eslint/no-require-imports */
-const proactiveModule = (feature('PROACTIVE') || feature('KAIROS')) && hasNodeRequire ? require('../proactive/index.js') : null;
+const proactiveModule = feature('PROACTIVE') || feature('KAIROS') ? require('../proactive/index.js') : null;
 const PROACTIVE_NO_OP_SUBSCRIBE = (_cb: () => void) => () => { };
 const PROACTIVE_FALSE = () => false;
 const SUGGEST_BG_PR_NOOP = (_p: string, _n: string): boolean => false;
-const useScheduledTasks: typeof import('../hooks/useScheduledTasks.js').useScheduledTasks = hasNodeRequire ? require('../hooks/useScheduledTasks.js').useScheduledTasks : (() => { }) as typeof import('../hooks/useScheduledTasks.js').useScheduledTasks;
+const useScheduledTasks = require('../hooks/useScheduledTasks.js').useScheduledTasks;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { decideStreamingTextUpdate } from './streamingTextPublish.js';
@@ -269,7 +266,7 @@ import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotificatio
 import { AutoRunIssueNotification, shouldAutoRunIssue, getAutoRunIssueReasonText, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 /* eslint-disable @typescript-eslint/no-require-imports */
-const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') && hasNodeRequire ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
+const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
@@ -523,13 +520,12 @@ function AnimatedTerminalTitle(t0) {
     noPrefix
   } = t0;
   const terminalFocused = useTerminalFocus();
-  const browserRuntime = isBrowserRuntime();
   const [frame, setFrame] = useState(0);
   let t1;
   let t2;
   if ($[0] !== disabled || $[1] !== isAnimating || $[2] !== noPrefix || $[3] !== terminalFocused) {
     t1 = () => {
-      if ((!browserRuntime && (disabled || noPrefix)) || !isAnimating || !terminalFocused) {
+      if (disabled || noPrefix || !isAnimating || !terminalFocused) {
         return;
       }
       const interval = setInterval(_temp2, TITLE_ANIMATION_INTERVAL_MS, setFrame);
@@ -548,29 +544,7 @@ function AnimatedTerminalTitle(t0) {
   }
   useEffect(t1, t2);
   const prefix = isAnimating ? TITLE_ANIMATION_FRAMES[frame] ?? TITLE_STATIC_PREFIX : TITLE_STATIC_PREFIX;
-  const resolvedTitle = disabled ? null : noPrefix ? title : `${prefix} ${title}`;
-  useTerminalTitle(isBrowserRuntime() ? null : resolvedTitle);
-  useEffect(() => {
-    if (!isBrowserRuntime() || resolvedTitle === null) return;
-    const previousTitle = document.title;
-    document.title = resolvedTitle;
-    return () => {
-      if (document.title === resolvedTitle) {
-        document.title = previousTitle;
-      }
-    };
-  }, [resolvedTitle]);
-  // if (browserRuntime) {
-  //   const visibleTitle = noPrefix ? title : `${prefix} ${title}`;
-  //   return <div className="repl-webTerminalTitleBeacon" data-active={isAnimating ? 'true' : undefined} data-disabled={disabled ? 'true' : undefined} aria-live="polite">
-  //     <span className="repl-webTerminalTitleOrb" aria-hidden="true">{prefix}</span>
-  //     <span className="repl-webTerminalTitleCopy">
-  //       <span className="repl-webTerminalTitleLabel">Browser title</span>
-  //       <span className="repl-webTerminalTitleText">{visibleTitle}</span>
-  //     </span>
-  //     <span className="repl-webTerminalTitleState">{disabled ? 'preview' : isAnimating ? 'live' : 'ready'}</span>
-  //   </div>;
-  // }
+  useTerminalTitle(disabled ? null : noPrefix ? title : `${prefix} ${title}`);
   return null;
 }
 function _temp2(setFrame_0) {
@@ -655,7 +629,6 @@ export type Props = {
   thinkingConfig: ThinkingConfig;
   // Model to fallback to when primary model returns overloaded errors (529)
   fallbackModel?: string;
-  renderMode?: string;
 };
 export type Screen = 'prompt' | 'transcript';
 export function REPL({
@@ -1733,7 +1706,7 @@ export function REPL({
     setSpinnerColor(null);
     setSpinnerShimmerColor(null);
     pickNewSpinnerTip();
-    // Speculative bash classifier checks are only valid for the current
+        // Speculative bash classifier checks are only valid for the current
     // turn's commands — clear after each turn to avoid accumulating
     // Promise chains for unconsumed checks (denied/aborted paths).
     clearSpeculativeChecks();
@@ -1931,7 +1904,7 @@ export function REPL({
       const messages = deserializeMessages(log.messages);
 
       // Match coordinator/normal mode to the resumed session
-      if (feature('COORDINATOR_MODE') && hasNodeRequire) {
+      if (feature('COORDINATOR_MODE')) {
         /* eslint-disable @typescript-eslint/no-require-imports */
         const coordinatorModule = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
         /* eslint-enable @typescript-eslint/no-require-imports */
@@ -2091,17 +2064,15 @@ export function REPL({
 
       // Persist the current mode so future resumes know what mode this session was in
       if (feature('COORDINATOR_MODE')) {
-        if (hasNodeRequire) {
-          /* eslint-disable @typescript-eslint/no-require-imports */
-          const {
-            saveMode
-          } = require('../utils/sessionStorage.js');
-          const {
-            isCoordinatorMode
-          } = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
-          /* eslint-enable @typescript-eslint/no-require-imports */
-          saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
-        }
+        /* eslint-disable @typescript-eslint/no-require-imports */
+        const {
+          saveMode
+        } = require('../utils/sessionStorage.js');
+        const {
+          isCoordinatorMode
+        } = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
+        /* eslint-enable @typescript-eslint/no-require-imports */
+        saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
       }
 
       // Restore target session's costs from the data we read earlier
@@ -2274,7 +2245,7 @@ export function REPL({
     // Onboarding dialogs (special conditions)
     if (allowDialogsWithAnimation && showIdeOnboarding) return 'ide-onboarding';
 
-    // Effort callout (shown once for Opus 4.6 users when effort is enabled)
+    // Effort callout (shown once for recent Opus users when effort is enabled)
     if (allowDialogsWithAnimation && showEffortCallout) return 'effort-callout';
 
     // Remote callout (shown once before first bridge enable)
@@ -3960,7 +3931,7 @@ export function REPL({
   // Does NOT touch the prompt input. Index is computed from messagesRef (always
   // fresh via the setMessages wrapper) so callers don't need to worry about
   // stale closures.
-  const rewindConversationTo = useCallback(async (message: UserMessage) => {
+  const rewindConversationTo = useCallback((message: UserMessage) => {
     const prev = messagesRef.current;
     const messageIndex = prev.lastIndexOf(message);
     if (messageIndex === -1) return;
@@ -3977,7 +3948,7 @@ export function REPL({
     // Reset cached microcompact state so stale pinned cache edits
     // don't reference tool_use_ids from truncated messages
     resetMicrocompactState();
-    if (feature('CONTEXT_COLLAPSE') && hasNodeRequire) {
+    if (feature('CONTEXT_COLLAPSE')) {
       // Rewind truncates the REPL array. Commits whose archived span
       // was past the rewind point can't be projected anymore
       // (projectView silently skips them) but the staged queue and ID
@@ -3985,8 +3956,8 @@ export function REPL({
       // everything. The ctx-agent will re-stage on the next
       // threshold crossing.
       /* eslint-disable @typescript-eslint/no-require-imports */
-
-      await (await import('../services/contextCollapse/index.js')).resetContextCollapse();
+      ;
+      (require('../services/contextCollapse/index.js') as typeof import('../services/contextCollapse/index.js')).resetContextCollapse();
       /* eslint-enable @typescript-eslint/no-require-imports */
     }
 
@@ -4828,42 +4799,37 @@ export function REPL({
       <FullscreenLayout scrollRef={scrollRef} overlay={toolPermissionOverlay} bottomFloat={isBuddyEnabled() && companionVisible && !companionNarrow ? <CompanionFloatingBubble /> : undefined} modal={centeredModal} modalScrollRef={modalScrollRef} dividerYRef={dividerYRef} hidePill={!!viewedAgentTask} hideSticky={!!viewedTeammateTask} newMessageCount={unseenDivider?.count ?? 0} onPillClick={() => {
         setCursor(null);
         jumpToNew(scrollRef.current);
-      }}
-        scrollable={
-          <>
-            <TeammateViewHeader />
-            <Messages messages={displayedMessages} tools={tools} commands={renderCommands} verbose={verbose} toolJSX={toolJSX} toolUseConfirmQueue={toolUseConfirmQueue} inProgressToolUseIDs={viewedTeammateTask ? viewedTeammateTask.inProgressToolUseIDs ?? new Set() : inProgressToolUseIDs} isMessageSelectorVisible={isMessageSelectorVisible} conversationId={conversationId} screen={screen} streamingToolUses={streamingToolUses} showAllInTranscript={showAllInTranscript} agentDefinitions={agentDefinitions} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingText={isLoading && !viewedAgentTask ? visibleStreamingText : null} isBriefOnly={viewedAgentTask ? false : isBriefOnly} unseenDivider={viewedAgentTask ? undefined : unseenDivider} scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined} trackStickyPrompt={isFullscreenEnvEnabled() ? true : undefined} cursor={cursor} setCursor={setCursor} cursorNavRef={cursorNavRef} />
-            <AwsAuthStatusBox />
-            {/* Hide the processing placeholder while a modal is showing —
+      }} scrollable={<>
+        <TeammateViewHeader />
+        <Messages messages={displayedMessages} tools={tools} commands={renderCommands} verbose={verbose} toolJSX={toolJSX} toolUseConfirmQueue={toolUseConfirmQueue} inProgressToolUseIDs={viewedTeammateTask ? viewedTeammateTask.inProgressToolUseIDs ?? new Set() : inProgressToolUseIDs} isMessageSelectorVisible={isMessageSelectorVisible} conversationId={conversationId} screen={screen} streamingToolUses={streamingToolUses} showAllInTranscript={showAllInTranscript} agentDefinitions={agentDefinitions} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingText={isLoading && !viewedAgentTask ? visibleStreamingText : null} isBriefOnly={viewedAgentTask ? false : isBriefOnly} unseenDivider={viewedAgentTask ? undefined : unseenDivider} scrollRef={isFullscreenEnvEnabled() ? scrollRef : undefined} trackStickyPrompt={isFullscreenEnvEnabled() ? true : undefined} cursor={cursor} setCursor={setCursor} cursorNavRef={cursorNavRef} />
+        <AwsAuthStatusBox />
+        {/* Hide the processing placeholder while a modal is showing —
                   it would sit at the last visible transcript row right above
                   the ▔ divider, showing "❯ /config" as redundant clutter
                   (the modal IS the /config UI). Outside modals it stays so
                   the user sees their input echoed while Claude processes. */}
-            {!disabled && placeholderText && !centeredModal && <UserTextMessage param={{
-              text: placeholderText,
-              type: 'text'
-            }} addMargin={true} verbose={verbose} />}
-            {toolJSX && !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) && !toolJsxCentered && <Box flexDirection="column" width="100%">
-              {toolJSX.jsx}
-            </Box>}
-            {feature('WEB_BROWSER_TOOL') ? WebBrowserPanelModule && <WebBrowserPanelModule.WebBrowserPanel /> : null}
-            <Box flexGrow={1} />
-            {showSpinner && <SpinnerWithVerb mode={streamMode} spinnerTip={spinnerTip} responseLengthRef={responseLengthRef} overrideMessage={spinnerMessage} spinnerSuffix={stopHookSpinnerSuffix ?? activeToolSpinnerSuffix} verbose={verbose} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} pauseStartTimeRef={pauseStartTimeRef} overrideColor={spinnerColor} overrideShimmerColor={spinnerShimmerColor} hasActiveTools={inProgressToolUseIDs.size > 0} leaderIsIdle={!isLoading} />}
-            {/* Permanently mounted: it observes the isLoading transition to flash
+        {!disabled && placeholderText && !centeredModal && <UserTextMessage param={{
+          text: placeholderText,
+          type: 'text'
+        }} addMargin={true} verbose={verbose} />}
+        {toolJSX && !(toolJSX.isLocalJSXCommand && toolJSX.isImmediate) && !toolJsxCentered && <Box flexDirection="column" width="100%">
+          {toolJSX.jsx}
+        </Box>}
+        {feature('WEB_BROWSER_TOOL') ? WebBrowserPanelModule && <WebBrowserPanelModule.WebBrowserPanel /> : null}
+        <Box flexGrow={1} />
+        {showSpinner && <SpinnerWithVerb mode={streamMode} spinnerTip={spinnerTip} responseLengthRef={responseLengthRef} overrideMessage={spinnerMessage} spinnerSuffix={stopHookSpinnerSuffix ?? activeToolSpinnerSuffix} verbose={verbose} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} pauseStartTimeRef={pauseStartTimeRef} overrideColor={spinnerColor} overrideShimmerColor={spinnerShimmerColor} hasActiveTools={inProgressToolUseIDs.size > 0} leaderIsIdle={!isLoading} />}
+        {/* Permanently mounted: it observes the isLoading transition to flash
             `✓ Done` for ~1.5s. Suppressed wherever another element owns the
             row or the user's attention. */}
-            <CompletionFlash turnActive={isLoading || userInputOnProcessing !== undefined} suppressed={isBriefOnly || hasRunningTeammates || hasActivePrompt || viewedAgentTask !== undefined} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} />
-            {compactProgressRatio !== null && feature('RESUME_COMPACT_PROMPT') && <CompactProgressBar ratio={compactProgressRatio} />}
-            {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
-            {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
-          </>
-        }
-        bottom={
-          <Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
-            {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
-            <Box flexDirection="column" flexGrow={1}>
-              {permissionStickyFooter}
-              {/* Immediate local-jsx commands (/btw, /sandbox, /assistant,
+        <CompletionFlash turnActive={isLoading || userInputOnProcessing !== undefined} suppressed={isBriefOnly || hasRunningTeammates || hasActivePrompt || viewedAgentTask !== undefined} loadingStartTimeRef={loadingStartTimeRef} totalPausedMsRef={totalPausedMsRef} />
+        {compactProgressRatio !== null && feature('RESUME_COMPACT_PROMPT') && <CompactProgressBar ratio={compactProgressRatio} />}
+        {!showSpinner && !isLoading && !userInputOnProcessing && !hasRunningTeammates && isBriefOnly && !viewedAgentTask && <BriefIdleStatus />}
+        {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
+      </>} bottom={<Box flexDirection={isBuddyEnabled() && companionNarrow ? 'column' : 'row'} width="100%" alignItems={isBuddyEnabled() && companionNarrow ? undefined : 'flex-end'}>
+        {isBuddyEnabled() && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
+        <Box flexDirection="column" flexGrow={1}>
+          {permissionStickyFooter}
+          {/* Immediate local-jsx commands (/btw, /sandbox, /assistant,
                   /issue) render here, NOT inside scrollable. They stay mounted
                   while the main conversation streams behind them, so ScrollBox
                   relayouts on each new message would drag them around. bottom
@@ -4872,405 +4838,404 @@ export function REPL({
                   stays in scrollable: the main loop is paused so no jiggle,
                   and their tall content (DiffDetailView renders up to 400
                   lines with no internal scroll) needs the outer ScrollBox. */}
-              {toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered && <Box flexDirection="column" width="100%">
-                {toolJSX.jsx}
-              </Box>}
-              {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
-                <TaskListV2 tasks={tasksV2} isStandalone={true} />
-              </Box>}
-              {focusedInputDialog === 'sandbox-permission' && <SandboxPermissionRequest key={sandboxPermissionRequestQueue[0]!.hostPattern.host} hostPattern={sandboxPermissionRequestQueue[0]!.hostPattern} onUserResponse={(response: {
-                allow: boolean;
-                persistToSettings: boolean;
-              }) => {
-                const {
-                  allow,
-                  persistToSettings
-                } = response;
-                const currentRequest = sandboxPermissionRequestQueue[0];
-                if (!currentRequest) return;
-                const approvedHost = currentRequest.hostPattern.host;
-                if (persistToSettings) {
-                  const update = {
-                    type: 'addRules' as const,
-                    rules: [{
-                      toolName: WEB_FETCH_TOOL_NAME,
-                      ruleContent: `domain:${approvedHost}`
-                    }],
-                    behavior: (allow ? 'allow' : 'deny') as 'allow' | 'deny',
-                    destination: 'localSettings' as const
-                  };
-                  setAppState(prev => ({
-                    ...prev,
-                    toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-                  }));
-                  persistPermissionUpdate(update);
+          {toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered && <Box flexDirection="column" width="100%">
+            {toolJSX.jsx}
+          </Box>}
+          {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
+            <TaskListV2 tasks={tasksV2} isStandalone={true} />
+          </Box>}
+          {focusedInputDialog === 'sandbox-permission' && <SandboxPermissionRequest key={sandboxPermissionRequestQueue[0]!.hostPattern.host} hostPattern={sandboxPermissionRequestQueue[0]!.hostPattern} onUserResponse={(response: {
+            allow: boolean;
+            persistToSettings: boolean;
+          }) => {
+            const {
+              allow,
+              persistToSettings
+            } = response;
+            const currentRequest = sandboxPermissionRequestQueue[0];
+            if (!currentRequest) return;
+            const approvedHost = currentRequest.hostPattern.host;
+            if (persistToSettings) {
+              const update = {
+                type: 'addRules' as const,
+                rules: [{
+                  toolName: WEB_FETCH_TOOL_NAME,
+                  ruleContent: `domain:${approvedHost}`
+                }],
+                behavior: (allow ? 'allow' : 'deny') as 'allow' | 'deny',
+                destination: 'localSettings' as const
+              };
+              setAppState(prev => ({
+                ...prev,
+                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
+              }));
+              persistPermissionUpdate(update);
 
-                  // Immediately update sandbox in-memory config to prevent race conditions
-                  // where pending requests slip through before settings change is detected
-                  SandboxManager.refreshConfig();
+              // Immediately update sandbox in-memory config to prevent race conditions
+              // where pending requests slip through before settings change is detected
+              SandboxManager.refreshConfig();
+            }
+
+            // Resolve ALL pending requests for the same host (not just the first one)
+            // This handles the case where multiple parallel requests came in for the same domain
+            setSandboxPermissionRequestQueue(queue => {
+              queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
+              return queue.filter(item => item.hostPattern.host !== approvedHost);
+            });
+
+            // Clean up bridge subscriptions and cancel remote prompts
+            // for this host since the local user already responded.
+            const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
+            if (cleanups) {
+              for (const fn of cleanups) {
+                fn();
+              }
+              sandboxBridgeCleanupRef.current.delete(approvedHost);
+            }
+          }} />}
+          {focusedInputDialog === 'prompt' && <PromptDialog key={promptQueue[0]!.request.prompt} title={promptQueue[0]!.title} toolInputSummary={promptQueue[0]!.toolInputSummary} request={promptQueue[0]!.request} onRespond={selectedKey => {
+            const item = promptQueue[0];
+            if (!item) return;
+            item.resolve({
+              prompt_response: item.request.prompt,
+              selected: selectedKey
+            });
+            setPromptQueue(([, ...tail]) => tail);
+          }} onAbort={() => {
+            const item = promptQueue[0];
+            if (!item) return;
+            item.reject(new Error('Prompt cancelled by user'));
+            setPromptQueue(([, ...tail]) => tail);
+          }} />}
+          {/* Show pending indicator on worker while waiting for leader approval */}
+          {pendingWorkerRequest && <WorkerPendingPermission toolName={pendingWorkerRequest.toolName} description={pendingWorkerRequest.description} />}
+          {/* Show pending indicator for sandbox permission on worker side */}
+          {pendingSandboxRequest && <WorkerPendingPermission toolName="Network Access" description={`Waiting for leader to approve network access to ${pendingSandboxRequest.host}`} />}
+          {/* Worker sandbox permission requests from swarm workers */}
+          {focusedInputDialog === 'worker-sandbox-permission' && <SandboxPermissionRequest key={workerSandboxPermissions.queue[0]!.requestId} hostPattern={{
+            host: workerSandboxPermissions.queue[0]!.host,
+            port: undefined
+          } as NetworkHostPattern} onUserResponse={(response: {
+            allow: boolean;
+            persistToSettings: boolean;
+          }) => {
+            const {
+              allow,
+              persistToSettings
+            } = response;
+            const currentRequest = workerSandboxPermissions.queue[0];
+            if (!currentRequest) return;
+            const approvedHost = currentRequest.host;
+
+            // Send response via mailbox to the worker
+            void sendSandboxPermissionResponseViaMailbox(currentRequest.workerName, currentRequest.requestId, approvedHost, allow, teamContext?.teamName);
+            if (persistToSettings && allow) {
+              const update = {
+                type: 'addRules' as const,
+                rules: [{
+                  toolName: WEB_FETCH_TOOL_NAME,
+                  ruleContent: `domain:${approvedHost}`
+                }],
+                behavior: 'allow' as const,
+                destination: 'localSettings' as const
+              };
+              setAppState(prev => ({
+                ...prev,
+                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
+              }));
+              persistPermissionUpdate(update);
+              SandboxManager.refreshConfig();
+            }
+
+            // Remove from queue
+            setAppState(prev => ({
+              ...prev,
+              workerSandboxPermissions: {
+                ...prev.workerSandboxPermissions,
+                queue: prev.workerSandboxPermissions.queue.slice(1)
+              }
+            }));
+          }} />}
+          {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
+            const currentRequest = elicitation.queue[0];
+            if (!currentRequest) return;
+            // Call respond callback to resolve Promise
+            currentRequest.respond({
+              action,
+              content
+            });
+            // For URL accept, keep in queue for phase 2
+            const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
+            if (!isUrlAccept) {
+              setAppState(prev => ({
+                ...prev,
+                elicitation: {
+                  queue: prev.elicitation.queue.slice(1)
                 }
-
-                // Resolve ALL pending requests for the same host (not just the first one)
-                // This handles the case where multiple parallel requests came in for the same domain
-                setSandboxPermissionRequestQueue(queue => {
-                  queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
-                  return queue.filter(item => item.hostPattern.host !== approvedHost);
-                });
-
-                // Clean up bridge subscriptions and cancel remote prompts
-                // for this host since the local user already responded.
-                const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
-                if (cleanups) {
-                  for (const fn of cleanups) {
-                    fn();
-                  }
-                  sandboxBridgeCleanupRef.current.delete(approvedHost);
-                }
-              }} />}
-              {focusedInputDialog === 'prompt' && <PromptDialog key={promptQueue[0]!.request.prompt} title={promptQueue[0]!.title} toolInputSummary={promptQueue[0]!.toolInputSummary} request={promptQueue[0]!.request} onRespond={selectedKey => {
-                const item = promptQueue[0];
-                if (!item) return;
-                item.resolve({
-                  prompt_response: item.request.prompt,
-                  selected: selectedKey
-                });
-                setPromptQueue(([, ...tail]) => tail);
-              }} onAbort={() => {
-                const item = promptQueue[0];
-                if (!item) return;
-                item.reject(new Error('Prompt cancelled by user'));
-                setPromptQueue(([, ...tail]) => tail);
-              }} />}
-              {/* Show pending indicator on worker while waiting for leader approval */}
-              {pendingWorkerRequest && <WorkerPendingPermission toolName={pendingWorkerRequest.toolName} description={pendingWorkerRequest.description} />}
-              {/* Show pending indicator for sandbox permission on worker side */}
-              {pendingSandboxRequest && <WorkerPendingPermission toolName="Network Access" description={`Waiting for leader to approve network access to ${pendingSandboxRequest.host}`} />}
-              {/* Worker sandbox permission requests from swarm workers */}
-              {focusedInputDialog === 'worker-sandbox-permission' && <SandboxPermissionRequest key={workerSandboxPermissions.queue[0]!.requestId} hostPattern={{
-                host: workerSandboxPermissions.queue[0]!.host,
-                port: undefined
-              } as NetworkHostPattern} onUserResponse={(response: {
-                allow: boolean;
-                persistToSettings: boolean;
-              }) => {
-                const {
-                  allow,
-                  persistToSettings
-                } = response;
-                const currentRequest = workerSandboxPermissions.queue[0];
-                if (!currentRequest) return;
-                const approvedHost = currentRequest.host;
-
-                // Send response via mailbox to the worker
-                void sendSandboxPermissionResponseViaMailbox(currentRequest.workerName, currentRequest.requestId, approvedHost, allow, teamContext?.teamName);
-                if (persistToSettings && allow) {
-                  const update = {
-                    type: 'addRules' as const,
-                    rules: [{
-                      toolName: WEB_FETCH_TOOL_NAME,
-                      ruleContent: `domain:${approvedHost}`
-                    }],
-                    behavior: 'allow' as const,
-                    destination: 'localSettings' as const
-                  };
-                  setAppState(prev => ({
-                    ...prev,
-                    toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-                  }));
-                  persistPermissionUpdate(update);
-                  SandboxManager.refreshConfig();
-                }
-
-                // Remove from queue
-                setAppState(prev => ({
-                  ...prev,
-                  workerSandboxPermissions: {
-                    ...prev.workerSandboxPermissions,
-                    queue: prev.workerSandboxPermissions.queue.slice(1)
-                  }
-                }));
-              }} />}
-              {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
-                const currentRequest = elicitation.queue[0];
-                if (!currentRequest) return;
-                // Call respond callback to resolve Promise
-                currentRequest.respond({
-                  action,
-                  content
-                });
-                // For URL accept, keep in queue for phase 2
-                const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
-                if (!isUrlAccept) {
-                  setAppState(prev => ({
-                    ...prev,
-                    elicitation: {
-                      queue: prev.elicitation.queue.slice(1)
-                    }
-                  }));
-                }
-              }} onWaitingDismiss={action => {
-                const currentRequest = elicitation.queue[0];
-                // Remove from queue
-                setAppState(prev => ({
-                  ...prev,
-                  elicitation: {
-                    queue: prev.elicitation.queue.slice(1)
-                  }
-                }));
-                currentRequest?.onWaitingDismiss?.(action);
-              }} />}
-              {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
-                setShowCostDialog(false);
-                setHaveShownCostDialog(true);
-                saveGlobalConfig(current => ({
+              }));
+            }
+          }} onWaitingDismiss={action => {
+            const currentRequest = elicitation.queue[0];
+            // Remove from queue
+            setAppState(prev => ({
+              ...prev,
+              elicitation: {
+                queue: prev.elicitation.queue.slice(1)
+              }
+            }));
+            currentRequest?.onWaitingDismiss?.(action);
+          }} />}
+          {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
+            setShowCostDialog(false);
+            setHaveShownCostDialog(true);
+            saveGlobalConfig(current => ({
+              ...current,
+              hasAcknowledgedCostThreshold: true
+            }));
+            logEvent('tengu_cost_threshold_acknowledged', {});
+          }} />}
+          {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
+            const pending = idleReturnPending;
+            setIdleReturnPending(null);
+            logEvent('tengu_idle_return_action', {
+              action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              idleMinutes: Math.round(pending.idleMinutes),
+              messageCount: messagesRef.current.length,
+              totalInputTokens: getTotalInputTokens()
+            });
+            if (action === 'dismiss') {
+              setInputValue(pending.input);
+              return;
+            }
+            if (action === 'never') {
+              saveGlobalConfig(current => {
+                if (current.idleReturnDismissed) return current;
+                return {
                   ...current,
-                  hasAcknowledgedCostThreshold: true
-                }));
-                logEvent('tengu_cost_threshold_acknowledged', {});
-              }} />}
-              {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
-                const pending = idleReturnPending;
-                setIdleReturnPending(null);
-                logEvent('tengu_idle_return_action', {
-                  action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  idleMinutes: Math.round(pending.idleMinutes),
-                  messageCount: messagesRef.current.length,
-                  totalInputTokens: getTotalInputTokens()
-                });
-                if (action === 'dismiss') {
-                  setInputValue(pending.input);
-                  return;
-                }
-                if (action === 'never') {
-                  saveGlobalConfig(current => {
-                    if (current.idleReturnDismissed) return current;
-                    return {
-                      ...current,
-                      idleReturnDismissed: true
-                    };
-                  });
-                }
-                if (action === 'clear') {
-                  resetAutoCompactTracking();
-                  const {
-                    clearConversation
-                  } = await import('../commands/clear/conversation.js');
-                  await clearConversation({
-                    setMessages,
-                    readFileState: readFileState.current,
-                    discoveredSkillNames: discoveredSkillNamesRef.current,
-                    loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
-                    getAppState: () => store.getState(),
-                    setAppState,
-                    setConversationId
-                  });
-                  haikuTitleAttemptedRef.current = false;
-                  setHaikuTitle(undefined);
-                  bashTools.current.clear();
-                  bashToolsProcessedIdx.current = 0;
-                }
-                skipIdleCheckRef.current = true;
-                void onSubmitRef.current(pending.input, {
-                  setCursorOffset: () => { },
-                  clearBuffer: () => { },
-                  resetHistory: () => { }
-                });
-              }} />}
-              {focusedInputDialog === 'resume-compact' && resumeCompactPending && <ResumeCompactPrompt tokenCount={resumeCompactPending.tokenCount} model={resumeCompactPending.model} onDone={async choice => {
-                const pending = resumeCompactPending;
-                setResumeCompactPending(null);
-                logEvent('tengu_resume_compact_prompt', {
-                  action: (choice === 'yes' ? 'accept' : 'decline') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  tokenCount: pending.tokenCount,
-                });
-                if (choice === 'yes') {
-                  skipIdleCheckRef.current = true;
-                  void onSubmitRef.current('/compact', {
-                    setCursorOffset: () => { },
-                    clearBuffer: () => { },
-                    resetHistory: () => { }
-                  });
-                }
-              }} />}
-              {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
-              {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
-                setShowEffortCallout(false);
-                if (selection !== 'dismiss') {
-                  setAppState(prev => ({
-                    ...prev,
-                    effortValue: selection
-                  }));
-                }
-              }} />}
-              {focusedInputDialog === 'remote-callout' && <RemoteCallout onDone={selection => {
-                setAppState(prev => {
-                  if (!prev.showRemoteCallout) return prev;
-                  return {
-                    ...prev,
-                    showRemoteCallout: false,
-                    ...(selection === 'enable' && {
-                      replBridgeEnabled: true,
-                      replBridgeExplicit: true,
-                      replBridgeOutboundOnly: false
-                    })
-                  };
-                });
-              }} />}
-
-              {exitFlow}
-
-              {focusedInputDialog === 'plugin-hint' && hintRecommendation && <PluginHintMenu pluginName={hintRecommendation.pluginName} pluginDescription={hintRecommendation.pluginDescription} marketplaceName={hintRecommendation.marketplaceName} sourceCommand={hintRecommendation.sourceCommand} onResponse={handleHintResponse} />}
-
-              {focusedInputDialog === 'lsp-recommendation' && lspRecommendation && <LspRecommendationMenu pluginName={lspRecommendation.pluginName} pluginDescription={lspRecommendation.pluginDescription} fileExtension={lspRecommendation.fileExtension} onResponse={handleLspResponse} />}
-
-              {focusedInputDialog === 'desktop-upsell' && <DesktopUpsellStartup onDone={() => setShowDesktopUpsellStartup(false)} />}
-
-              {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
-
-              {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
-                const blurb = ultraplanLaunchPending.blurb;
-                setAppState(prev => prev.ultraplanLaunchPending ? {
-                  ...prev,
-                  ultraplanLaunchPending: undefined
-                } : prev);
-                if (choice === 'cancel') return;
-                // Command's onDone used display:'skip', so add the
-                // echo here — gives immediate feedback before the
-                // ~5s teleportToRemote resolves.
-                setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
-                const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
-                // Defer the second message if a query is mid-turn
-                // so it lands after the assistant reply, not
-                // between the user's prompt and the reply.
-                const appendWhenIdle = (msg: string) => {
-                  if (!queryGuard.isActive) {
-                    appendStdout(msg);
-                    return;
-                  }
-                  const unsub = queryGuard.subscribe(() => {
-                    if (queryGuard.isActive) return;
-                    unsub();
-                    // Skip if the user stopped ultraplan while we
-                    // were waiting — avoids a stale "Monitoring
-                    // <url>" message for a session that's gone.
-                    if (!store.getState().ultraplanSessionUrl) return;
-                    appendStdout(msg);
-                  });
+                  idleReturnDismissed: true
                 };
-                void launchUltraplan({
-                  blurb,
-                  getAppState: () => store.getState(),
-                  setAppState,
-                  signal: createAbortController().signal,
-                  disconnectedBridge: opts?.disconnectedBridge,
-                  onSessionReady: appendWhenIdle
-                }).then(appendStdout).catch(logError);
-              }} /> : null}
+              });
+            }
+            if (action === 'clear') {
+              resetAutoCompactTracking();
+              const {
+                clearConversation
+              } = await import('../commands/clear/conversation.js');
+              await clearConversation({
+                setMessages,
+                readFileState: readFileState.current,
+                discoveredSkillNames: discoveredSkillNamesRef.current,
+                loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
+                getAppState: () => store.getState(),
+                setAppState,
+                setConversationId
+              });
+              haikuTitleAttemptedRef.current = false;
+              setHaikuTitle(undefined);
+              bashTools.current.clear();
+              bashToolsProcessedIdx.current = 0;
+            }
+            skipIdleCheckRef.current = true;
+            void onSubmitRef.current(pending.input, {
+              setCursorOffset: () => { },
+              clearBuffer: () => { },
+              resetHistory: () => { }
+            });
+          }} />}
+          {focusedInputDialog === 'resume-compact' && resumeCompactPending && <ResumeCompactPrompt tokenCount={resumeCompactPending.tokenCount} model={resumeCompactPending.model} onDone={async choice => {
+            const pending = resumeCompactPending;
+            setResumeCompactPending(null);
+            logEvent('tengu_resume_compact_prompt', {
+              action: (choice === 'yes' ? 'accept' : 'decline') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+              tokenCount: pending.tokenCount,
+            });
+            if (choice === 'yes') {
+              skipIdleCheckRef.current = true;
+              void onSubmitRef.current('/compact', {
+                setCursorOffset: () => {},
+                clearBuffer: () => {},
+                resetHistory: () => {}
+              });
+            }
+          }} />}
+          {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
+          {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
+            setShowEffortCallout(false);
+            if (selection !== 'dismiss') {
+              setAppState(prev => ({
+                ...prev,
+                effortValue: selection
+              }));
+            }
+          }} />}
+          {focusedInputDialog === 'remote-callout' && <RemoteCallout onDone={selection => {
+            setAppState(prev => {
+              if (!prev.showRemoteCallout) return prev;
+              return {
+                ...prev,
+                showRemoteCallout: false,
+                ...(selection === 'enable' && {
+                  replBridgeEnabled: true,
+                  replBridgeExplicit: true,
+                  replBridgeOutboundOnly: false
+                })
+              };
+            });
+          }} />}
 
-              {mrRender()}
+          {exitFlow}
 
-              {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && !isShuttingDown() && <>
-                {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
-                {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} message="How well did Claude use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-                {/* Frustration-triggered transcript sharing prompt */}
-                {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => { }} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-                {showIssueFlagBanner && <IssueFlagBanner />}
-                { }
-                <PromptInput debug={debug} ideSelection={ideSelection} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={renderCommands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
-                  // Works during isLoading — edit cancels first; uuid selection survives appends.
-                  feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
-                <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
-              </>}
-              {cursor &&
-                // inputValue is REPL state; typed text survives the round-trip.
-                <MessageActionsBar cursor={cursor} />}
-              {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={async (message: UserMessage) => {
-                await fileHistoryRewind((updater: (prev: FileHistoryState) => FileHistoryState) => {
-                  setAppState(prev => ({
-                    ...prev,
-                    fileHistory: updater(prev.fileHistory)
-                  }));
-                }, message.uuid);
-              }} onSummarize={async (message: UserMessage, feedback?: string, direction: PartialCompactDirection = 'from') => {
-                // Project snipped messages so the compact model
-                // doesn't summarize content that was intentionally removed.
-                const compactMessages = getMessagesAfterCompactBoundary(messages);
-                const messageIndex = compactMessages.indexOf(message);
-                if (messageIndex === -1) {
-                  // Selected a snipped or pre-compact message that the
-                  // selector still shows (REPL keeps full history for
-                  // scrollback). Surface why nothing happened instead
-                  // of silently no-oping.
-                  setMessages(prev => [...prev, createSystemMessage('That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.', 'warning')]);
-                  return;
-                }
-                const newAbortController = createAbortController();
-                const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
-                const appState = context.getAppState();
-                const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
-                const systemPrompt = buildEffectiveSystemPrompt({
-                  mainThreadAgentDefinition: undefined,
-                  toolUseContext: context,
-                  customSystemPrompt: context.options.customSystemPrompt,
-                  defaultSystemPrompt: defaultSysPrompt,
-                  appendSystemPrompt: context.options.appendSystemPrompt
-                });
-                const [userContext, systemContext] = await Promise.all([getUserContext(), getSystemContext()]);
-                const result = await partialCompactConversation(compactMessages, messageIndex, context, {
-                  systemPrompt,
-                  userContext,
-                  systemContext,
-                  toolUseContext: context,
-                  forkContextMessages: compactMessages
-                }, feedback, direction);
-                const kept = result.messagesToKeep ?? [];
-                const ordered = direction === 'up_to' ? [...result.summaryMessages, ...kept] : [...kept, ...result.summaryMessages];
-                const postCompact = [result.boundaryMarker, ...ordered, ...result.attachments, ...result.hookResults];
-                // Fullscreen 'from' keeps scrollback; 'up_to' must not
-                // (old[0] unchanged + grown array means incremental
-                // useLogMessages path, so boundary never persisted).
-                // Find by uuid since old is raw REPL history and snipped
-                // entries can shift the projected messageIndex.
-                if (isFullscreenEnvEnabled() && direction === 'from') {
-                  setMessages(old => {
-                    const rawIdx = old.findIndex(m => m.uuid === message.uuid);
-                    return [...old.slice(0, rawIdx === -1 ? 0 : rawIdx), ...postCompact];
-                  });
-                } else {
-                  setMessages(postCompact);
-                }
-                // Partial compact bypasses handleMessageFromStream — clear
-                // the auto-compact breaker and context-blocked flag.
-                setAutoCompactTrackingForSession(getSessionId(), undefined);
-                if (feature('PROACTIVE') || feature('KAIROS')) {
-                  proactiveModule?.setContextBlocked(false);
-                }
-                setConversationId(randomUUID());
-                runPostCompactCleanup(context.options.querySource);
-                if (direction === 'from') {
-                  const r = textForResubmit(message);
-                  if (r) {
-                    setInputValue(r.text);
-                    setInputMode(r.mode);
-                  }
-                }
+          {focusedInputDialog === 'plugin-hint' && hintRecommendation && <PluginHintMenu pluginName={hintRecommendation.pluginName} pluginDescription={hintRecommendation.pluginDescription} marketplaceName={hintRecommendation.marketplaceName} sourceCommand={hintRecommendation.sourceCommand} onResponse={handleHintResponse} />}
 
-                // Show notification with ctrl+o hint
-                const historyShortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
-                addNotification({
-                  key: 'summarize-ctrl-o-hint',
-                  text: `Conversation summarized (${historyShortcut} for history)`,
-                  priority: 'medium',
-                  timeoutMs: 8000
-                });
-              }} onRestoreMessage={handleRestoreMessage} onClose={() => {
-                setIsMessageSelectorVisible(false);
-                setMessageSelectorPreselect(undefined);
-              }} />}
-            </Box>
-            {isBuddyEnabled() && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
-          </Box>
-        } />
+          {focusedInputDialog === 'lsp-recommendation' && lspRecommendation && <LspRecommendationMenu pluginName={lspRecommendation.pluginName} pluginDescription={lspRecommendation.pluginDescription} fileExtension={lspRecommendation.fileExtension} onResponse={handleLspResponse} />}
+
+          {focusedInputDialog === 'desktop-upsell' && <DesktopUpsellStartup onDone={() => setShowDesktopUpsellStartup(false)} />}
+
+          {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
+
+          {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
+            const blurb = ultraplanLaunchPending.blurb;
+            setAppState(prev => prev.ultraplanLaunchPending ? {
+              ...prev,
+              ultraplanLaunchPending: undefined
+            } : prev);
+            if (choice === 'cancel') return;
+            // Command's onDone used display:'skip', so add the
+            // echo here — gives immediate feedback before the
+            // ~5s teleportToRemote resolves.
+            setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
+            const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
+            // Defer the second message if a query is mid-turn
+            // so it lands after the assistant reply, not
+            // between the user's prompt and the reply.
+            const appendWhenIdle = (msg: string) => {
+              if (!queryGuard.isActive) {
+                appendStdout(msg);
+                return;
+              }
+              const unsub = queryGuard.subscribe(() => {
+                if (queryGuard.isActive) return;
+                unsub();
+                // Skip if the user stopped ultraplan while we
+                // were waiting — avoids a stale "Monitoring
+                // <url>" message for a session that's gone.
+                if (!store.getState().ultraplanSessionUrl) return;
+                appendStdout(msg);
+              });
+            };
+            void launchUltraplan({
+              blurb,
+              getAppState: () => store.getState(),
+              setAppState,
+              signal: createAbortController().signal,
+              disconnectedBridge: opts?.disconnectedBridge,
+              onSessionReady: appendWhenIdle
+            }).then(appendStdout).catch(logError);
+          }} /> : null}
+
+          {mrRender()}
+
+          {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && !isShuttingDown() && <>
+            {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
+            {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} message="How well did Claude use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
+            {/* Frustration-triggered transcript sharing prompt */}
+            {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => { }} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
+            {showIssueFlagBanner && <IssueFlagBanner />}
+            { }
+            <PromptInput debug={debug} ideSelection={ideSelection} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={renderCommands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
+              // Works during isLoading — edit cancels first; uuid selection survives appends.
+              feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
+            <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
+          </>}
+          {cursor &&
+            // inputValue is REPL state; typed text survives the round-trip.
+            <MessageActionsBar cursor={cursor} />}
+          {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={async (message: UserMessage) => {
+            await fileHistoryRewind((updater: (prev: FileHistoryState) => FileHistoryState) => {
+              setAppState(prev => ({
+                ...prev,
+                fileHistory: updater(prev.fileHistory)
+              }));
+            }, message.uuid);
+          }} onSummarize={async (message: UserMessage, feedback?: string, direction: PartialCompactDirection = 'from') => {
+            // Project snipped messages so the compact model
+            // doesn't summarize content that was intentionally removed.
+            const compactMessages = getMessagesAfterCompactBoundary(messages);
+            const messageIndex = compactMessages.indexOf(message);
+            if (messageIndex === -1) {
+              // Selected a snipped or pre-compact message that the
+              // selector still shows (REPL keeps full history for
+              // scrollback). Surface why nothing happened instead
+              // of silently no-oping.
+              setMessages(prev => [...prev, createSystemMessage('That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.', 'warning')]);
+              return;
+            }
+            const newAbortController = createAbortController();
+            const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
+            const appState = context.getAppState();
+            const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
+            const systemPrompt = buildEffectiveSystemPrompt({
+              mainThreadAgentDefinition: undefined,
+              toolUseContext: context,
+              customSystemPrompt: context.options.customSystemPrompt,
+              defaultSystemPrompt: defaultSysPrompt,
+              appendSystemPrompt: context.options.appendSystemPrompt
+            });
+            const [userContext, systemContext] = await Promise.all([getUserContext(), getSystemContext()]);
+            const result = await partialCompactConversation(compactMessages, messageIndex, context, {
+              systemPrompt,
+              userContext,
+              systemContext,
+              toolUseContext: context,
+              forkContextMessages: compactMessages
+            }, feedback, direction);
+            const kept = result.messagesToKeep ?? [];
+            const ordered = direction === 'up_to' ? [...result.summaryMessages, ...kept] : [...kept, ...result.summaryMessages];
+            const postCompact = [result.boundaryMarker, ...ordered, ...result.attachments, ...result.hookResults];
+            // Fullscreen 'from' keeps scrollback; 'up_to' must not
+            // (old[0] unchanged + grown array means incremental
+            // useLogMessages path, so boundary never persisted).
+            // Find by uuid since old is raw REPL history and snipped
+            // entries can shift the projected messageIndex.
+            if (isFullscreenEnvEnabled() && direction === 'from') {
+              setMessages(old => {
+                const rawIdx = old.findIndex(m => m.uuid === message.uuid);
+                return [...old.slice(0, rawIdx === -1 ? 0 : rawIdx), ...postCompact];
+              });
+            } else {
+              setMessages(postCompact);
+            }
+            // Partial compact bypasses handleMessageFromStream — clear
+            // the auto-compact breaker and context-blocked flag.
+            setAutoCompactTrackingForSession(getSessionId(), undefined);
+            if (feature('PROACTIVE') || feature('KAIROS')) {
+              proactiveModule?.setContextBlocked(false);
+            }
+            setConversationId(randomUUID());
+            runPostCompactCleanup(context.options.querySource);
+            if (direction === 'from') {
+              const r = textForResubmit(message);
+              if (r) {
+                setInputValue(r.text);
+                setInputMode(r.mode);
+              }
+            }
+
+            // Show notification with ctrl+o hint
+            const historyShortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
+            addNotification({
+              key: 'summarize-ctrl-o-hint',
+              text: `Conversation summarized (${historyShortcut} for history)`,
+              priority: 'medium',
+              timeoutMs: 8000
+            });
+          }} onRestoreMessage={handleRestoreMessage} onClose={() => {
+            setIsMessageSelectorVisible(false);
+            setMessageSelectorPreselect(undefined);
+          }} />}
+        </Box>
+        {isBuddyEnabled() && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
+      </Box>} />
     </MCPConnectionManager>
   </KeybindingSetup>;
   if (isFullscreenEnvEnabled()) {

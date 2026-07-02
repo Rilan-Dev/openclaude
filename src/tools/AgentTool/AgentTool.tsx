@@ -94,9 +94,7 @@ const baseInputSchema = lazySchema(() => z.object({
   run_in_background: z.boolean().optional().describe('Set to true to run this agent in the background. You will be notified when it completes.')
 }));
 
-// Full schema combining base + multi-agent params + isolation
-const fullInputSchemaBase = lazySchema(() => {
-  // Multi-agent parameters
+function agentInputObjectSchema() {
   const multiAgentInputSchema = z.object({
     name: z.string().optional().describe('Name for the spawned agent. Makes it addressable via SendMessage({to: name}) while running.'),
     team_name: z.string().optional().describe('Team name for spawning. Uses current team context if omitted.'),
@@ -106,13 +104,18 @@ const fullInputSchemaBase = lazySchema(() => {
     isolation: z.enum(['worktree']).optional().describe('Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo.'),
     cwd: z.string().optional().describe('Absolute path to run the agent in. Overrides the working directory for all filesystem and shell operations within this agent. Mutually exclusive with isolation: "worktree".')
   });
-});
+}
 
-export const fullInputSchema = lazySchema(() =>
-  fullInputSchemaBase().refine(input => !(input.isolation === 'worktree' && input.cwd !== undefined), {
+function refineAgentInputCwdIsolation<T extends z.ZodTypeAny>(schema: T): T {
+  return schema.refine(input => !(input.isolation === 'worktree' && input.cwd !== undefined), {
     path: ['cwd'],
     message: 'cwd is mutually exclusive with isolation: "worktree".'
-  }),
+  }) as T;
+}
+
+// Full schema combining base + multi-agent params + isolation
+export const fullInputSchema = lazySchema(() =>
+  refineAgentInputCwdIsolation(agentInputObjectSchema()),
 );
 
 // Strip optional fields from the schema when the backing feature is off so
@@ -122,9 +125,10 @@ export const fullInputSchema = lazySchema(() =>
 // type, but call() destructures via the explicit AgentToolInput type below
 // which always includes all optional fields.
 export const inputSchema = lazySchema(() => {
-  const schema = feature('KAIROS') ? fullInputSchemaBase() : fullInputSchemaBase().omit({
-    cwd: true
-  });
+  const omitShape: Partial<Record<'cwd' | 'run_in_background', true>> = {};
+  if (!feature('KAIROS')) {
+    omitShape.cwd = true;
+  }
 
   // GrowthBook-in-lazySchema is acceptable here (unlike subagent_type, which
   // was removed in 906da6c723): the divergence window is one-session-per-
@@ -133,9 +137,16 @@ export const inputSchema = lazySchema(() => {
   // by forceAsync) or "schema hides a param that would've worked" (gate
   // flips off mid-session: everything still runs async via memoized
   // forceAsync). No Zod rejection, no crash — unlike required→optional.
-  return isBackgroundTasksDisabled || isForkSubagentEnabled() ? schema.omit({
-    run_in_background: true
-  }) : schema;
+  if (isBackgroundTasksDisabled || isForkSubagentEnabled()) {
+    omitShape.run_in_background = true;
+  }
+
+  const schema =
+    Object.keys(omitShape).length > 0
+      ? agentInputObjectSchema().omit(omitShape)
+      : agentInputObjectSchema();
+
+  return feature('KAIROS') ? refineAgentInputCwdIsolation(schema) : schema;
 });
 type InputSchema = ReturnType<typeof inputSchema>;
 

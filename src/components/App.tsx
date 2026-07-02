@@ -1,89 +1,55 @@
-import React, { type ComponentType, type ReactNode } from 'react';
-import type { StatsStore } from '../context/stats.js';
-import type { AppState } from '../state/AppStateStore.js';
+import { c as _c } from "react-compiler-runtime";
+import type { ReactNode } from 'react';
+import { FpsMetricsProvider } from '../context/fpsMetrics.js';
+import { StatsProvider, type StatsStore } from '../context/stats.js';
+import { type AppState, AppStateProvider } from '../state/AppState.js';
+import { onChangeAppState } from '../state/onChangeAppState.js';
 import type { FpsMetrics } from '../utils/fpsTracker.js';
 type Props = {
   getFpsMetrics: () => FpsMetrics | undefined;
   stats?: StatsStore;
-  initialState?: AppState;
-  children?: ReactNode;
-  renderMode?: 'terminal' | 'web';
+  initialState: AppState;
+  children: ReactNode;
 };
-
-type RuntimeComponent<P> = ComponentType<P & { children?: ReactNode }>;
-type TerminalProviders = {
-  FpsMetricsProvider: RuntimeComponent<{
-    getFpsMetrics: () => FpsMetrics | undefined;
-  }>;
-  StatsProvider: RuntimeComponent<{
-    store?: StatsStore;
-  }>;
-  AppStateProvider: RuntimeComponent<{
-    initialState?: AppState;
-    onChangeAppState: (args: {
-      newState: AppState;
-      oldState: AppState;
-    }) => void;
-  }>;
-  onChangeAppState: (args: {
-    newState: AppState;
-    oldState: AppState;
-  }) => void;
-};
-
-let terminalProviders: TerminalProviders | undefined;
-
-function getTerminalProviders(): TerminalProviders {
-  if (!terminalProviders) {
-    const runtimeRequire = (0, eval)('require') as (id: string) => unknown;
-    const fpsMetrics = runtimeRequire('../context/fpsMetrics.js') as Pick<TerminalProviders, 'FpsMetricsProvider'>;
-    const stats = runtimeRequire('../context/stats.js') as Pick<TerminalProviders, 'StatsProvider'>;
-    const appState = runtimeRequire('../state/AppState.js') as Pick<TerminalProviders, 'AppStateProvider'>;
-    const appStateChange = runtimeRequire('../state/onChangeAppState.js') as Pick<TerminalProviders, 'onChangeAppState'>;
-    terminalProviders = {
-      FpsMetricsProvider: fpsMetrics.FpsMetricsProvider,
-      StatsProvider: stats.StatsProvider,
-      AppStateProvider: appState.AppStateProvider,
-      onChangeAppState: appStateChange.onChangeAppState
-    };
-  }
-  return terminalProviders;
-}
 
 /**
  * Top-level wrapper for interactive sessions.
  * Provides FPS metrics, stats context, and app state to the component tree.
  */
 export function App(t0: Props) {
+  const $ = _c(9);
   const {
     getFpsMetrics,
     stats,
     initialState,
-    children,
-    renderMode = 'terminal'
+    children
   } = t0;
-  if (renderMode === 'web') {
-    return React.createElement('div', {
-      style: {
-        minHeight: '100vh',
-        background: 'radial-gradient(circle at top left, rgba(65, 89, 141, 0.22), transparent 34rem), linear-gradient(135deg, #0b1117 0%, #11181f 44%, #16110d 100%)',
-        color: '#f3eadc',
-        fontFamily: '"IBM Plex Sans", "Aptos", "Segoe UI", sans-serif'
-      }
-    }, children);
+  let t1;
+  if ($[0] !== children || $[1] !== initialState) {
+    t1 = <AppStateProvider initialState={initialState} onChangeAppState={onChangeAppState}>{children}</AppStateProvider>;
+    $[0] = children;
+    $[1] = initialState;
+    $[2] = t1;
+  } else {
+    t1 = $[2];
   }
-  const {
-    FpsMetricsProvider,
-    StatsProvider,
-    AppStateProvider,
-    onChangeAppState
-  } = getTerminalProviders();
-  return React.createElement(FpsMetricsProvider, {
-    getFpsMetrics
-  }, React.createElement(StatsProvider, {
-    store: stats
-  }, React.createElement(AppStateProvider, {
-    initialState,
-    onChangeAppState
-  }, children)));
+  let t2;
+  if ($[3] !== stats || $[4] !== t1) {
+    t2 = <StatsProvider store={stats}>{t1}</StatsProvider>;
+    $[3] = stats;
+    $[4] = t1;
+    $[5] = t2;
+  } else {
+    t2 = $[5];
+  }
+  let t3;
+  if ($[6] !== getFpsMetrics || $[7] !== t2) {
+    t3 = <FpsMetricsProvider getFpsMetrics={getFpsMetrics}>{t2}</FpsMetricsProvider>;
+    $[6] = getFpsMetrics;
+    $[7] = t2;
+    $[8] = t3;
+  } else {
+    t3 = $[8];
+  }
+  return t3;
 }

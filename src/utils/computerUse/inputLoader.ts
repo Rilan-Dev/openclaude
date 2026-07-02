@@ -1,49 +1,7 @@
-import { runtimeRequire } from '../imports.js'
-
-const COMPUTER_USE_INPUT_PACKAGE = ['@ant', 'computer-use-input'].join('/')
-
-
-export type ComputerUseInputAPI = {
-  moveMouse: (
-    x: number,
-    y: number,
-    animated?: boolean,
-  ) => Promise<void>
-
-  mouseLocation: () => Promise<{ x: number; y: number }>
-
-  key: (
-    key: string,
-    action: 'press' | 'release',
-  ) => Promise<void>
-
-  keys: (keys: string[]) => Promise<void>
-
-  typeText: (text: string) => Promise<void>
-
-  mouseButton: (
-    button: 'left' | 'right' | 'middle',
-    action: 'click' | 'press' | 'release',
-    count?: 1 | 2 | 3,
-  ) => Promise<void>
-
-  mouseScroll: (
-    amount: number,
-    axis: 'vertical' | 'horizontal',
-  ) => Promise<void>
-
-  getFrontmostAppInfo: () =>
-    | {
-        bundleId?: string | null
-        appName?: string | null
-      }
-    | null
-    | undefined
-}
-
-type ComputerUseInput =
-  | ({ isSupported: true } & ComputerUseInputAPI)
-  | { isSupported: false }
+import type {
+  ComputerUseInput,
+  ComputerUseInputAPI,
+} from '@ant/computer-use-input'
 
 let cached: ComputerUseInputAPI | undefined
 
@@ -64,10 +22,9 @@ let cached: ComputerUseInputAPI | undefined
 export function requireComputerUseInput(): ComputerUseInputAPI {
   if (cached) return cached
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const input = runtimeRequire<ComputerUseInput>(COMPUTER_USE_INPUT_PACKAGE)
+  const input = require('@ant/computer-use-input') as ComputerUseInput
   if (!input.isSupported) {
     throw new Error('@ant/computer-use-input is not supported on this platform')
   }
   return (cached = input)
 }
-

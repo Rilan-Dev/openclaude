@@ -18,30 +18,13 @@ import type {
   ServerResource,
 } from './types.js'
 
-type ChannelMessageNotification = {
-  method: 'notifications/claude/channel'
-  params: {
-    content: string
-    meta?: Record<string, string>
-  }
-}
-
-type ChannelPermissionNotification = {
-  method: 'notifications/claude/channel/permission'
-  params: {
-    request_id: string
-    behavior: 'allow' | 'deny'
-  }
-}
-
 /* eslint-disable @typescript-eslint/no-require-imports */
-const hasNodeRequire = typeof require === 'function'
-const fetchMcpSkillsForClient = feature('MCP_SKILLS') && hasNodeRequire
+const fetchMcpSkillsForClient = feature('MCP_SKILLS')
   ? (
       require('../../skills/mcpSkills.js') as typeof import('../../skills/mcpSkills.js')
     ).fetchMcpSkillsForClient
   : null
-const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH') && hasNodeRequire
+const clearSkillIndexCache = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (
       require('../skillSearch/localSearch.js') as typeof import('../skillSearch/localSearch.js')
     ).clearSkillIndexCache
@@ -522,8 +505,8 @@ export function useManageMCPConnections(
               case 'register':
                 logMCPDebug(client.name, 'Channel notifications registered')
                 client.client.setNotificationHandler(
-                  ChannelMessageNotificationSchema() as any,
-                  async (notification: ChannelMessageNotification) => {
+                  ChannelMessageNotificationSchema(),
+                  async notification => {
                     const { content, meta } = notification.params
                     logMCPDebug(
                       client.name,
@@ -559,8 +542,8 @@ export function useManageMCPConnections(
                   ] !== undefined
                 ) {
                   client.client.setNotificationHandler(
-                    ChannelPermissionNotificationSchema() as any,
-                    async (notification: ChannelPermissionNotification) => {
+                    ChannelPermissionNotificationSchema(),
+                    async notification => {
                       const { request_id, behavior } = notification.params
                       const resolved =
                         channelPermCallbacksRef.current?.resolve(

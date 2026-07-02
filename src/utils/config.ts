@@ -1,7 +1,9 @@
 import { feature } from 'bun:bundle'
+import { randomBytes } from 'crypto'
 import { unwatchFile, watchFile } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import pickBy from 'lodash-es/pickBy.js'
+import { basename, dirname, join, resolve } from 'path'
 import { getOriginalCwd, getSessionTrustAccepted } from '../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../memdir/paths.js'
 import { logEvent } from '../services/analytics/index.js'
@@ -12,12 +14,12 @@ import type {
 } from '../services/oauth/types.js'
 import { getCwd } from '../utils/cwd.js'
 import { registerCleanup } from './cleanupRegistry.js'
+import { createDeferredWriter } from './deferredConfigWrites.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getGlobalClaudeFile } from './env.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { ConfigParseError, getErrnoCode } from './errors.js'
-import { basename, dirname, join, randomBytes, resolve } from './imports.js'
 import { writeFileSyncAndFlush_DEPRECATED } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
 import { findCanonicalGitRoot } from './git.js'
@@ -31,7 +33,6 @@ import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import type { ThemeSetting } from './theme.js'
 import { PRIMARY_PROJECT_INSTRUCTION_FILE } from './projectInstructions.js'
-import { isBrowserRuntime } from './imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemPaths = feature('TEAMMEM')
@@ -160,7 +161,6 @@ export {
 } from './configConstants.js'
 
 import type { EDITOR_MODES, NOTIFICATION_CHANNELS } from './configConstants.js'
-import { createDeferredWriter } from './deferredConfigWrites.js'
 
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number]
 
@@ -421,6 +421,14 @@ export type GlobalConfig = {
   // Btw usage tracking
   btwUseCount: number // Number of times user has used /btw
 
+  // Sponsored tips (ads.gitlawb.com) — opt-in earning of opengateway credits.
+  // Managed via the /ads command, NOT /config — intentionally excluded from
+  // GLOBAL_CONFIG_KEYS (the earnCode is a credential, never surfaced in /config).
+  ads?: {
+    enabled: boolean
+    earnCode?: string // issued in the opengateway Earn tab, sent as x-earn-code
+  }
+
   // Plan mode usage tracking
   lastPlanModeUse?: number // Timestamp of last plan mode usage
 
@@ -467,7 +475,7 @@ export type GlobalConfig = {
   modelSwitchCalloutLastShown?: number // Timestamp of last shown (don't show for 24h)
   modelSwitchCalloutVersion?: string
 
-  // Effort callout tracking - shown once for Opus 4.6 users
+  // Effort callout tracking - shown once for recent Opus users (4.8/4.7/4.6)
   effortCalloutDismissed?: boolean // v1 - legacy, read to suppress v2 for Pro users who already saw it
   effortCalloutV2Dismissed?: boolean
 
@@ -732,7 +740,9 @@ function createDefaultGlobalConfig(): GlobalConfig {
     providerProfiles: [],
     openaiAdditionalModelOptionsCacheByProfile: {},
     knowledgeGraphEnabled: true,
-    maxMessagesCompactionThreshold: 'off',
+    // Omitted by default so callers can distinguish "unset" from an explicit
+    // persisted "off"; normalizeMaxMessagesCompactionThreshold keeps the
+    // effective default disabled.
   }
   return config
 }
@@ -939,16 +949,25 @@ function wouldLoseAuthState(fresh: {
 export function saveGlobalConfig(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
-  if (isBrowserRuntime()) {
-    const current = globalConfigCache.config ?? createDefaultGlobalConfig()
+  if (process.env.NODE_ENV === 'test') {
+    const current = getTestGlobalConfigForTesting()
     const config = updater(current)
     // Skip if no changes (same reference returned)
-    if (config !== current) {
-      writeThroughGlobalConfigCache(config)
+    if (config === current) {
+      return
     }
-
+    Object.assign(current, config)
     return
   }
+
+  // Apply any queued deferred writes first. A direct save re-reads the on-disk
+  // config and write-throughs that snapshot into globalConfigCache; without
+  // draining the deferred queue first, that snapshot would drop the pending
+  // counter deltas the cache is holding and same-process readers would observe
+  // stale values until the debounce fires. flushGlobalConfigWrites() is a no-op
+  // when nothing is queued, and the drain empties the queue before its own
+  // saveGlobalConfig runs, so this recurses at most one level.
+  flushGlobalConfigWrites()
 
   let written: GlobalConfig | null = null
   try {
@@ -1016,47 +1035,6 @@ export function saveGlobalConfig(
   }
 }
 
-// Cache for global config
-let globalConfigCache: { config: GlobalConfig | null; mtime: number } = {
-  config: null,
-  mtime: 0,
-}
-
-// Tracking for config file operations (telemetry)
-let lastReadFileStats: { mtime: number; size: number } | null = null
-let configCacheHits = 0
-let configCacheMisses = 0
-// Session-total count of actual disk writes to the global config file.
-// Exposed for internal-only dev diagnostics (see inc-4552) so anomalous write
-// rates surface in the UI before they corrupt ~/.openclaude.json.
-let globalConfigWriteCount = 0
-
-export function getGlobalConfigWriteCount(): number {
-  return globalConfigWriteCount
-}
-
-export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
-
-function reportConfigCacheStats(): void {
-  const total = configCacheHits + configCacheMisses
-  if (total > 0) {
-    logEvent('tengu_config_cache_stats', {
-      cache_hits: configCacheHits,
-      cache_misses: configCacheMisses,
-      hit_rate: configCacheHits / total,
-    })
-  }
-  configCacheHits = 0
-  configCacheMisses = 0
-}
-
-// Register cleanup to report cache stats at session end
-// eslint-disable-next-line custom-rules/no-top-level-side-effects
-registerCleanup(async () => {
-  reportConfigCacheStats()
-})
-
-
 // Coalesced (debounced) global-config writer.
 //
 // saveGlobalConfig does a synchronous lockfile acquire + full re-read + backup
@@ -1070,7 +1048,6 @@ registerCleanup(async () => {
 // or migration writes through it (see GH #3117); it is for idempotent,
 // loss-tolerant counters/flags only.
 const CONFIG_FLUSH_DEBOUNCE_MS = 500
-
 
 // The queue/debounce/write-through/batch-drain logic lives in a generic,
 // disk-free engine (see deferredConfigWrites.ts) so it can be unit-tested with
@@ -1112,16 +1089,80 @@ export function saveGlobalConfigDeferred(
   globalConfigDeferredWriter.defer(updater)
 }
 
+// Force any queued deferred writes to disk now. Safe to call repeatedly; a
+// no-op when nothing is pending. Call before reading the config from disk in
+// another process, or before spawning a subprocess that reads it.
+export function flushGlobalConfigWrites(): void {
+  globalConfigDeferredWriter.flush()
+}
+
+// Flush queued writes on shutdown. registerCleanup covers graceful exits; the
+// sync 'exit' handler is the hard-exit backstop (flush is fully synchronous).
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+registerCleanup(async () => {
+  flushGlobalConfigWrites()
+})
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.on('exit', () => {
+  flushGlobalConfigWrites()
+})
+
+// Cache for global config
+let globalConfigCache: { config: GlobalConfig | null; mtime: number } = {
+  config: null,
+  mtime: 0,
+}
+
+// Tracking for config file operations (telemetry)
+let lastReadFileStats: { mtime: number; size: number } | null = null
+let configCacheHits = 0
+let configCacheMisses = 0
+// Session-total count of actual disk writes to the global config file.
+// Exposed for internal-only dev diagnostics (see inc-4552) so anomalous write
+// rates surface in the UI before they corrupt ~/.openclaude.json.
+let globalConfigWriteCount = 0
+
+export function getGlobalConfigWriteCount(): number {
+  return globalConfigWriteCount
+}
+
+export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
+
+function reportConfigCacheStats(): void {
+  const total = configCacheHits + configCacheMisses
+  if (total > 0) {
+    logEvent('tengu_config_cache_stats', {
+      cache_hits: configCacheHits,
+      cache_misses: configCacheMisses,
+      hit_rate: configCacheHits / total,
+    })
+  }
+  configCacheHits = 0
+  configCacheMisses = 0
+}
+
+// Register cleanup to report cache stats at session end
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+registerCleanup(async () => {
+  reportConfigCacheStats()
+})
+
 /**
  * Migrates old autoUpdaterStatus to new installMethod and autoUpdates fields
  * @internal
  */
 function migrateConfigFields(config: GlobalConfig): GlobalConfig {
+  const { maxMessagesCompactionThreshold, ...restConfig } = config
   const normalizedConfig = {
-    ...config,
-    maxMessagesCompactionThreshold: normalizeMaxMessagesCompactionThreshold(
-      config.maxMessagesCompactionThreshold,
-    ),
+    ...restConfig,
+    ...(maxMessagesCompactionThreshold === undefined
+      ? {}
+      : {
+          maxMessagesCompactionThreshold:
+            normalizeMaxMessagesCompactionThreshold(
+              maxMessagesCompactionThreshold,
+            ),
+        }),
   }
 
   // Already migrated
@@ -1256,8 +1297,8 @@ function writeThroughGlobalConfigCache(config: GlobalConfig): void {
 }
 
 export function getGlobalConfig(): GlobalConfig {
-  if (isBrowserRuntime()) {
-    return DEFAULT_GLOBAL_CONFIG
+  if (process.env.NODE_ENV === 'test') {
+    return getTestGlobalConfigForTesting()
   }
 
   // Fast path: pure memory read. After startup, this always hits — our own
@@ -1308,7 +1349,7 @@ export function getGlobalConfig(): GlobalConfig {
 export function getRemoteControlAtStartup(): boolean {
   const explicit = getGlobalConfig().remoteControlAtStartup
   if (explicit !== undefined) return explicit
-  if (!isBrowserRuntime() && feature('CCR_AUTO_CONNECT')) {
+  if (feature('CCR_AUTO_CONNECT')) {
     if (ccrAutoConnect?.getCcrAutoConnectDefault()) return true
   }
   return false
@@ -1839,25 +1880,6 @@ export function getCurrentProjectConfig(): ProjectConfig {
 export function saveCurrentProjectConfig(
   updater: (currentConfig: ProjectConfig) => ProjectConfig,
 ): void {
-  if (isBrowserRuntime()) {
-    const currentGlobal = globalConfigCache.config ?? createDefaultGlobalConfig()
-    const projectPath = 'web'
-    const currentProject =
-      currentGlobal.projects?.[projectPath] ?? DEFAULT_PROJECT_CONFIG
-    const nextProject = updater(currentProject)
-
-    if (nextProject !== currentProject) {
-      writeThroughGlobalConfigCache({
-        ...currentGlobal,
-        projects: {
-          ...currentGlobal.projects,
-          [projectPath]: nextProject,
-        },
-      })
-    }
-
-    return
-  }
   if (process.env.NODE_ENV === 'test') {
     const current = getTestProjectConfigForTesting()
     const config = updater(current)
@@ -2020,14 +2042,14 @@ export function getMemoryPath(memoryType: MemoryType): string {
       return join(cwd, 'CLAUDE.local.md')
     case 'Project':
       return join(cwd, PRIMARY_PROJECT_INSTRUCTION_FILE)
-  case 'Managed':
+    case 'Managed':
       return join(getManagedFilePath(), 'CLAUDE.md')
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
   // TeamMem is only a valid MemoryType when feature('TEAMMEM') is true
-  if (!isBrowserRuntime() && feature('TEAMMEM') && teamMemPaths != null) {
-    return teamMemPaths.getTeamMemEntrypoint()
+  if (feature('TEAMMEM')) {
+    return teamMemPaths!.getTeamMemEntrypoint()
   }
   return '' // unreachable in external builds where TeamMem is not in MemoryType
 }

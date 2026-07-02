@@ -12,7 +12,6 @@ import { isQueuedCommandEditable, isQueuedCommandVisible } from '../../utils/mes
 import { createUserMessage, EMPTY_LOOKUPS, normalizeMessages } from '../../utils/messages.js';
 import { jsonParse } from '../../utils/slowOperations.js';
 import { Message } from '../Message.js';
-import { isBrowserRuntime } from '../../utils/imports.js';
 const EMPTY_SET = new Set<string>();
 
 /**
@@ -116,48 +115,6 @@ function PromptInputQueuedCommandsImpl(): React.ReactNode {
   // Don't show leader's queued commands when viewing any agent's transcript
   if (viewingAgent || messages === null) {
     return null;
-  }
-  if (isBrowserRuntime()) {
-    return (
-      <div className="repl-queuedCommandDeck" aria-live="polite">
-        {queuedPromptCount > 0 ? (
-          <div className="repl-queuedCommandSummary">
-            <span className="repl-queuedCommandSummaryCount">
-              {queuedPromptCount}
-            </span>
-            <span className="repl-queuedCommandSummaryCopy">
-              {queuedPromptCount === 1
-                ? 'message queued for the next turn'
-                : 'messages queued for the next turn'}
-            </span>
-          </div>
-        ) : null}
-        <div className="repl-queuedCommandList">
-          {messages.map((message, i) => (
-            <QueuedMessageProvider
-              key={i}
-              isFirst={i === 0}
-              useBriefLayout={useBriefLayout}
-            >
-              <Message
-                message={message}
-                lookups={EMPTY_LOOKUPS}
-                addMargin={false}
-                tools={[]}
-                commands={[]}
-                verbose={false}
-                inProgressToolUseIDs={EMPTY_SET}
-                progressMessagesForMessage={[]}
-                shouldAnimate={false}
-                shouldShowDot={false}
-                isTranscriptMode={false}
-                isStatic={true}
-              />
-            </QueuedMessageProvider>
-          ))}
-        </div>
-      </div>
-    )
   }
   return <Box marginTop={1} flexDirection="column">
       {queuedPromptCount > 0 && <Box marginLeft={2} marginBottom={1}>

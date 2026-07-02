@@ -1,10 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useEventCallback } from 'usehooks-ts'
 import type { InputEvent, Key } from '../events/input-event.js'
-import { InputEvent as InkInputEvent } from '../events/input-event.js'
-import { parsedKeyFromBrowserEvent } from '../browser-dom.js'
 import useStdin from './use-stdin.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 
 type Handler = (input: string, key: Key, event: InputEvent) => void
 
@@ -16,55 +13,6 @@ type Options = {
    * @default true
    */
   isActive?: boolean
-}
-
-type BrowserInputListener = (input: string, key: Key, event: InputEvent) => void
-
-const browserInputListeners: BrowserInputListener[] = []
-let browserInputBridgeInitialized = false
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  )
-}
-
-function dispatchBrowserInput(nativeEvent: globalThis.KeyboardEvent): void {
-  if (isEditableTarget(nativeEvent.target)) {
-    return
-  }
-
-  const parsedKey = parsedKeyFromBrowserEvent(nativeEvent)
-  const event = new InkInputEvent(parsedKey)
-
-  for (const listener of [...browserInputListeners]) {
-    listener(event.input, event.key, event)
-    if (event.didStopImmediatePropagation()) {
-      break
-    }
-  }
-
-  nativeEvent.preventDefault()
-}
-
-function ensureBrowserInputBridge(): void {
-  if (browserInputBridgeInitialized) {
-    return
-  }
-
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  browserInputBridgeInitialized = true
-  window.addEventListener('keydown', dispatchBrowserInput, true)
 }
 
 /**
@@ -92,26 +40,6 @@ function ensureBrowserInputBridge(): void {
  * ```
  */
 const useInput = (inputHandler: Handler, options: Options = {}) => {
-  if (isBrowserRuntime()) {
-    useLayoutEffect(() => {
-      if (options.isActive === false) {
-        return
-      }
-
-      ensureBrowserInputBridge()
-      browserInputListeners.push(inputHandler)
-
-      return () => {
-        const index = browserInputListeners.indexOf(inputHandler)
-        if (index !== -1) {
-          browserInputListeners.splice(index, 1)
-        }
-      }
-    }, [inputHandler, options.isActive])
-
-    return
-  }
-
   const { setRawMode, internal_exitOnCtrlC, internal_eventEmitter } = useStdin()
 
   // Timer handle for the deferred raw-mode reset. Persists across renders

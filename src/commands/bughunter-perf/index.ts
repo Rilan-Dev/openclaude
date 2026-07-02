@@ -1,10 +1,9 @@
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { createGetAppStateWithAllowedTools } from '../../utils/forkedAgent.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
+import { parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
 import { executeShellCommandsInPrompt } from '../../utils/promptShellExecution.js'
 import { MalformedCommandError, ShellError } from '../../utils/errors.js'
 import { createMovedToPluginCommand } from '../createMovedToPluginCommand.js'
-import { BUGHUNTER_ALLOWED_TOOLS } from '../sharedPromptCommandTools.js'
 
 const BUGHUNTER_PERF_PROMPT = `---
 allowed-tools: Read, Glob, Grep, LS, Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git status:*)
@@ -212,15 +211,17 @@ const bughunterPerf = createMovedToPluginCommand({
   progressMessage: 'hunting for performance bugs…',
   pluginName: 'bughunter',
   pluginCommand: 'bughunter-perf',
-  allowedTools: BUGHUNTER_ALLOWED_TOOLS,
+  allowedTools: parseSlashCommandToolsFromFrontmatter(
+    parseFrontmatter(BUGHUNTER_PERF_PROMPT).frontmatter['allowed-tools'],
+  ),
   async getPromptWhileMarketplaceIsPrivate(args, context) {
     const scope =
       args?.trim() ||
       'the current project — focus on staged, unstaged, and recently committed files'
     const parsed = parseFrontmatter(BUGHUNTER_PERF_PROMPT)
-    if (isBrowserRuntime()) {
-      return [{ type: 'text', text: parsed.content.replace('{{ARGS}}', () => scope) }]
-    }
+    const allowedTools = parseSlashCommandToolsFromFrontmatter(
+      parsed.frontmatter['allowed-tools'],
+    )
 
     // Execute shell commands first ({{ARGS}} is inert to shell patterns),
     // then inject user-provided scope so shell snippets in args cannot execute.
@@ -237,7 +238,7 @@ const bughunterPerf = createMovedToPluginCommand({
           ...context,
           getAppState: createGetAppStateWithAllowedTools(
             context.getAppState,
-            BUGHUNTER_ALLOWED_TOOLS,
+            allowedTools,
           ),
         },
         'bughunter-perf',

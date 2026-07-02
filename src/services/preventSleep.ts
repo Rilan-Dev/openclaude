@@ -12,10 +12,9 @@
  *
  * Only runs on macOS - no-op on other platforms.
  */
+import { type ChildProcess, spawn } from 'child_process'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
-import { ChildProcessLike, spawnProcess } from '../utils/imports.js'
 import { logForDebugging } from '../utils/debug.js'
-
 
 // Caffeinate timeout in seconds. Process auto-exits after this duration.
 // We restart it before expiry to maintain continuous sleep prevention.
@@ -25,7 +24,7 @@ const CAFFEINATE_TIMEOUT_SECONDS = 300 // 5 minutes
 // Use 4 minutes to give plenty of buffer before the 5 minute timeout.
 const RESTART_INTERVAL_MS = 4 * 60 * 1000
 
-let caffeinateProcess: ChildProcessLike | null = null
+let caffeinateProcess: ChildProcess | null = null
 let restartInterval: ReturnType<typeof setInterval> | null = null
 let refCount = 0
 let cleanupRegistered = false
@@ -70,7 +69,7 @@ export function forceStopPreventSleep(): void {
 
 function startRestartInterval(): void {
   // Only run on macOS
-  if (typeof process === 'undefined' || process.platform !== 'darwin') {
+  if (process.platform !== 'darwin') {
     return
   }
 
@@ -101,7 +100,7 @@ function stopRestartInterval(): void {
 
 function spawnCaffeinate(): void {
   // Only run on macOS
-  if (typeof process === 'undefined' || process.platform !== 'darwin') {
+  if (process.platform !== 'darwin') {
     return
   }
 
@@ -123,7 +122,7 @@ function spawnCaffeinate(): void {
     //     This is the least aggressive option - display can still sleep
     // -t: Timeout in seconds - caffeinate exits automatically after this
     //     This provides self-healing if Node is killed with SIGKILL
-    caffeinateProcess = spawnProcess(
+    caffeinateProcess = spawn(
       'caffeinate',
       ['-i', '-t', String(CAFFEINATE_TIMEOUT_SECONDS)],
       {

@@ -16,16 +16,13 @@ import {
   OpenIdProviderDiscoveryMetadataSchema,
 } from '@modelcontextprotocol/sdk/shared/auth.js'
 import { randomBytes } from 'crypto'
+import { createServer, type Server } from 'http'
 import { parse } from 'url'
 import xss from 'xss'
 import { openBrowser } from '../../utils/browser.js'
 import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { toError } from '../../utils/errors.js'
-import {
-  createHttpServer,
-  type HttpServer,
-} from '../../utils/imports.js'
 import { logMCPDebug } from '../../utils/log.js'
 import { getPlatform } from '../../utils/platform.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
@@ -283,13 +280,13 @@ function jwtExp(jwt: string): number | undefined {
  * `onListening` fires after the socket is actually bound — use it to defer
  * browser-open so EADDRINUSE surfaces before a spurious tab pops open.
  */
-async function waitForCallback(
+function waitForCallback(
   port: number,
   expectedState: string,
   abortSignal: AbortSignal | undefined,
   onListening: () => void,
 ): Promise<string> {
-  let server: HttpServer | null = null
+  let server: Server | null = null
   let timeoutId: NodeJS.Timeout | null = null
   let abortHandler: (() => void) | null = null
   const cleanup = () => {
@@ -331,7 +328,7 @@ async function waitForCallback(
       abortSignal.addEventListener('abort', abortHandler, { once: true })
     }
 
-    createHttpServer((req, res) => {
+    server = createServer((req, res) => {
       const parsed = parse(req.url || '', true)
       if (parsed.pathname !== '/callback') {
         res.writeHead(404)
@@ -385,36 +382,32 @@ async function waitForCallback(
         '<html><body><h3>IdP login complete — you can close this window.</h3></body></html>',
       )
       resolveOnce(result.code)
-    }).then(createdServer => {
-      server = createdServer
+    })
 
-      server.on('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          const findCmd =
-            getPlatform() === 'windows'
-              ? `netstat -ano | findstr :${port}`
-              : `lsof -ti:${port} -sTCP:LISTEN`
-          rejectOnce(
-            new Error(
-              `XAA IdP: callback port ${port} is already in use. Run \`${findCmd}\` to find the holder.`,
-            ),
-          )
-        } else {
-          rejectOnce(
-            new Error(`XAA IdP: callback server failed: ${err.message}`),
-          )
-        }
-      })
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        const findCmd =
+          getPlatform() === 'windows'
+            ? `netstat -ano | findstr :${port}`
+            : `lsof -ti:${port} -sTCP:LISTEN`
+        rejectOnce(
+          new Error(
+            `XAA IdP: callback port ${port} is already in use. Run \`${findCmd}\` to find the holder.`,
+          ),
+        )
+      } else {
+        rejectOnce(new Error(`XAA IdP: callback server failed: ${err.message}`))
+      }
+    })
 
-      server.listen(port, '127.0.0.1', () => {
-        try {
-          onListening()
-        } catch (e) {
-          rejectOnce(toError(e))
-        }
-      })
-      server.unref?.()
-    }).catch(error => rejectOnce(toError(error)))
+    server.listen(port, '127.0.0.1', () => {
+      try {
+        onListening()
+      } catch (e) {
+        rejectOnce(toError(e))
+      }
+    })
+    server.unref()
     timeoutId = setTimeout(
       rej => rej(new Error('XAA IdP: login timed out')),
       IDP_LOGIN_TIMEOUT_MS,

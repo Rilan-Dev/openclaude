@@ -9,17 +9,12 @@
  * use the default bindings.
  */
 
+import chokidar, { type FSWatcher } from 'chokidar'
+import { readFileSync } from 'fs'
+import { readFile, stat } from 'fs/promises'
+import { dirname, join } from 'path'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { logEvent } from '../services/analytics/index.js'
-import {
-  dirname,
-  getChokidar,
-  isBrowserRuntime,
-  join,
-  readFile,
-  readFileSync,
-  stat,
-} from '../utils/imports.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
@@ -67,8 +62,6 @@ export type KeybindingsLoadResult = {
   bindings: ParsedBinding[]
   warnings: KeybindingWarning[]
 }
-
-type FSWatcher = import('chokidar').FSWatcher
 
 let watcher: FSWatcher | null = null
 let initialized = false
@@ -141,14 +134,14 @@ export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
   const defaultBindings = getDefaultParsedBindings()
 
   // Skip user config loading for external users
-  if (isBrowserRuntime() || !isKeybindingCustomizationEnabled()) {
+  if (!isKeybindingCustomizationEnabled()) {
     return { bindings: defaultBindings, warnings: [] }
   }
 
   const userPath = getKeybindingsPath()
 
   try {
-    const content = (await readFile(userPath, { encoding: 'utf-8' })) as string
+    const content = await readFile(userPath, 'utf-8')
     const parsed: unknown = jsonParse(content)
 
     // Extract bindings array from object wrapper format: { "bindings": [...] }
@@ -271,7 +264,7 @@ export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
   const defaultBindings = getDefaultParsedBindings()
 
   // Skip user config loading for external users
-  if (isBrowserRuntime() || !isKeybindingCustomizationEnabled()) {
+  if (!isKeybindingCustomizationEnabled()) {
     cachedBindings = defaultBindings
     cachedWarnings = []
     return { bindings: cachedBindings, warnings: cachedWarnings }
@@ -281,7 +274,7 @@ export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
 
   try {
     // sync IO: called from sync context (React useState initializer)
-    const content = readFileSync(userPath, 'utf-8') as string
+    const content = readFileSync(userPath, 'utf-8')
     const parsed: unknown = jsonParse(content)
 
     // Extract bindings array from object wrapper format: { "bindings": [...] }
@@ -361,7 +354,7 @@ export async function initializeKeybindingWatcher(): Promise<void> {
   if (initialized || disposed) return
 
   // Skip file watching for external users
-  if (isBrowserRuntime() || !isKeybindingCustomizationEnabled()) {
+  if (!isKeybindingCustomizationEnabled()) {
     logForDebugging(
       '[keybindings] Skipping file watcher - user customization disabled',
     )
@@ -390,7 +383,6 @@ export async function initializeKeybindingWatcher(): Promise<void> {
 
   logForDebugging(`[keybindings] Watching for changes to ${userPath}`)
 
-  const chokidar = getChokidar()
   watcher = chokidar.watch(userPath, {
     persistent: true,
     ignoreInitial: true,

@@ -79,8 +79,8 @@ import {
   getDefaultOpusModel,
 } from './model/model.js'
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
+import { getSkillToolCommands, getMcpSkillCommands } from '../commands.js'
 import type { Command } from '../types/command.js'
-import { isBrowserRuntime, runtimeImport } from './imports.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import {
@@ -195,7 +195,6 @@ import {
   getUserMessageText,
   isThinkingMessage,
 } from './messages.js'
-import { getSnipCompactRuntimeModule } from '../services/compact/snipCompactRuntime.js'
 import { isHumanTurn } from './messagePredicates.js'
 import { isEnvTruthy, getClaudeConfigHomeDir } from './envUtils.js'
 import { feature } from 'bun:bundle'
@@ -216,6 +215,7 @@ import {
   tokenCountWithEstimation,
 } from './tokens.js'
 import {
+  getAutoCompactThreshold,
   getEffectiveContextWindowSize,
   isAutoCompactEnabled,
 } from '../services/compact/autoCompact.js'
@@ -955,7 +955,12 @@ export async function getAttachments(
     ...(feature('HISTORY_SNIP')
       ? [
           maybe('context_efficiency', () =>
-            Promise.resolve(getContextEfficiencyAttachment(messages ?? [])),
+            Promise.resolve(
+              getContextEfficiencyAttachment(
+                messages ?? [],
+                toolUseContext.options.mainLoopModel,
+              ),
+            ),
           ),
         ]
       : []),
@@ -2694,20 +2699,10 @@ async function getSkillListingAttachments(
   }
 
   const cwd = getProjectRoot()
-  const localCommands = isBrowserRuntime()
-    ? []
-    : await (async () => {
-        const { getSkillToolCommands } = await runtimeImport<typeof import('../commands.js')>('../commands.js')
-        return getSkillToolCommands(cwd)
-      })()
-  const mcpSkills = isBrowserRuntime()
-    ? []
-    : toolUseContext.getAppState().mcp.commands.filter(
-        cmd =>
-          cmd.type === 'prompt' &&
-          cmd.loadedFrom === 'mcp' &&
-          !cmd.disableModelInvocation,
-      )
+  const localCommands = await getSkillToolCommands(cwd)
+  const mcpSkills = getMcpSkillCommands(
+    toolUseContext.getAppState().mcp.commands,
+  )
   let allCommands =
     mcpSkills.length > 0
       ? uniqBy([...localCommands, ...mcpSkills], 'name')
@@ -4012,13 +4007,48 @@ export function getCompactionReminderAttachment(
 }
 
 /**
- * Context-efficiency nudge. Injected after every N tokens of growth without
- * a snip. Pacing is handled entirely by shouldNudgeForSnips — the 10k
- * interval resets on prior nudges, snip markers, snip boundaries, and
- * compact boundaries.
+ * Context-efficiency nudge. Injected only once the active model is under
+ * meaningful context pressure, then paced by new content since the last reset
+ * point. shouldNudgeForSnips preserves the reset behavior for prior nudges,
+ * snip markers, snip boundaries, and compact boundaries.
  */
+const MIN_SNIP_NUDGE_TOKENS = 10_000
+const MAX_SNIP_NUDGE_REPEAT_TOKENS = 100_000
+const SNIP_NUDGE_START_FRACTION = 0.60
+const SNIP_NUDGE_REPEAT_FRACTION = 0.10
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+export function getSnipNudgeRepeatInterval(model: string): number {
+  const effectiveWindow = getEffectiveContextWindowSize(model)
+  return clamp(
+    Math.floor(effectiveWindow * SNIP_NUDGE_REPEAT_FRACTION),
+    MIN_SNIP_NUDGE_TOKENS,
+    MAX_SNIP_NUDGE_REPEAT_TOKENS,
+  )
+}
+
+export function getSnipNudgeStartThreshold(model: string): number {
+  const effectiveWindow = getEffectiveContextWindowSize(model)
+  const autoCompactThreshold = getAutoCompactThreshold(model)
+  const leadTokens = getSnipNudgeRepeatInterval(model)
+  const fractionalStart = Math.floor(effectiveWindow * SNIP_NUDGE_START_FRACTION)
+  const preAutoCompactStart = Math.max(
+    MIN_SNIP_NUDGE_TOKENS,
+    autoCompactThreshold - leadTokens,
+  )
+
+  return Math.max(
+    MIN_SNIP_NUDGE_TOKENS,
+    Math.min(fractionalStart, preAutoCompactStart),
+  )
+}
+
 export function getContextEfficiencyAttachment(
   messages: Message[],
+  model: string,
 ): Attachment[] {
   if (!feature('HISTORY_SNIP')) {
     return []
@@ -4026,12 +4056,20 @@ export function getContextEfficiencyAttachment(
   // Gate must match SnipTool.isEnabled() — don't nudge toward a tool that
   // isn't in the tool list. Lazy require keeps this file snip-string-free.
   const { isSnipRuntimeEnabled, shouldNudgeForSnips } =
-    getSnipCompactRuntimeModule()
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('../services/compact/snipCompact.js') as typeof import('../services/compact/snipCompact.js')
   if (!isSnipRuntimeEnabled()) {
     return []
   }
 
-  if (!shouldNudgeForSnips(messages)) {
+  const usedTokens = tokenCountWithEstimation(messages)
+  const startThreshold = getSnipNudgeStartThreshold(model)
+  if (usedTokens < startThreshold) {
+    return []
+  }
+
+  const repeatInterval = getSnipNudgeRepeatInterval(model)
+  if (!shouldNudgeForSnips(messages, repeatInterval)) {
     return []
   }
 

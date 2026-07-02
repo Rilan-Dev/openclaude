@@ -1,7 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import { feature } from 'bun:bundle';
 import chalk from 'chalk';
-import type { UUID } from '../utils/imports.js';
+import type { UUID } from 'crypto';
 import type { RefObject } from 'react';
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -28,7 +28,7 @@ import { getGlobalConfig } from '../utils/config.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
 import { applyGrouping } from '../utils/groupToolUses.js';
-import { buildMessageLookups, createAssistantMessage, deriveUUID, getMessagesAfterCompactBoundary, getToolUseID, getToolUseIDs, hasUnresolvedHooksFromLookup, isNotEmptyMessage, normalizeMessages, reorderMessagesInUI, type StreamingThinking, type StreamingToolUse, shouldShowUserMessage } from '../utils/messages.js';
+import { buildMessageLookups, createAssistantMessage, deriveUUID, getMessagesAfterCompactBoundary, getToolUseID, getToolUseIDs, hasUnresolvedHooksFromLookup, isNotEmptyMessage, normalizeMessages, normalizeMessagesCached, reorderMessagesInUI, type StreamingThinking, type StreamingToolUse, shouldShowUserMessage } from '../utils/messages.js';
 import { plural } from '../utils/stringUtils.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { Divider } from './design-system/Divider.js';
@@ -43,7 +43,6 @@ import { OffscreenFreeze } from './OffscreenFreeze.js';
 import type { ToolUseConfirm } from './permissions/PermissionRequest.js';
 import { StatusNotices } from './StatusNotices.js';
 import type { JumpHandle } from './VirtualMessageList.js';
-import { isBrowserRuntime } from '../utils/imports.js';
 
 // Memoed logo header: this box is the FIRST sibling before all MessageRows
 // in main-screen mode. If it becomes dirty on every Messages re-render,
@@ -80,10 +79,9 @@ const LogoHeader = React.memo(function LogoHeader(t0: {
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
-const hasNodeRequire = typeof require === 'function';
-const proactiveModule = (feature('PROACTIVE') || feature('KAIROS')) && hasNodeRequire ? require('../proactive/index.js') : null;
-const BRIEF_TOOL_NAME: string | null = (feature('KAIROS') || feature('KAIROS_BRIEF')) && hasNodeRequire ? (require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')).BRIEF_TOOL_NAME : null;
-const SEND_USER_FILE_TOOL_NAME: string | null = feature('KAIROS') && hasNodeRequire ? (require('../tools/SendUserFileTool/prompt.js') as typeof import('../tools/SendUserFileTool/prompt.js')).SEND_USER_FILE_TOOL_NAME : null;
+const proactiveModule = feature('PROACTIVE') || feature('KAIROS') ? require('../proactive/index.js') : null;
+const BRIEF_TOOL_NAME: string | null = feature('KAIROS') || feature('KAIROS_BRIEF') ? (require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')).BRIEF_TOOL_NAME : null;
+const SEND_USER_FILE_TOOL_NAME: string | null = feature('KAIROS') ? (require('../tools/SendUserFileTool/prompt.js') as typeof import('../tools/SendUserFileTool/prompt.js')).SEND_USER_FILE_TOOL_NAME : null;
 
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { VirtualMessageList } from './VirtualMessageList.js';
@@ -380,7 +378,10 @@ const MessagesImpl = ({
     columns
   } = useTerminalSize();
   const toggleShowAllShortcut = useShortcutDisplay('transcript:toggleShowAll', 'Transcript', 'Ctrl+E');
-  const normalizedMessages = useMemo(() => normalizeMessages(messages).filter(isNotEmptyMessage), [messages]);
+  // normalizeMessagesCached reuses per-message normalized output across
+  // renders, so a single append no longer re-normalizes the whole transcript
+  // and unchanged rows keep their object identity for memo/WeakMap reuse.
+  const normalizedMessages = useMemo(() => normalizeMessagesCached(messages).filter(isNotEmptyMessage), [messages]);
 
   // Check if streaming thinking should be visible (streaming or within 30s timeout)
   const isStreamingThinkingVisible = useMemo(() => {
@@ -457,10 +458,7 @@ const MessagesImpl = ({
     // Same class of bug fixed in normalizeMessages (commit 383326e613):
     // fresh randomUUID → unstable React keys → component remounts →
     // Ink rendering corruption (overlapping text from stale DOM nodes).
-    msg_1.uuid = deriveUUID(
-      streamingToolUse.contentBlock.id as UUID,
-      0,
-    ) as typeof msg_1.uuid
+    msg_1.uuid = deriveUUID(streamingToolUse.contentBlock.id as UUID, 0);
     return normalizeMessages([msg_1]);
   }), [streamingToolUsesWithoutInProgress]);
   const isTranscriptMode = screen === 'transcript';
@@ -681,7 +679,7 @@ const MessagesImpl = ({
     searchTextCache.current.set(msg_9, lowered);
     return lowered;
   }, [tools, lookups_0]);
-  const transcript = <>
+  return <>
       {/* Logo */}
       {!hideLogo && !(renderRange && renderRange[0] > 0) && <LogoHeader agentDefinitions={agentDefinitions} />}
 
@@ -725,12 +723,6 @@ const MessagesImpl = ({
       }} addMargin={false} isTranscriptMode={true} verbose={verbose} hideInTranscript={false} />
         </Box>}
     </>;
-
-  if (isBrowserRuntime()) {
-    return <div className="repl-browserTranscript">{transcript}</div>;
-  }
-
-  return transcript;
 };
 
 /** Key for click-to-expand: tool_use_id where available (so tool_use + its

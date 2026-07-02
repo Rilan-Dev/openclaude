@@ -27,6 +27,8 @@ export class SandboxManager {
     return {
       available: false,
       missing: ['browser'],
+      errors: ['Sandboxing is not available in the browser WebUI runtime.'],
+      warnings: [],
     }
   }
 

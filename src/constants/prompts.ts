@@ -1,4 +1,5 @@
 // biome-ignore-all assist/source/organizeImports: internal-only import markers must not be reordered
+import { type as osType, version as osVersion, release as osRelease } from 'os'
 import { env } from '../utils/env.js'
 import { getIsGit } from '../utils/git.js'
 import { getCwd } from '../utils/cwd.js'
@@ -22,6 +23,7 @@ import {
   getCanonicalName,
   getMarketingNameForModel,
 } from '../utils/model/model.js'
+import { getSkillToolCommands } from 'src/commands.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { getOutputStyleConfig } from './outputStyles.js'
 import type {
@@ -59,13 +61,6 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { getAntModelOverrideConfig } from '../utils/model/antModels.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import {
-  isBrowserRuntime,
-  release as osRelease,
-  runtimeImport,
-  type as osType,
-  version as osVersion,
-} from '../utils/imports.js'
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -76,22 +71,22 @@ const getCachedMCConfigForFRC = feature('CACHED_MICROCOMPACT')
   : null
 
 const proactiveModule =
-  (feature('PROACTIVE') || feature('KAIROS'))
+  feature('PROACTIVE') || feature('KAIROS')
     ? require('../proactive/index.js')
     : null
 const BRIEF_PROACTIVE_SECTION: string | null =
-  (feature('KAIROS') || feature('KAIROS_BRIEF'))
+  feature('KAIROS') || feature('KAIROS_BRIEF')
     ? (
         require('../tools/BriefTool/prompt.js') as typeof import('../tools/BriefTool/prompt.js')
       ).BRIEF_PROACTIVE_SECTION
     : null
 const briefToolModule =
-  (feature('KAIROS') || feature('KAIROS_BRIEF'))
+  feature('KAIROS') || feature('KAIROS_BRIEF')
     ? (require('../tools/BriefTool/BriefTool.js') as typeof import('../tools/BriefTool/BriefTool.js'))
     : null
-const DISCOVER_SKILLS_TOOL_NAME: string | null =
-  !isBrowserRuntime() &&
-  feature('EXPERIMENTAL_SKILL_SEARCH')
+const DISCOVER_SKILLS_TOOL_NAME: string | null = feature(
+  'EXPERIMENTAL_SKILL_SEARCH',
+)
   ? (
       require('../tools/DiscoverSkillsTool/prompt.js') as typeof import('../tools/DiscoverSkillsTool/prompt.js')
     ).DISCOVER_SKILLS_TOOL_NAME
@@ -121,7 +116,7 @@ export const SYSTEM_PROMPT_DYNAMIC_BOUNDARY =
   '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
 
 // @[MODEL LAUNCH]: Update the latest frontier model.
-const FRONTIER_MODEL_NAME = 'Claude Opus 4.7'
+const FRONTIER_MODEL_NAME = 'Claude Opus 4.8'
 
 function getHooksSection(): string {
   return `Users may configure 'hooks', shell commands that execute in response to events like tool calls, in settings. Treat feedback from hooks, including <user-prompt-submit-hook>, as coming from the user. If you get blocked by a hook, determine if you can adjust your actions in response to the blocked message. If not, ask the user to check their hooks configuration.`
@@ -455,17 +450,8 @@ export async function getSystemPrompt(
   }
 
   const cwd = getCwd()
-  const skillToolCommandsPromise = isBrowserRuntime()
-    ? Promise.resolve([] as Command[])
-    : (async () => {
-        const { getSkillToolCommands } = await runtimeImport<
-          typeof import('../commands.js')
-        >('../commands.js')
-        return getSkillToolCommands(cwd)
-      })()
-
   const [skillToolCommands, outputStyleConfig, envInfo] = await Promise.all([
-    skillToolCommandsPromise,
+    getSkillToolCommands(cwd),
     getOutputStyleConfig(),
     computeSimpleEnvInfo(model, additionalWorkingDirectories),
   ])
@@ -719,7 +705,12 @@ export async function computeSimpleEnvInfo(
 // @[MODEL LAUNCH]: Add a knowledge cutoff date for the new model.
 function getKnowledgeCutoff(modelId: string): string | null {
   const canonical = getCanonicalName(modelId)
-  if (canonical.includes('claude-sonnet-4-6')) {
+  if (
+    canonical.includes('claude-opus-4-8') ||
+    canonical.includes('claude-opus-4-7')
+  ) {
+    return 'January 2026'
+  } else if (canonical.includes('claude-sonnet-4-6')) {
     return 'August 2025'
   } else if (canonical.includes('claude-opus-4-6')) {
     return 'May 2025'

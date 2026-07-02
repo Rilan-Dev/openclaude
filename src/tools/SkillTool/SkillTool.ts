@@ -3,7 +3,12 @@ import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs
 import uniqBy from 'lodash-es/uniqBy.js'
 import { dirname } from 'path'
 import { getProjectRoot } from 'src/bootstrap/state.js'
-import { isBrowserRuntime, runtimeImport } from 'src/utils/imports.js'
+import {
+  builtInCommandNames,
+  findCommand,
+  getCommands,
+  type PromptCommand,
+} from 'src/commands.js'
 import type {
   Tool,
   ToolCallProgress,
@@ -12,7 +17,7 @@ import type {
   ValidationResult,
 } from 'src/Tool.js'
 import { buildTool, type ToolDef } from 'src/Tool.js'
-import type { Command, PromptCommand } from 'src/types/command.js'
+import type { Command } from 'src/types/command.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -68,7 +73,6 @@ import {
   renderToolUseProgressMessage,
   renderToolUseRejectedMessage,
 } from './UI.js'
-import { findCommand } from 'src/types/command.js'
 
 /**
  * Gets all commands including MCP skills/prompts from AppState.
@@ -84,12 +88,6 @@ async function getAllCommands(context: ToolUseContext): Promise<Command[]> {
     .mcp.commands.filter(
       cmd => cmd.type === 'prompt' && cmd.loadedFrom === 'mcp',
     )
-  if (isBrowserRuntime()) {
-    return mcpSkills
-  }
-  const { getCommands } = await runtimeImport<typeof import('../../commands.js')>(
-    '../../commands.js',
-  )
   if (mcpSkills.length === 0) return getCommands(getProjectRoot())
   const localCommands = await getCommands(getProjectRoot())
   return uniqBy([...localCommands, ...mcpSkills], 'name')
@@ -132,7 +130,7 @@ async function executeForkedSkill(
 ): Promise<ToolResult<Output>> {
   const startTime = Date.now()
   const agentId = createAgentId()
-  const isBuiltIn = command?.source === 'builtin'
+  const isBuiltIn = builtInCommandNames().has(commandName)
   const isOfficialSkill = isOfficialMarketplaceSkill(command)
   const isBundled = command.source === 'bundled'
   const forkedSanitizedName =
@@ -663,10 +661,10 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
     const model = processedCommand.model
     const effort = command?.type === 'prompt' ? command.effort : undefined
 
-    const isPromptCommand = command?.type === 'prompt'
-    const isBuiltIn = isPromptCommand && command.source === 'builtin'
-    const isBundled = isPromptCommand && command.source === 'bundled'
-    const isOfficialSkill = isPromptCommand && isOfficialMarketplaceSkill(command)
+    const isBuiltIn = builtInCommandNames().has(commandName)
+    const isBundled = command?.type === 'prompt' && command.source === 'bundled'
+    const isOfficialSkill =
+      command?.type === 'prompt' && isOfficialMarketplaceSkill(command)
     const sanitizedCommandName =
       isBuiltIn || isBundled || isOfficialSkill ? commandName : 'custom'
 

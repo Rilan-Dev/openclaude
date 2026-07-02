@@ -6,7 +6,6 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import type { MemoryFileInfo } from '../utils/claudemd.js';
 import { getMemoryFiles } from '../utils/claudemd.js';
 import { getGlobalConfig } from '../utils/config.js';
-import { isBrowserRuntime } from '../utils/imports.js';
 import { getActiveNotices, type StatusNoticeContext } from '../utils/statusNoticeDefinitions.js';
 import { assembleToolPool } from '../tools.js';
 import { checkLocalModelContextLoad, isActiveProviderLocalModel, type LocalModelContextWarning } from '../utils/statusNoticeLocalModel.js';
@@ -46,6 +45,7 @@ export function StatusNotices(t0) {
   const [memoryFiles, setMemoryFiles] = React.useState(cachedMemoryFiles);
   const [localModelContextLoad, setLocalModelContextLoad] = React.useState<LocalModelContextWarning | null | undefined>(undefined);
   const isLocalModel = isActiveProviderLocalModel();
+  const mainLoopModel = useAppState(s => s.mainLoopModel);
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = () => {
@@ -73,6 +73,8 @@ export function StatusNotices(t0) {
       agentDefinitions,
       memoryFiles,
       async () => toolPermissionContext,
+      undefined,
+      mainLoopModel ?? undefined,
     ).then(warning => {
       if (!cancelled) {
         setLocalModelContextLoad(warning);
@@ -85,10 +87,9 @@ export function StatusNotices(t0) {
     return () => {
       cancelled = true;
     };
-  }, [agentDefinitions, isLocalModel, memoryFiles, toolPermissionContext, tools]);
+  }, [agentDefinitions, isLocalModel, mainLoopModel, memoryFiles, toolPermissionContext, tools]);
   const t2 = getGlobalConfig();
   const permissionMode = useAppState(s => s.toolPermissionContext.mode);
-  const mainLoopModel = useAppState(s => s.mainLoopModel);
   const context: StatusNoticeContext = {
     config: t2,
     agentDefinitions,
@@ -101,11 +102,6 @@ export function StatusNotices(t0) {
   const activeNotices = getActiveNotices(context);
   if (activeNotices.length === 0) {
     return null;
-  }
-  if (isBrowserRuntime()) {
-    return <div className="repl-browserNoticeStack" role="status" aria-live="polite">
-      {activeNotices.map(notice => <div key={notice.id} className="repl-browserNoticeCard">{notice.render(context)}</div>)}
-    </div>;
   }
   const T0 = Box;
   const t3 = "column";

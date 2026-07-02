@@ -1,6 +1,5 @@
 import { feature } from 'bun:bundle'
-import { relative, resolve } from '../imports.js'
-import { isBrowserRuntime } from '../imports.js'
+import { relative } from 'path'
 import {
   getOriginalCwd,
   handleAutoModeTransition,
@@ -38,6 +37,7 @@ const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
   ? (require('./autoModeState.js') as typeof import('./autoModeState.js'))
   : null
 
+import { resolve } from 'path'
 import {
   checkSecurityRestrictionGate,
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,

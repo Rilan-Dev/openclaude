@@ -1,13 +1,9 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
 import type { Command } from '../commands.js';
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js';
-import { isBrowserRuntime } from '../utils/imports.js';
 import { getSettingsFilePathForSource } from '../utils/settings/settings.js';
 
 function getUserSettingsPath(): string {
-  if (isBrowserRuntime()) {
-    return '~/.openclaude/settings.json';
-  }
   return getSettingsFilePathForSource('userSettings') ?? '~/.openclaude/settings.json';
 }
 

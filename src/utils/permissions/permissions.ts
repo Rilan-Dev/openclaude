@@ -58,25 +58,21 @@ import {
   type PermissionRuleFromEditableSettings,
   shouldAllowManagedPermissionRulesOnly,
 } from './permissionsLoader.js'
-import { isBrowserRuntime } from '../imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-let classifierDecisionModule: typeof import('./classifierDecision.js') | null = null
-let autoModeStateModule: typeof import('./autoModeState.js') | null = null
-
-if (!isBrowserRuntime() && feature('TRANSCRIPT_CLASSIFIER')) {
-  classifierDecisionModule = require('./classifierDecision.js') as typeof import('./classifierDecision.js')
-  autoModeStateModule = require('./autoModeState.js') as typeof import('./autoModeState.js')
-}
+const classifierDecisionModule = feature('TRANSCRIPT_CLASSIFIER')
+  ? (require('./classifierDecision.js') as typeof import('./classifierDecision.js'))
+  : null
+const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
+  ? (require('./autoModeState.js') as typeof import('./autoModeState.js'))
+  : null
 
 function applyPermissionUpdatesToLiveContext(
   context: ToolPermissionContext,
   updates: PermissionUpdate[],
 ): ToolPermissionContext {
-  if (isBrowserRuntime()) {
-    return context
-  }
-  const { applyPermissionUpdatesToLiveContext: applyLiveUpdates } = require('./permissionSetup.js') as typeof import('./permissionSetup.js')
+  const { applyPermissionUpdatesToLiveContext: applyLiveUpdates } =
+    require('./permissionSetup.js') as typeof import('./permissionSetup.js')
   return applyLiveUpdates(context, updates)
 }
 
@@ -470,7 +466,7 @@ async function runPermissionRequestHooksForHeadlessAgent(
           logForDebugging(
             `Hook interrupt: tool=${tool.name} hookMessage=${decision.message}`,
           )
-          context.abortController.abort()
+          context.abortController.abort('interrupt')
         }
         return {
           behavior: 'deny',
@@ -681,7 +677,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
 
       // Allowlisted tools are safe and don't need YOLO classification.
       // This uses the safe-tool allowlist to skip unnecessary classifier API calls.
-      if (classifierDecisionModule?.isAutoModeAllowlistedTool(tool.name)) {
+      if (classifierDecisionModule!.isAutoModeAllowlistedTool(tool.name)) {
         const newDenialState = recordSuccess(denialState)
         persistDenialState(context, newDenialState)
         logForDebugging(

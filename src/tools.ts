@@ -15,14 +15,15 @@ import { BriefTool } from './tools/BriefTool/BriefTool.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const REPLTool = null
 const SuggestBackgroundPRTool = null
-const SleepTool = (feature('PROACTIVE') || feature('KAIROS'))
+const SleepTool =
+  feature('PROACTIVE') || feature('KAIROS')
     ? require('./tools/SleepTool/SleepTool.js').SleepTool
     : null
 const cronTools = [
-      require('./tools/ScheduleCronTool/CronCreateTool.js').CronCreateTool,
-      require('./tools/ScheduleCronTool/CronDeleteTool.js').CronDeleteTool,
-      require('./tools/ScheduleCronTool/CronListTool.js').CronListTool,
-    ]
+  require('./tools/ScheduleCronTool/CronCreateTool.js').CronCreateTool,
+  require('./tools/ScheduleCronTool/CronDeleteTool.js').CronDeleteTool,
+  require('./tools/ScheduleCronTool/CronListTool.js').CronListTool,
+]
 const RemoteTriggerTool = feature('AGENT_TRIGGERS_REMOTE')
   ? require('./tools/RemoteTriggerTool/RemoteTriggerTool.js').RemoteTriggerTool
   : null
@@ -33,7 +34,7 @@ const SendUserFileTool = feature('KAIROS')
   ? require('./tools/SendUserFileTool/SendUserFileTool.js').SendUserFileTool
   : null
 const PushNotificationTool =
-  (feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION'))
+  feature('KAIROS') || feature('KAIROS_PUSH_NOTIFICATION')
     ? require('./tools/PushNotificationTool/PushNotificationTool.js')
         .PushNotificationTool
     : null
@@ -74,7 +75,6 @@ import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
 import { isTodoV2Enabled } from './utils/tasks.js'
-import { isBrowserRuntime } from './utils/imports.js'
 // Dead code elimination: conditional import for CLAUDE_CODE_VERIFY_PLAN
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const VerifyPlanExecutionTool =
@@ -137,7 +137,7 @@ import {
 export { REPL_ONLY_TOOLS }
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getPowerShellTool = () => {
-  if (isBrowserRuntime() || !isPowerShellToolEnabled()) return null
+  if (!isPowerShellToolEnabled()) return null
   return (
     require('./tools/PowerShellTool/PowerShellTool.js') as typeof import('./tools/PowerShellTool/PowerShellTool.js')
   ).PowerShellTool

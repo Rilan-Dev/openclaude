@@ -3,7 +3,7 @@
  * Hooks are user-defined shell commands that can be executed at various points
  * in Claude Code's lifecycle.
  */
-import { basename } from './imports.js'
+import { basename } from 'path'
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
 import { pathExists } from './file.js'
 import { wrapSpawn } from './ShellCommand.js'

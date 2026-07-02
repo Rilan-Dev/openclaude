@@ -1,10 +1,10 @@
+import { getSkillToolCommands } from '../../commands.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
   logEvent,
 } from '../../services/analytics/index.js'
 import { getCharBudget } from '../../tools/SkillTool/prompt.js'
-import { runtimeImport } from '../imports.js'
 
 /**
  * Logs a tengu_skill_loaded event for each skill available at session startup.
@@ -14,9 +14,6 @@ export async function logSkillsLoaded(
   cwd: string,
   contextWindowTokens: number,
 ): Promise<void> {
-  const { getSkillToolCommands } = await runtimeImport<
-    typeof import('../../commands.js')
-  >('../../commands.js')
   const skills = await getSkillToolCommands(cwd)
   const skillBudget = getCharBudget(contextWindowTokens)
 

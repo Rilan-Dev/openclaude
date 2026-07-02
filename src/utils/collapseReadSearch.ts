@@ -29,7 +29,6 @@ import {
   isMemoryDirectory,
   isShellCommandTargetingMemory,
 } from './memoryFileDetection.js'
-import { isBrowserRuntime } from './imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemOps = feature('TEAMMEM')

@@ -7,21 +7,6 @@ import type { AssistantMessage, UserMessage } from '../types/message.js'
  */
 export const FINGERPRINT_SALT = '59cf53e54c78'
 
-function browserFingerprintHex(input: string): string {
-  // FNV-1a 64-bit is deterministic and synchronous, which makes it safe for
-  // the browser build where Node's crypto.createHash is not always available.
-  let hash = 0xcbf29ce484222325n
-  const prime = 0x100000001b3n
-  const mask = 0xffffffffffffffffn
-
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= BigInt(input.charCodeAt(index))
-    hash = (hash * prime) & mask
-  }
-
-  return hash.toString(16).padStart(16, '0')
-}
-
 /**
  * Extracts text content from the first user message.
  *
@@ -77,10 +62,6 @@ export function computeFingerprint(
   const chars = indices.map(i => messageText[i] || '0').join('')
 
   const fingerprintInput = `${FINGERPRINT_SALT}${chars}${version}`
-
-  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    return browserFingerprintHex(fingerprintInput).slice(0, 3)
-  }
 
   // SHA256 hash, return first 3 hex chars
   const hash = createHash('sha256').update(fingerprintInput).digest('hex')

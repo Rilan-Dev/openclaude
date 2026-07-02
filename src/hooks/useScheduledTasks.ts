@@ -13,7 +13,6 @@ import { removeCronTasks } from '../utils/cronTasks.js'
 import { logForDebugging } from '../utils/debug.js'
 import { enqueuePendingNotification } from '../utils/messageQueueManager.js'
 import { createScheduledTaskFireMessage } from '../utils/messages.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 import { WORKLOAD_CRON } from '../utils/workloadContext.js'
 
 type Props = {
@@ -52,7 +51,6 @@ export function useScheduledTasks({
   const setAppState = useSetAppState()
 
   useEffect(() => {
-    if (isBrowserRuntime()) return
     // Runtime gate checked here (not at the hook call site) so the hook
     // stays unconditionally mounted — rules-of-hooks forbid wrapping the
     // call in a dynamic condition. getFeatureValue_CACHED_WITH_REFRESH

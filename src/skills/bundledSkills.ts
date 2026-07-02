@@ -1,9 +1,12 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
+import { constants as fsConstants } from 'fs'
+import { mkdir, open } from 'fs/promises'
+import { dirname, isAbsolute, join, normalize, sep as pathSep } from 'path'
 import type { ToolUseContext } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import { localize, type LocalizationKey } from '../i18n/index.js'
 import { logForDebugging } from '../utils/debug.js'
-import { dirname, isAbsolute, isBrowserRuntime, join, normalize, runtimeRequire, sep as pathSep } from '../utils/imports.js'
+import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
 import type { HooksSettings } from '../utils/settings/types.js'
 
 /**
@@ -57,22 +60,18 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
   let getPromptForCommand = definition.getPromptForCommand
 
   if (files && Object.keys(files).length > 0) {
-    skillRoot = isBrowserRuntime()
-      ? undefined
-      : getBundledSkillExtractDir(definition.name)
-    if (!isBrowserRuntime()) {
-      // Closure-local memoization: extract once per process.
-      // Memoize the promise (not the result) so concurrent callers await
-      // the same extraction instead of racing into separate writes.
-      let extractionPromise: Promise<string | null> | undefined
-      const inner = definition.getPromptForCommand
-      getPromptForCommand = async (args, ctx) => {
-        extractionPromise ??= extractBundledSkillFiles(definition.name, files)
-        const extractedDir = await extractionPromise
-        const blocks = await inner(args, ctx)
-        if (extractedDir === null) return blocks
-        return prependBaseDir(blocks, extractedDir)
-      }
+    skillRoot = getBundledSkillExtractDir(definition.name)
+    // Closure-local memoization: extract once per process.
+    // Memoize the promise (not the result) so concurrent callers await
+    // the same extraction instead of racing into separate writes.
+    let extractionPromise: Promise<string | null> | undefined
+    const inner = definition.getPromptForCommand
+    getPromptForCommand = async (args, ctx) => {
+      extractionPromise ??= extractBundledSkillFiles(definition.name, files)
+      const extractedDir = await extractionPromise
+      const blocks = await inner(args, ctx)
+      if (extractedDir === null) return blocks
+      return prependBaseDir(blocks, extractedDir)
     }
   }
 
@@ -132,16 +131,7 @@ export function clearBundledSkills(): void {
  * Deterministic extraction directory for a bundled skill's reference files.
  */
 export function getBundledSkillExtractDir(skillName: string): string {
-  if (isBrowserRuntime()) {
-    return join('/tmp', 'openclaude-bundled-skills', skillName)
-  }
   return join(getBundledSkillsRoot(), skillName)
-}
-
-function getBundledSkillsRoot(): string {
-  return runtimeRequire<typeof import('../utils/permissions/filesystem.js')>(
-    '../utils/permissions/filesystem.js',
-  ).getBundledSkillsRoot()
 }
 
 /**
@@ -183,9 +173,6 @@ async function writeSkillFiles(
   }
   await Promise.all(
     [...byParent].map(async ([parent, entries]) => {
-      const { mkdir } = runtimeRequire<typeof import('fs/promises')>(
-        'fs/promises',
-      )
       await mkdir(parent, { recursive: true, mode: 0o700 })
       await Promise.all(entries.map(([p, c]) => safeWriteFile(p, c)))
     }),
@@ -199,19 +186,18 @@ async function writeSkillFiles(
 // O_NOFOLLOW|O_EXCL is belt-and-suspenders (O_NOFOLLOW only protects the
 // final component); we deliberately do NOT unlink+retry on EEXIST — unlink()
 // follows intermediate symlinks too.
+const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0
+// On Windows, use string flags — numeric O_EXCL can produce EINVAL through libuv.
+const SAFE_WRITE_FLAGS =
+  process.platform === 'win32'
+    ? 'wx'
+    : fsConstants.O_WRONLY |
+      fsConstants.O_CREAT |
+      fsConstants.O_EXCL |
+      O_NOFOLLOW
+
 async function safeWriteFile(p: string, content: string): Promise<void> {
-  const fs = runtimeRequire<typeof import('fs')>('fs')
-  const { open } = runtimeRequire<typeof import('fs/promises')>('fs/promises')
-  const oNoFollow = fs.constants.O_NOFOLLOW ?? 0
-  // On Windows, use string flags — numeric O_EXCL can produce EINVAL through libuv.
-  const safeWriteFlags =
-    process.platform === 'win32'
-      ? 'wx'
-      : fs.constants.O_WRONLY |
-        fs.constants.O_CREAT |
-        fs.constants.O_EXCL |
-        oNoFollow
-  const fh = await open(p, safeWriteFlags, 0o600)
+  const fh = await open(p, SAFE_WRITE_FLAGS, 0o600)
   try {
     await fh.writeFile(content, 'utf8')
   } finally {

@@ -3,7 +3,6 @@ import { PRODUCT_DISPLAY_NAME } from '../../constants/product.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { formatFileSize } from '../../utils/format.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { getRuleByContentsForTool } from '../../utils/permissions/permissions.js'
@@ -67,71 +66,6 @@ const outputSchema = lazySchema(() =>
 type OutputSchema = ReturnType<typeof outputSchema>
 
 export type Output = z.infer<OutputSchema>
-
-function htmlToBrowserText(html: string): string {
-  if (typeof DOMParser === 'undefined') {
-    return html
-  }
-
-  const document = new DOMParser().parseFromString(html, 'text/html')
-  document.querySelectorAll('script, style, noscript, svg').forEach(node => node.remove())
-  return (document.body?.innerText || document.documentElement?.textContent || html)
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-function buildBrowserFetchUnavailableOutput(
-  url: string,
-  start: number,
-  error: unknown,
-): Output {
-  const detail =
-    error instanceof Error && error.message
-      ? error.message
-      : 'The browser blocked the request.'
-  const result = [
-    'WebFetch could not fetch this URL from the browser WebUI.',
-    '',
-    'Browsers can block direct cross-origin page fetches because of CORS, private network rules, proxy policy, or site-level protections. This is a browser limitation, not a chat failure.',
-    '',
-    `URL: ${url}`,
-    `Reason: ${detail}`,
-    '',
-    'Use the terminal CLI for server-side WebFetch, configure a WebUI fetch proxy, or paste the page text/screenshots here for analysis.',
-  ].join('\n')
-
-  return {
-    bytes: Buffer.byteLength(result),
-    code: 0,
-    codeText: 'Browser fetch blocked',
-    result,
-    durationMs: Date.now() - start,
-    url,
-  }
-}
-
-async function fetchBrowserMarkdownContent(
-  url: string,
-  signal: AbortSignal,
-): Promise<{ content: string; bytes: number; code: number; codeText: string }> {
-  const response = await fetch(url, {
-    signal,
-    redirect: 'follow',
-    headers: {
-      Accept: 'text/markdown, text/html, text/plain, */*',
-    },
-  })
-  const contentType = response.headers.get('content-type') ?? ''
-  const body = await response.text()
-  const content = contentType.includes('text/html') ? htmlToBrowserText(body) : body
-
-  return {
-    content,
-    bytes: Buffer.byteLength(content),
-    code: response.status,
-    codeText: response.statusText || (response.ok ? 'OK' : 'Fetch failed'),
-  }
-}
 
 function webFetchToolInputToPermissionRuleContent(input: {
   [k: string]: unknown
@@ -296,40 +230,6 @@ ${DESCRIPTION}`
     { abortController, options: { isNonInteractiveSession } },
   ) {
     const start = Date.now()
-
-    if (isBrowserRuntime()) {
-      try {
-        const { content, bytes, code, codeText } = await fetchBrowserMarkdownContent(
-          url,
-          abortController.signal,
-        )
-        const result = await applyPromptToMarkdown(
-          prompt,
-          content,
-          abortController.signal,
-          isNonInteractiveSession,
-          isPreapprovedUrl(url),
-        )
-        return {
-          data: {
-            bytes,
-            code,
-            codeText,
-            result,
-            durationMs: Date.now() - start,
-            url,
-          } satisfies Output,
-        }
-      } catch (error) {
-        if (abortController.signal.aborted) {
-          throw error
-        }
-
-        return {
-          data: buildBrowserFetchUnavailableOutput(url, start, error),
-        }
-      }
-    }
 
     if (isFirecrawlEnabled()) {
       const { markdown, bytes } = await scrapeWithFirecrawl(url, abortController.signal)

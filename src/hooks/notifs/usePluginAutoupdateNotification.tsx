@@ -5,7 +5,6 @@ import { getIsRemoteMode } from '../../bootstrap/state.js';
 import { useNotifications } from '../../context/notifications.js';
 import { Text } from '../../ink.js';
 import { logForDebugging } from '../../utils/debug.js';
-import { isBrowserRuntime } from '../../utils/imports.js';
 import { onPluginsAutoUpdated } from '../../utils/plugins/pluginAutoupdate.js';
 
 /**
@@ -13,9 +12,6 @@ import { onPluginsAutoUpdated } from '../../utils/plugins/pluginAutoupdate.js';
  * The notification tells the user to run /reload-plugins to apply the updates.
  */
 export function usePluginAutoupdateNotification() {
-  if (isBrowserRuntime()) {
-    return;
-  }
   const $ = _c(7);
   const {
     addNotification

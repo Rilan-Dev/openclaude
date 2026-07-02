@@ -19,6 +19,14 @@ const enoent = path => {
   return error
 }
 
+const eexist = path => {
+  const error = new Error(`EEXIST: file already exists, open '${path}'`)
+  error.code = 'EEXIST'
+  error.errno = -17
+  error.path = path
+  return error
+}
+
 const WEBFS_KEY = 'openclaude.webui.fs.v1'
 const fdTable = new Map()
 let nextFd = 100
@@ -106,6 +114,73 @@ const readVfsText = path => {
   return file.content ?? ''
 }
 
+const makeNodeLikeError = (payload, fallbackPath) => {
+  const error = new Error(
+    payload?.message ?? `ENOENT: no such file or directory, open '${fallbackPath}'`,
+  )
+  if (payload?.code) error.code = payload.code
+  if (payload?.errno) error.errno = payload.errno
+  error.path = payload?.path ?? fallbackPath
+  return error
+}
+
+const isHostFsPath = path => {
+  const value = String(path ?? '')
+  return (
+    /^[a-zA-Z]:[\\/]/.test(value) ||
+    /^\/[a-zA-Z]:[\\/]/.test(value) ||
+    /^\\\\[a-zA-Z0-9_$-][^\\]*\\[^\\]+/.test(value) ||
+    /^\/\/[a-zA-Z0-9_$-][^/]*\/[^/]+/.test(value)
+  )
+}
+
+const shouldFallbackToHostFs = (error, path) =>
+  error?.code === 'ENOENT' && isHostFsPath(path)
+
+const hostFsRequest = async (op, path, options = undefined) => {
+  if (typeof fetch !== 'function') {
+    throw enoent(path)
+  }
+
+  const response = await fetch('/__openclaude_host_fs', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ op, path, ...(options ? { options } : {}) }),
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw makeNodeLikeError(payload.error, path)
+  }
+
+  return payload
+}
+
+const makeHostStat = data => {
+  const stats = new Stats(
+    {
+      ctimeMs: data.ctimeMs,
+      mtimeMs: data.mtimeMs,
+      birthtimeMs: data.birthtimeMs,
+      atimeMs: data.atimeMs,
+      size: data.size,
+      mode: data.mode,
+      isFile: data.isFile,
+      isDirectory: data.isDirectory,
+      isSymbolicLink: data.isSymbolicLink,
+    },
+    Boolean(data.isDirectory),
+  )
+  return stats
+}
+
+const makeHostDirent = entry => ({
+  name: entry.name,
+  isFile: () => Boolean(entry.isFile),
+  isDirectory: () => Boolean(entry.isDirectory),
+  isSymbolicLink: () => Boolean(entry.isSymbolicLink),
+})
+
 const writeVfsText = (path, content, append = false) => {
   const fs = loadVfs()
   const normalized = vfsNormalize(path)
@@ -135,24 +210,159 @@ const deleteVfsPath = path => {
   saveVfs(fs)
 }
 
-const makeVfsStat = (entry, isDirectory = false) => {
-  const content = entry?.content ?? ''
-  const size = isDirectory ? 0 : Buffer.from(content).byteLength
-  const ctime = new Date(entry?.ctimeMs ?? 0)
-  const mtime = new Date(entry?.mtimeMs ?? 0)
-  return {
-    isFile: () => !isDirectory,
-    isDirectory: () => isDirectory,
-    isSymbolicLink: () => false,
-    size,
-    mtime,
-    ctime,
-    birthtime: ctime,
-    mtimeMs: mtime.getTime(),
-    ctimeMs: ctime.getTime(),
-    birthtimeMs: ctime.getTime(),
+const renameVfsPath = (oldPath, newPath) => {
+  const fs = loadVfs()
+  const from = vfsNormalize(oldPath)
+  const to = vfsNormalize(newPath)
+
+  if (from === to) {
+    return
+  }
+
+  const file = fs.files[from]
+  const dir = fs.dirs[from]
+
+  if (!file && !dir) {
+    throw enoent(oldPath)
+  }
+
+  ensureVfsDir(fs, vfsParent(to))
+
+  delete fs.files[to]
+  for (const filePath of Object.keys(fs.files)) {
+    if (filePath.startsWith(`${to}/`)) {
+      delete fs.files[filePath]
+    }
+  }
+  for (const dirPath of Object.keys(fs.dirs)) {
+    if (dirPath === to || dirPath.startsWith(`${to}/`)) {
+      delete fs.dirs[dirPath]
+    }
+  }
+
+  if (file) {
+    fs.files[to] = {
+      ...file,
+      mtimeMs: vfsNow(),
+    }
+    delete fs.files[from]
+  } else {
+    const movedDirs = []
+    const movedFiles = []
+
+    for (const [dirPath, entry] of Object.entries(fs.dirs)) {
+      if (dirPath === from || dirPath.startsWith(`${from}/`)) {
+        movedDirs.push([dirPath, entry])
+      }
+    }
+
+    for (const [filePath, entry] of Object.entries(fs.files)) {
+      if (filePath.startsWith(`${from}/`)) {
+        movedFiles.push([filePath, entry])
+      }
+    }
+
+    for (const [dirPath] of movedDirs) {
+      delete fs.dirs[dirPath]
+    }
+    for (const [filePath] of movedFiles) {
+      delete fs.files[filePath]
+    }
+
+    for (const [dirPath, entry] of movedDirs) {
+      const targetPath = `${to}${dirPath.slice(from.length)}`
+      fs.dirs[targetPath] = {
+        ...entry,
+        mtimeMs: vfsNow(),
+      }
+    }
+    for (const [filePath, entry] of movedFiles) {
+      const targetPath = `${to}${filePath.slice(from.length)}`
+      fs.files[targetPath] = {
+        ...entry,
+        mtimeMs: vfsNow(),
+      }
+    }
+  }
+
+  for (const [fd, path] of fdTable.entries()) {
+    if (path === from || path.startsWith(`${from}/`)) {
+      fdTable.set(fd, `${to}${path.slice(from.length)}`)
+    }
+  }
+
+  saveVfs(fs)
+}
+
+export class Stats {
+  constructor(entry = {}, isDirectory = false) {
+    const content = entry?.content ?? ''
+    const ctimeMs = entry?.ctimeMs ?? 0
+    const mtimeMs = entry?.mtimeMs ?? 0
+    this.size =
+      typeof entry?.size === 'number'
+        ? entry.size
+        : isDirectory
+          ? 0
+          : Buffer.from(content).byteLength
+    this.mtime = new Date(mtimeMs)
+    this.ctime = new Date(ctimeMs)
+    this.birthtime = new Date(entry?.birthtimeMs ?? ctimeMs)
+    this.atime = new Date(entry?.atimeMs ?? mtimeMs)
+    this.mtimeMs = this.mtime.getTime()
+    this.ctimeMs = this.ctime.getTime()
+    this.birthtimeMs = this.birthtime.getTime()
+    this.atimeMs = this.atime.getTime()
+    this.mode =
+      typeof entry?.mode === 'number'
+        ? entry.mode
+        : isDirectory
+          ? 0o040755
+          : 0o100644
+    this.uid = 0
+    this.gid = 0
+    this.dev = 0
+    this.ino = 0
+    this.nlink = 1
+    this.rdev = 0
+    this.blksize = 4096
+    this.blocks = Math.ceil(this.size / 512)
+    this._isDirectory = isDirectory
+    this._isFile =
+      typeof entry?.isFile === 'boolean' ? entry.isFile : !isDirectory
+    this._isSymbolicLink = Boolean(entry?.isSymbolicLink)
+  }
+
+  isFile() {
+    return this._isFile
+  }
+
+  isDirectory() {
+    return this._isDirectory
+  }
+
+  isSymbolicLink() {
+    return this._isSymbolicLink
+  }
+
+  isBlockDevice() {
+    return false
+  }
+
+  isCharacterDevice() {
+    return false
+  }
+
+  isFIFO() {
+    return false
+  }
+
+  isSocket() {
+    return false
   }
 }
+
+const makeVfsStat = (entry, isDirectory = false) => new Stats(entry, isDirectory)
 
 const getVfsStat = path => {
   const fs = loadVfs()
@@ -228,9 +438,51 @@ const makeFileHandle = path => {
   }
 }
 
-export function openSync(path) {
+const makeHostFileHandle = path => ({
+  async read(buffer, offset = 0, length = buffer.byteLength, position = 0) {
+    const response = await hostFsRequest('readFile', path)
+    const content = Buffer.from(response.data ?? '', response.encoding ?? 'base64')
+    const start = position ?? 0
+    const chunk = content.subarray(start, start + length)
+    buffer.set(chunk, offset)
+    return { bytesRead: chunk.length, buffer }
+  },
+  async write() {
+    unavailable('host filesystem writes')
+  },
+  async truncate() {
+    unavailable('host filesystem writes')
+  },
+  async stat() {
+    return makeHostStat(await hostFsRequest('stat', path))
+  },
+  async close() {},
+})
+
+export function openSync(path, flags = 'r') {
   const normalized = vfsNormalize(path)
-  if (!loadVfs().files[normalized]) throw enoent(path)
+  const fs = loadVfs()
+  const flagText = String(flags ?? 'r')
+  const exists = Boolean(fs.files[normalized])
+
+  if (flagText.includes('x') && exists) {
+    throw eexist(path)
+  }
+
+  if (!exists) {
+    if (
+      flagText.includes('w') ||
+      flagText.includes('a') ||
+      flagText.includes('+')
+    ) {
+      writeVfsText(normalized, '')
+    } else {
+      throw enoent(path)
+    }
+  } else if (flagText.startsWith('w')) {
+    writeVfsText(normalized, '')
+  }
+
   const fd = nextFd++
   fdTable.set(fd, normalized)
   return fd
@@ -282,8 +534,10 @@ export async function open(path, flags = 'r') {
   if (!loadVfs().files[normalized]) {
     if (String(flags).includes('w') || String(flags).includes('+')) {
       writeVfsText(normalized, '')
-    } else {
+    } else if (!isHostFsPath(path)) {
       throw enoent(path)
+    } else {
+      return makeHostFileHandle(path)
     }
   }
   return makeFileHandle(normalized)
@@ -320,6 +574,7 @@ export class EventEmitter {
       this.removeListener(event, wrapper)
       listener(...args)
     }
+    wrapper.listener = listener
     return this.on(event, wrapper)
   }
 
@@ -332,9 +587,21 @@ export class EventEmitter {
     if (!listeners) return this
     this._listeners.set(
       event,
-      listeners.filter(current => current !== listener),
+        listeners.filter(current => current !== listener),
     )
     return this
+  }
+
+  listeners(event) {
+    return (this._listeners.get(event) ?? []).map(listener => listener.listener ?? listener)
+  }
+
+  rawListeners(event) {
+    return [...(this._listeners.get(event) ?? [])]
+  }
+
+  listenerCount(event) {
+    return this._listeners.get(event)?.length ?? 0
   }
 
   removeAllListeners(event) {
@@ -650,7 +917,7 @@ export function tmpdir() {
 }
 
 export function platform() {
-  return 'browser'
+  return 'linux'
 }
 
 export function type() {
@@ -666,11 +933,19 @@ export function release() {
 }
 
 export function arch() {
-  return 'browser'
+  return 'x64'
 }
 
 export function cpus() {
   return []
+}
+
+export function totalmem() {
+  return 8 * 1024 * 1024 * 1024
+}
+
+export function freemem() {
+  return 4 * 1024 * 1024 * 1024
 }
 
 export function userInfo() {
@@ -684,9 +959,22 @@ export function hostname() {
 export const EOL = '\n'
 
 export async function readFile(path, options) {
-  const content = readVfsText(path)
   const encoding = typeof options === 'string' ? options : options?.encoding
-  return encoding ? content : Buffer.from(content)
+  try {
+    const content = readVfsText(path)
+    return encoding ? content : Buffer.from(content)
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    const response = await hostFsRequest('readFile', path, {
+      encoding: encoding ?? null,
+    })
+    return response.encoding === 'base64'
+      ? Buffer.from(response.data ?? '', 'base64')
+      : response.data ?? ''
+  }
 }
 
 export async function writeFile(path, data) {
@@ -705,7 +993,9 @@ export async function copyFile() {}
 export async function link() {}
 export async function truncate() {}
 export async function symlink() {}
-export async function rename() {}
+export async function rename(oldPath, newPath) {
+  renameVfsPath(oldPath, newPath)
+}
 export async function rm(path) {
   deleteVfsPath(path)
 }
@@ -714,21 +1004,67 @@ export async function unlink(path) {
 }
 export async function utimes() {}
 export async function readdir(path, options) {
-  return listVfsDir(path, options)
+  try {
+    return listVfsDir(path, options)
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    const response = await hostFsRequest('readdir', path, {
+      withFileTypes: Boolean(options?.withFileTypes),
+    })
+    return options?.withFileTypes ? response.map(makeHostDirent) : response
+  }
 }
 export async function mkdtemp(prefix = '/tmp/openclaude-') {
   return `${prefix}${Math.random().toString(16).slice(2)}`
 }
 export async function stat(path) {
-  return getVfsStat(path)
+  try {
+    return getVfsStat(path)
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    return makeHostStat(await hostFsRequest('stat', path))
+  }
 }
 export async function lstat(path) {
-  return getVfsStat(path)
+  try {
+    return getVfsStat(path)
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    return makeHostStat(await hostFsRequest('lstat', path))
+  }
 }
 export async function realpath(path) {
-  return path
+  try {
+    getVfsStat(path)
+    return path
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    return (await hostFsRequest('realpath', path)).path
+  }
 }
-export async function access() {}
+export async function access(path) {
+  try {
+    getVfsStat(path)
+  } catch (error) {
+    if (!shouldFallbackToHostFs(error, path)) {
+      throw error
+    }
+
+    await hostFsRequest('access', path)
+  }
+}
 
 const fileStat = {
   isFile: () => false,
@@ -745,9 +1081,21 @@ export function readFileSync(path, options) {
 }
 
 export function writeFileSync(path, data) {
+  if (typeof path === 'number') {
+    const fdPath = fdTable.get(path)
+    if (!fdPath) throw enoent(String(path))
+    writeVfsText(fdPath, toFileString(data))
+    return
+  }
   writeVfsText(path, toFileString(data))
 }
 export function appendFileSync(path, data) {
+  if (typeof path === 'number') {
+    const fdPath = fdTable.get(path)
+    if (!fdPath) throw enoent(String(path))
+    writeVfsText(fdPath, toFileString(data), true)
+    return
+  }
   writeVfsText(path, toFileString(data), true)
 }
 export function mkdirSync(path) {
@@ -758,7 +1106,9 @@ export function mkdirSync(path) {
 export function chmodSync() {}
 export function copyFileSync() {}
 export function symlinkSync() {}
-export function renameSync() {}
+export function renameSync(oldPath, newPath) {
+  renameVfsPath(oldPath, newPath)
+}
 export function rmSync(path) {
   deleteVfsPath(path)
 }
@@ -784,15 +1134,21 @@ export function readdirSync(path, options) {
   return listVfsDir(path, options)
 }
 export function createReadStream() {
-  return new Readable()
+  return new ReadStream()
 }
 export function createWriteStream() {
-  return new Writable()
+  return new WriteStream()
 }
 export function watchFile(_filename, _options, _listener) {}
 export function unwatchFile(_filename, _listener) {}
 export function watch(_filename, _options, _listener) {
-  return new EventEmitter()
+  const watcher = new EventEmitter()
+  watcher.close = () => {
+    watcher.removeAllListeners()
+  }
+  watcher.ref = () => watcher
+  watcher.unref = () => watcher
+  return watcher
 }
 export function accessSync() {}
 export function fstatSync(fd) {
@@ -959,6 +1315,26 @@ export class Readable extends Stream {
   }
 }
 
+export class ReadStream extends Readable {
+  constructor(fd) {
+    super()
+    this.fd = fd
+    this.isTTY = false
+  }
+
+  setRawMode() {
+    return this
+  }
+
+  resume() {
+    return this
+  }
+
+  pause() {
+    return this
+  }
+}
+
 export class Writable extends Stream {
   write(_chunk, _encoding, callback) {
     if (typeof _encoding === 'function') _encoding()
@@ -969,6 +1345,14 @@ export class Writable extends Stream {
     if (typeof _encoding === 'function') _encoding()
     if (typeof callback === 'function') callback()
     this.emit('finish')
+  }
+}
+
+export class WriteStream extends Writable {
+  constructor(fd) {
+    super()
+    this.fd = fd
+    this.isTTY = false
   }
 }
 
@@ -1145,11 +1529,14 @@ export default {
   File,
   PassThrough,
   Readable,
+  ReadStream,
+  Stats,
   Stream,
   Transform,
   URL,
   URLSearchParams,
   Writable,
+  WriteStream,
   arch,
   basename,
   connect,
@@ -1209,6 +1596,7 @@ export default {
   sign,
   stripVTControlCharacters,
   tmpdir,
+  totalmem,
   type,
   version,
   userInfo,

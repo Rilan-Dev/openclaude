@@ -1,6 +1,5 @@
 import figures from 'figures'
 import * as React from 'react'
-import { setMainLoopModelOverride } from '../bootstrap/state.js'
 import { DEFAULT_CODEX_BASE_URL } from '../services/api/providerConfig.js'
 import { Box, Text } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -78,7 +77,6 @@ import {
 import { clearStartupProviderOverrides } from '../utils/providerStartupOverrides.js'
 import { redactUrlForDisplay } from '../utils/urlRedaction.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 import {
   type OptionWithDescription,
   Select,
@@ -87,7 +85,6 @@ import { Pane } from './design-system/Pane.js'
 import TextInput from './TextInput.js'
 import { useCodexOAuthFlow } from './useCodexOAuthFlow.js'
 import { useXaiOAuthFlow } from './useXaiOAuthFlow.js'
-import { WebSelectList } from './WebSelectList.js'
 
 export type ProviderManagerResult = {
   action: 'saved' | 'cancelled' | 'activated'
@@ -101,8 +98,6 @@ type Props = {
   mode: 'first-run' | 'manage'
   onDone: (result?: ProviderManagerResult) => void
 }
-
-type TextColor = React.ComponentProps<typeof Text>['color']
 
 type Screen =
   | 'menu'
@@ -244,12 +239,11 @@ function toDraft(profile: ProviderProfile): ProviderDraft {
 
 function getPresetLabel(preset: ProviderPreset, label: string, metadata?: { badge?: { text: string; color?: string } }): React.ReactNode {
   if (metadata?.badge) {
-    const badgeColor = getPresetBadgeColor(metadata.badge.color, 'success')
     if (metadata.badge.text.toLowerCase() === 'recommended') {
       return (
         <Text>
           <Text>{label} </Text>
-          <Text color={badgeColor} bold>★ Recommended</Text>
+          <Text color={metadata.badge.color ?? 'success'} bold>★ Recommended</Text>
         </Text>
       )
     }
@@ -257,26 +251,11 @@ function getPresetLabel(preset: ProviderPreset, label: string, metadata?: { badg
     return (
       <Text>
         <Text>{label} </Text>
-        <Text color={badgeColor} bold>[{metadata.badge.text}]</Text>
+        <Text color={metadata.badge.color ?? 'green'} bold>[{metadata.badge.text}]</Text>
       </Text>
     )
   }
   return label
-}
-
-function getPresetBadgeColor(color: string | undefined, fallback: TextColor): TextColor {
-  switch (color) {
-    case 'success':
-    case 'warning':
-    case 'error':
-    case 'remember':
-    case 'claude':
-    case 'brand':
-    case 'suggestion':
-      return color
-    default:
-      return fallback
-  }
 }
 
 function presetToDraft(preset: ProviderPreset): ProviderDraft {
@@ -306,7 +285,7 @@ function canUseStreamlinedPresetFlow(draft: ProviderDraft): boolean {
 function profileSummary(profile: ProviderProfile, isActive: boolean): string {
   const activeSuffix = isActive ? ' (active)' : ''
   const keyInfo = profile.apiKey ? 'key set' : 'no key'
-  const routeId = resolveProviderEditorRouteId(profile.provider, profile.baseUrl)
+  const routeId = resolveProfileRoute(profile.provider).routeId
   const providerKind = getRouteProviderTypeLabel(routeId)
   const models = parseModelList(profile.model)
   const modelDisplay =
@@ -1094,16 +1073,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
   }, [draft.baseUrl, screen])
 
   function refreshProfiles(): void {
-    if (isBrowserRuntime()) {
-      const nextProfiles = getProviderProfiles()
-      setProfiles(nextProfiles)
-      setActiveProfileId(getActiveProviderProfile()?.id)
-      refreshGithubProviderState()
-      refreshCodexOAuthCredentialState()
-      refreshXaiOAuthCredentialState()
-      return
-    }
-
     // Defer sync I/O to next microtask to prevent UI freeze.
     // getProviderProfiles() and getActiveProviderProfile() read config files
     // synchronously, which can block the main thread on Windows (antivirus, disk cache).
@@ -1117,31 +1086,12 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       setActiveProfileId(getActiveProviderProfile()?.id)
       refreshGithubProviderState()
       refreshCodexOAuthCredentialState()
-      refreshXaiOAuthCredentialState()
       isRefreshingRef.current = false
     })
   }
 
   function clearStartupProviderOverrideFromUserSettings(): string | null {
     return clearStartupProviderOverrides()
-  }
-
-  function applyActiveProviderModelToSession(model: string): string {
-    const activeModel = getPrimaryModel(model)
-
-    // Apply immediately to the runtime selector used by useMainLoopModel().
-    // Relying only on AppState/onChangeAppState can leave the next WebUI turn
-    // on the previous startup model while the provider manager already says
-    // the new provider is active.
-    setMainLoopModelOverride(activeModel)
-    updateSettingsForSource('userSettings', { model: activeModel })
-    setAppState(prev => ({
-      ...prev,
-      mainLoopModel: activeModel,
-      mainLoopModelForSession: null,
-    }))
-
-    return activeModel
   }
 
   function formatWarningsForMessage(warnings: string[]): string {
@@ -1254,7 +1204,11 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
           return
         }
 
-        applyActiveProviderModelToSession(GITHUB_PROVIDER_DEFAULT_MODEL)
+        setAppState(prev => ({
+          ...prev,
+          mainLoopModel: GITHUB_PROVIDER_DEFAULT_MODEL,
+          mainLoopModelForSession: null,
+        }))
         refreshProfiles()
         setStatusMessage(`Active provider: ${GITHUB_PROVIDER_LABEL}`)
         setIsActivating(false)
@@ -1280,7 +1234,12 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       // persistActiveProviderProfileModel (called by onChangeAppState) will
       // not overwrite the multi-model list because it checks if the model
       // is already in the provider's configured model list.
-      const newModel = applyActiveProviderModelToSession(active.model)
+      const newModel = getPrimaryModel(active.model)
+      setAppState(prev => ({
+        ...prev,
+        mainLoopModel: newModel,
+        mainLoopModelForSession: null,
+      }))
       providerLabel = active.name
       const settingsOverrideError =
         clearStartupProviderOverrideFromUserSettings()
@@ -1366,6 +1325,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       env: {
         CLAUDE_CODE_USE_GITHUB: '1',
         OPENAI_MODEL: GITHUB_PROVIDER_DEFAULT_MODEL,
+        OPENAI_API_KEYS: undefined as any,
         OPENAI_API_KEY: undefined as any,
         OPENAI_ORG: undefined as any,
         OPENAI_PROJECT: undefined as any,
@@ -1385,6 +1345,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
 
     process.env.CLAUDE_CODE_USE_GITHUB = '1'
     process.env.OPENAI_MODEL = GITHUB_PROVIDER_DEFAULT_MODEL
+    delete process.env.OPENAI_API_KEYS
     delete process.env.OPENAI_API_KEY
     delete process.env.OPENAI_ORG
     delete process.env.OPENAI_PROJECT
@@ -1435,6 +1396,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     delete process.env.CLAUDE_CODE_USE_GITHUB
     delete process.env[GITHUB_MODELS_HYDRATED_ENV_MARKER]
     delete process.env.OPENAI_MODEL
+    delete process.env.OPENAI_API_KEYS
     delete process.env.OPENAI_API_KEY
     delete process.env.OPENAI_ORG
     delete process.env.OPENAI_PROJECT
@@ -1568,7 +1530,11 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
 
     const isActiveSavedProfile = getActiveProviderProfile()?.id === saved.id
     if (isActiveSavedProfile) {
-      applyActiveProviderModelToSession(saved.model)
+      setAppState(prev => ({
+        ...prev,
+        mainLoopModel: getPrimaryModel(saved.model),
+        mainLoopModelForSession: null,
+      }))
     }
     const settingsOverrideError = isActiveSavedProfile
       ? clearStartupProviderOverrideFromUserSettings()
@@ -1632,18 +1598,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       atomicChatSelection.state === 'loading' ||
       atomicChatSelection.state === 'idle'
     ) {
-      if (isBrowserRuntime()) {
-        return (
-          <section className="repl-webPicker repl-commandSurface">
-            <div className="repl-webPickerHeader">
-              <span className="repl-webPickerKicker">Provider setup</span>
-              <h2>Checking Atomic Chat</h2>
-              <p>Looking for loaded Atomic Chat models...</p>
-            </div>
-            <div className="repl-webPickerLoading" />
-          </section>
-        )
-      }
       return (
         <Box flexDirection="column" gap={1}>
           <Text color="remember" bold>
@@ -1655,38 +1609,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     }
 
     if (atomicChatSelection.state === 'unavailable') {
-      const fallbackOptions = [
-        {
-          value: 'manual',
-          label: 'Enter manually',
-          description: 'Fill in the base URL and model yourself',
-        },
-        {
-          value: 'back',
-          label: 'Back',
-          description: 'Choose another provider preset',
-        },
-      ]
-      const handleFallback = (value: string) => {
-        if (value === 'manual') {
-          setFormStepIndex(0)
-          setCursorOffset(draft.name.length)
-          setScreen('form')
-          return
-        }
-        setScreen('select-preset')
-      }
-      if (isBrowserRuntime()) {
-        return (
-          <WebSelectList
-            title="Atomic Chat setup"
-            subtitle={atomicChatSelection.message}
-            options={fallbackOptions}
-            onSelect={handleFallback}
-            onCancel={() => setScreen('select-preset')}
-          />
-        )
-      }
       return (
         <Box flexDirection="column" gap={1}>
           <Text color="remember" bold>
@@ -1694,33 +1616,31 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
           </Text>
           <Text dimColor>{atomicChatSelection.message}</Text>
           <Select
-            options={fallbackOptions}
-            onChange={handleFallback}
+            options={[
+              {
+                value: 'manual',
+                label: 'Enter manually',
+                description: 'Fill in the base URL and model yourself',
+              },
+              {
+                value: 'back',
+                label: 'Back',
+                description: 'Choose another provider preset',
+              },
+            ]}
+            onChange={(value: string) => {
+              if (value === 'manual') {
+                setFormStepIndex(0)
+                setCursorOffset(draft.name.length)
+                setScreen('form')
+                return
+              }
+              setScreen('select-preset')
+            }}
             onCancel={() => setScreen('select-preset')}
             visibleOptionCount={2}
           />
         </Box>
-      )
-    }
-
-    if (isBrowserRuntime()) {
-      return (
-        <WebSelectList
-          title="Choose an Atomic Chat model"
-          subtitle="Pick one of the models loaded in Atomic Chat to save into a local provider profile."
-          options={atomicChatSelection.options}
-          selectedValue={atomicChatSelection.defaultValue}
-          focusedValue={atomicChatSelection.defaultValue}
-          onSelect={(value: string) => {
-            const nextDraft = {
-              ...draft,
-              model: value,
-            }
-            setDraft(nextDraft)
-            persistDraft(nextDraft)
-          }}
-          onCancel={() => setScreen('select-preset')}
-        />
       )
     }
 
@@ -1755,18 +1675,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
 
   function renderOllamaSelection(): React.ReactNode {
     if (ollamaSelection.state === 'loading' || ollamaSelection.state === 'idle') {
-      if (isBrowserRuntime()) {
-        return (
-          <section className="repl-webPicker repl-commandSurface">
-            <div className="repl-webPickerHeader">
-              <span className="repl-webPickerKicker">Provider setup</span>
-              <h2>Checking Ollama</h2>
-              <p>Looking for installed Ollama models...</p>
-            </div>
-            <div className="repl-webPickerLoading" />
-          </section>
-        )
-      }
       return (
         <Box flexDirection="column" gap={1}>
           <Text color="remember" bold>
@@ -1778,38 +1686,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     }
 
     if (ollamaSelection.state === 'unavailable') {
-      const fallbackOptions = [
-        {
-          value: 'manual',
-          label: 'Enter manually',
-          description: 'Fill in the base URL and model yourself',
-        },
-        {
-          value: 'back',
-          label: 'Back',
-          description: 'Choose another provider preset',
-        },
-      ]
-      const handleFallback = (value: string) => {
-        if (value === 'manual') {
-          setFormStepIndex(0)
-          setCursorOffset(draft.name.length)
-          setScreen('form')
-          return
-        }
-        setScreen('select-preset')
-      }
-      if (isBrowserRuntime()) {
-        return (
-          <WebSelectList
-            title="Ollama setup"
-            subtitle={ollamaSelection.message}
-            options={fallbackOptions}
-            onSelect={handleFallback}
-            onCancel={() => setScreen('select-preset')}
-          />
-        )
-      }
       return (
         <Box flexDirection="column" gap={1}>
           <Text color="remember" bold>
@@ -1817,33 +1693,31 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
           </Text>
           <Text dimColor>{ollamaSelection.message}</Text>
           <Select
-            options={fallbackOptions}
-            onChange={handleFallback}
+            options={[
+              {
+                value: 'manual',
+                label: 'Enter manually',
+                description: 'Fill in the base URL and model yourself',
+              },
+              {
+                value: 'back',
+                label: 'Back',
+                description: 'Choose another provider preset',
+              },
+            ]}
+            onChange={(value: string) => {
+              if (value === 'manual') {
+                setFormStepIndex(0)
+                setCursorOffset(draft.name.length)
+                setScreen('form')
+                return
+              }
+              setScreen('select-preset')
+            }}
             onCancel={() => setScreen('select-preset')}
             visibleOptionCount={2}
           />
         </Box>
-      )
-    }
-
-    if (isBrowserRuntime()) {
-      return (
-        <WebSelectList
-          title="Choose an Ollama model"
-          subtitle="Pick one of the installed Ollama models to save into a local provider profile."
-          options={ollamaSelection.options}
-          selectedValue={ollamaSelection.defaultValue}
-          focusedValue={ollamaSelection.defaultValue}
-          onSelect={(value: string) => {
-            const nextDraft = {
-              ...draft,
-              model: value,
-            }
-            setDraft(nextDraft)
-            persistDraft(nextDraft)
-          }}
-          onCancel={() => setScreen('select-preset')}
-        />
       )
     }
 
@@ -2017,48 +1891,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       })
     }
 
-    const handlePresetSelect = (value: string) => {
-      if (value === 'skip') {
-        closeWithCancelled('Provider setup skipped')
-        return
-      }
-      if (value === 'codex-oauth') {
-        setScreen('codex-oauth')
-        return
-      }
-      if (value === 'xai-oauth') {
-        setScreen('xai-oauth')
-        return
-      }
-      startCreateFromPreset(value as ProviderPreset)
-    }
-
-    const handlePresetCancel = () => {
-      if (mode === 'first-run') {
-        closeWithCancelled('Provider setup skipped')
-        return
-      }
-      returnToMenu()
-    }
-
-    if (isBrowserRuntime()) {
-      return (
-        <WebSelectList
-          title={mode === 'first-run' ? 'Set up provider' : 'Choose provider preset'}
-          subtitle="Pick a preset, then complete the details it needs."
-          options={options.map(option => ({
-            value: option.value,
-            label: option.label,
-            description: option.description,
-            disabled: option.disabled,
-          }))}
-          className="repl-providerChoiceList repl-providerPresetList"
-          onSelect={handlePresetSelect}
-          onCancel={handlePresetCancel}
-        />
-      )
-    }
-
     return (
       <Box flexDirection="column" gap={1}>
         <Text color="remember" bold>
@@ -2069,8 +1901,28 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
         </Text>
         <Select
           options={options}
-          onChange={handlePresetSelect}
-          onCancel={handlePresetCancel}
+          onChange={(value: string) => {
+            if (value === 'skip') {
+              closeWithCancelled('Provider setup skipped')
+              return
+            }
+            if (value === 'codex-oauth') {
+              setScreen('codex-oauth')
+              return
+            }
+            if (value === 'xai-oauth') {
+              setScreen('xai-oauth')
+              return
+            }
+            startCreateFromPreset(value as ProviderPreset)
+          }}
+          onCancel={() => {
+            if (mode === 'first-run') {
+              closeWithCancelled('Provider setup skipped')
+              return
+            }
+            returnToMenu()
+          }}
           visibleOptionCount={Math.min(13, options.length)}
         />
       </Box>
@@ -2295,180 +2147,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     // Use memoized menuOptions from component scope
     const hasProfiles = profiles.length > 0
     const hasSelectableProviders = hasProfiles || githubProviderAvailable
-    const handleMenuSelect = (value: string) => {
-      setErrorMessage(undefined)
-      switch (value) {
-        case 'add':
-          setScreen('select-preset')
-          break
-        case 'activate':
-          if (hasSelectableProviders) {
-            setScreen('select-active')
-          }
-          break
-        case 'edit':
-          if (hasProfiles) {
-            setScreen('select-edit')
-          }
-          break
-        case 'delete':
-          if (hasSelectableProviders) {
-            setScreen('select-delete')
-          }
-          break
-        case 'logout-codex-oauth': {
-          const cleared = clearCodexCredentials()
-          if (!cleared.success) {
-            setErrorMessage(
-              cleared.warning ??
-                'Could not clear Codex OAuth credentials.',
-            )
-            break
-          }
-
-          setHasStoredCodexOAuthCredentials(false)
-          setStoredCodexOAuthProfileId(undefined)
-          const codexProfile = findCodexOAuthProfile(
-            getProviderProfiles(),
-            storedCodexOAuthProfileId,
-          )
-          let settingsOverrideError: string | null = null
-          if (codexProfile) {
-            const result = deleteProviderProfile(codexProfile.id)
-            if (!result.removed) {
-              setErrorMessage(
-                'Codex OAuth credentials were cleared, but the Codex profile could not be removed.',
-              )
-              refreshProfiles()
-              break
-            }
-
-            clearPersistedCodexOAuthProfile()
-            settingsOverrideError = result.activeProfileId
-              ? clearStartupProviderOverrideFromUserSettings()
-              : null
-          }
-
-          refreshProfiles()
-          setStatusMessage(
-            settingsOverrideError
-              ? `Codex OAuth logged out. Warning: could not clear startup provider override (${settingsOverrideError}).`
-              : 'Codex OAuth logged out.',
-          )
-          break
-        }
-        case 'logout-xai-oauth': {
-          const cleared = clearXaiCredentials()
-          if (!cleared.success) {
-            setErrorMessage(
-              cleared.warning ??
-                'Could not clear xAI OAuth credentials.',
-            )
-            break
-          }
-
-          setHasStoredXaiOAuthCredentials(false)
-          setStoredXaiOAuthProfileId(undefined)
-          const xaiProfile = findXaiOAuthProfile(
-            getProviderProfiles(),
-            storedXaiOAuthProfileId,
-          )
-          let settingsOverrideError: string | null = null
-          if (xaiProfile) {
-            const result = deleteProviderProfile(xaiProfile.id)
-            if (!result.removed) {
-              setErrorMessage(
-                'xAI OAuth credentials were cleared, but the xAI profile could not be removed.',
-              )
-              refreshProfiles()
-              break
-            }
-
-            clearPersistedXaiOAuthProfile()
-            settingsOverrideError = result.activeProfileId
-              ? clearStartupProviderOverrideFromUserSettings()
-              : null
-          }
-
-          refreshProfiles()
-          setStatusMessage(
-            settingsOverrideError
-              ? `xAI OAuth logged out. Warning: could not clear startup provider override (${settingsOverrideError}).`
-              : 'xAI OAuth logged out.',
-          )
-          break
-        }
-        default:
-          closeWithCancelled('Provider manager closed')
-          break
-      }
-    }
-
-    if (isBrowserRuntime()) {
-      const profileLines = profiles.map(profile => ({
-        id: profile.id,
-        name: profile.name,
-        summary: profileSummary(profile, profile.id === activeProfileId),
-        active: profile.id === activeProfileId,
-      }))
-      if (githubProviderAvailable) {
-        profileLines.push({
-          id: GITHUB_PROVIDER_ID,
-          name: GITHUB_PROVIDER_LABEL,
-          summary: getGithubProviderSummary(
-            isGithubActive,
-            githubCredentialSource,
-          ),
-          active: isGithubActive,
-        })
-      }
-      return (
-        <section className="repl-commandSurface repl-providerManagerSurface">
-          <div className="repl-webPickerHeader">
-            <span className="repl-webPickerKicker">Session routing</span>
-            <h2>Provider manager</h2>
-            <p>Active profile controls base URL, model, and API key used by this session.</p>
-          </div>
-          {statusMessage ? (
-            <div className="repl-webPickerNotice">{statusMessage}</div>
-          ) : null}
-          <div className="repl-providerProfileStrip">
-            {profileLines.length === 0 ? (
-              <div className="repl-providerProfileEmpty">
-                {isGithubCredentialSourceResolved
-                  ? 'No provider profiles configured yet.'
-                  : 'Checking GitHub Models credentials...'}
-              </div>
-            ) : (
-              profileLines.map(profile => (
-                <article
-                  key={profile.id}
-                  className="repl-providerProfileRow"
-                  data-active={profile.active ? 'true' : undefined}
-                >
-                  <span className="repl-providerProfileStatus">
-                    {profile.active ? 'Active' : 'Saved'}
-                  </span>
-                  <span>
-                    <strong>{profile.name}</strong>
-                    <small>{profile.summary}</small>
-                  </span>
-                </article>
-              ))
-            )}
-          </div>
-          <WebSelectList
-            title="Provider actions"
-            options={menuOptions}
-            selectedValue={menuFocusValue}
-            focusedValue={menuFocusValue}
-            className="repl-providerActionList"
-            onSelect={handleMenuSelect}
-            onCancel={() => closeWithCancelled('Provider manager closed')}
-          />
-        </section>
-      )
-    }
 
     return (
       <Box flexDirection="column" gap={1}>
@@ -2507,7 +2185,114 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
         </Box>
         <Select
           options={menuOptions}
-          onChange={handleMenuSelect}
+          onChange={(value: string) => {
+            setErrorMessage(undefined)
+            switch (value) {
+              case 'add':
+                setScreen('select-preset')
+                break
+              case 'activate':
+                if (hasSelectableProviders) {
+                  setScreen('select-active')
+                }
+                break
+              case 'edit':
+                if (hasProfiles) {
+                  setScreen('select-edit')
+                }
+                break
+              case 'delete':
+                if (hasSelectableProviders) {
+                  setScreen('select-delete')
+                }
+                break
+              case 'logout-codex-oauth': {
+                const cleared = clearCodexCredentials()
+                if (!cleared.success) {
+                  setErrorMessage(
+                    cleared.warning ??
+                      'Could not clear Codex OAuth credentials.',
+                  )
+                  break
+                }
+
+                setHasStoredCodexOAuthCredentials(false)
+                setStoredCodexOAuthProfileId(undefined)
+                const codexProfile = findCodexOAuthProfile(
+                  getProviderProfiles(),
+                  storedCodexOAuthProfileId,
+                )
+                let settingsOverrideError: string | null = null
+                if (codexProfile) {
+                  const result = deleteProviderProfile(codexProfile.id)
+                  if (!result.removed) {
+                    setErrorMessage(
+                      'Codex OAuth credentials were cleared, but the Codex profile could not be removed.',
+                    )
+                    refreshProfiles()
+                    break
+                  }
+
+                  clearPersistedCodexOAuthProfile()
+                  settingsOverrideError = result.activeProfileId
+                    ? clearStartupProviderOverrideFromUserSettings()
+                    : null
+                }
+
+                refreshProfiles()
+                setStatusMessage(
+                  settingsOverrideError
+                    ? `Codex OAuth logged out. Warning: could not clear startup provider override (${settingsOverrideError}).`
+                    : 'Codex OAuth logged out.',
+                )
+                break
+              }
+              case 'logout-xai-oauth': {
+                const cleared = clearXaiCredentials()
+                if (!cleared.success) {
+                  setErrorMessage(
+                    cleared.warning ??
+                      'Could not clear xAI OAuth credentials.',
+                  )
+                  break
+                }
+
+                setHasStoredXaiOAuthCredentials(false)
+                setStoredXaiOAuthProfileId(undefined)
+                const xaiProfile = findXaiOAuthProfile(
+                  getProviderProfiles(),
+                  storedXaiOAuthProfileId,
+                )
+                let settingsOverrideError: string | null = null
+                if (xaiProfile) {
+                  const result = deleteProviderProfile(xaiProfile.id)
+                  if (!result.removed) {
+                    setErrorMessage(
+                      'xAI OAuth credentials were cleared, but the xAI profile could not be removed.',
+                    )
+                    refreshProfiles()
+                    break
+                  }
+
+                  clearPersistedXaiOAuthProfile()
+                  settingsOverrideError = result.activeProfileId
+                    ? clearStartupProviderOverrideFromUserSettings()
+                    : null
+                }
+
+                refreshProfiles()
+                setStatusMessage(
+                  settingsOverrideError
+                    ? `xAI OAuth logged out. Warning: could not clear startup provider override (${settingsOverrideError}).`
+                    : 'xAI OAuth logged out.',
+                )
+                break
+              }
+              default:
+                closeWithCancelled('Provider manager closed')
+                break
+            }
+          }}
           onCancel={() => closeWithCancelled('Provider manager closed')}
           defaultFocusValue={menuFocusValue}
           visibleOptionCount={menuOptions.length}
@@ -2529,7 +2314,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
         profile.id === activeProfileId
           ? `${profile.name} (active)`
           : profile.name,
-      description: `${getRouteProviderTypeLabel(resolveProviderEditorRouteId(profile.provider, profile.baseUrl))} · ${profile.baseUrl} · ${profile.model}`,
+      description: `${getRouteProviderTypeLabel(resolveProfileRoute(profile.provider).routeId)} · ${profile.baseUrl} · ${profile.model}`,
     }))
 
     if (includeGithub && githubProviderAvailable) {
@@ -2543,23 +2328,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     }
 
     if (selectOptions.length === 0) {
-      if (isBrowserRuntime()) {
-        return (
-          <WebSelectList
-            title={title}
-            subtitle={emptyMessage}
-            options={[
-              {
-                value: 'back',
-                label: 'Back',
-                description: 'Return to provider manager',
-              },
-            ]}
-            onSelect={() => returnToMenu()}
-            onCancel={() => returnToMenu()}
-          />
-        )
-      }
       return (
         <Box flexDirection="column" gap={1}>
           <Text color="remember" bold>
@@ -2579,21 +2347,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             visibleOptionCount={1}
           />
         </Box>
-      )
-    }
-
-    if (isBrowserRuntime()) {
-      return (
-        <WebSelectList
-          title={title}
-          subtitle="Choose the provider profile that should power this chat session."
-          options={selectOptions}
-          selectedValue={activeProfileId}
-          focusedValue={activeProfileId}
-          className="repl-providerChoiceList"
-          onSelect={onSelect}
-          onCancel={() => returnToMenu()}
-        />
       )
     }
 
@@ -2677,7 +2430,11 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             // (e.g. kimi-k2.6) and gets a 400 "Model not found" against
             // api.x.ai. Mirrors the activateSelectedProvider /
             // saveAndCloseProvider flows.
-            applyActiveProviderModelToSession(saved.model)
+            setAppState(prev => ({
+              ...prev,
+              mainLoopModel: getPrimaryModel(saved.model),
+              mainLoopModelForSession: null,
+            }))
             setHasStoredXaiOAuthCredentials(true)
             setStoredXaiOAuthProfileId(saved.id)
             refreshProfiles()
@@ -2760,7 +2517,6 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             const settingsOverrideError =
               clearStartupProviderOverrideFromUserSettings()
             const activationWarning = await activateCodexOAuthSession(tokens)
-            applyActiveProviderModelToSession(saved.model)
             setHasStoredCodexOAuthCredentials(true)
             setStoredCodexOAuthProfileId(saved.id)
             refreshProfiles()

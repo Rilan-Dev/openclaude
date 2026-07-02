@@ -1,16 +1,14 @@
 import memoize from 'lodash-es/memoize.js'
 import {
+  copyFileSync,
   lstatSync,
   mkdirSync,
+  readlinkSync,
   readdirSync,
   statSync,
+  symlinkSync,
 } from 'fs'
-
 import { homedir } from 'os'
-import { copyFileSync } from 'fs'
-import { symlinkSync } from 'fs'
-import { readlinkSync } from 'fs'
-
 import { dirname, join } from 'path'
 
 const LEGACY_GLOBAL_CONFIG_FILE_RE =
@@ -198,6 +196,10 @@ export function setClaudeConfigHomeDirForTesting(
   configDir: string | undefined,
 ): void {
   claudeConfigHomeDirOverride = configDir?.normalize('NFC')
+}
+
+export function getClaudeConfigHomeDirOverrideForTesting(): string | undefined {
+  return claudeConfigHomeDirOverride
 }
 
 // Memoized: 150+ callers, many on hot paths. Keyed off both override env

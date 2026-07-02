@@ -1,4 +1,5 @@
-import { getChokidar, isAbsolute, isBrowserRuntime, join } from '../imports.js'
+import chokidar, { type FSWatcher } from 'chokidar'
+import { isAbsolute, join } from 'path'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
@@ -9,8 +10,6 @@ import {
 } from '../hooks.js'
 import { clearCwdEnvFiles } from '../sessionEnvironment.js'
 import { getHooksConfigFromSnapshot } from './hooksConfigSnapshot.js'
-
-type FSWatcher = import('chokidar').FSWatcher
 
 let watcher: FSWatcher | null = null
 let currentCwd: string
@@ -27,7 +26,6 @@ export function setEnvHookNotifier(
 }
 
 export function initializeFileChangedWatcher(cwd: string): void {
-  if (isBrowserRuntime()) return
   if (initialized) return
   initialized = true
   currentCwd = cwd
@@ -68,7 +66,6 @@ function resolveWatchPaths(
 
 function startWatching(paths: string[]): void {
   logForDebugging(`FileChanged: watching ${paths.length} paths`)
-  const chokidar = getChokidar()
   watcher = chokidar.watch(paths, {
     persistent: true,
     ignoreInitial: true,
@@ -137,7 +134,6 @@ export async function onCwdChangedForHooks(
   oldCwd: string,
   newCwd: string,
 ): Promise<void> {
-  if (isBrowserRuntime()) return
   if (oldCwd === newCwd) return
 
   // Re-evaluate from the current snapshot so mid-session hook changes are picked up

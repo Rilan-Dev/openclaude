@@ -60,7 +60,6 @@ import {
   buildExtractAutoOnlyPrompt,
   buildExtractCombinedPrompt,
 } from './prompts.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemPaths = feature('TEAMMEM')
@@ -360,8 +359,8 @@ export function initExtractMemories(): void {
       return
     }
 
-    const teamMemoryEnabled = feature('TEAMMEM') && teamMemPaths != null
-      ? teamMemPaths.isTeamMemoryEnabled()
+    const teamMemoryEnabled = feature('TEAMMEM')
+      ? teamMemPaths!.isTeamMemoryEnabled()
       : false
 
     const skipIndex = getFeatureValue_CACHED_MAY_BE_STALE(
@@ -466,8 +465,8 @@ export function initExtractMemories(): void {
       const memoryPaths = writtenPaths.filter(
         p => basename(p) !== ENTRYPOINT_NAME,
       )
-      const teamCount = feature('TEAMMEM') && teamMemPaths != null
-        ? count(memoryPaths, path => teamMemPaths.isTeamMemPath(path))
+      const teamCount = feature('TEAMMEM')
+        ? count(memoryPaths, teamMemPaths!.isTeamMemPath)
         : 0
 
       // Log extraction event with usage from the forked agent

@@ -367,9 +367,6 @@ function baseCreateAssistantMessage({
   usage = {
     input_tokens: 0,
     output_tokens: 0,
-    output_tokens_details: {
-      thinking_tokens: 0,
-    },
     cache_creation_input_tokens: 0,
     cache_read_input_tokens: 0,
     server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
@@ -474,6 +471,7 @@ export function createUserMessage({
   isCollapseSummary,
   summarizeMetadata,
   toolUseResult,
+  isAgentStepLimitToolResult,
   mcpMeta,
   uuid,
   timestamp,
@@ -489,6 +487,7 @@ export function createUserMessage({
   isCompactSummary?: boolean
   isCollapseSummary?: boolean
   toolUseResult?: unknown // Matches tool's `Output` type
+  isAgentStepLimitToolResult?: boolean
   /** MCP protocol metadata to pass through to SDK consumers (never sent to model) */
   mcpMeta?: {
     _meta?: Record<string, unknown>
@@ -529,6 +528,7 @@ export function createUserMessage({
     uuid: (uuid as UUID | undefined) || randomUUID(),
     timestamp: timestamp ?? new Date().toISOString(),
     toolUseResult,
+    isAgentStepLimitToolResult,
     mcpMeta,
     imagePasteIds,
     sourceToolAssistantUUID,
@@ -4928,21 +4928,14 @@ export function findLastCompactBoundaryIndex<
 export function getMessagesAfterCompactBoundary<
   T extends Message | NormalizedMessage,
 >(messages: T[], options?: { includeSnipped?: boolean }): T[] {
-  const normalizedMessages = Array.isArray(messages)
-    ? messages
-    : Array.from((messages ?? []) as ArrayLike<T> | Iterable<T>)
-  const boundaryIndex = findLastCompactBoundaryIndex(normalizedMessages)
-  const sliced =
-    boundaryIndex === -1
-      ? normalizedMessages
-      : normalizedMessages.slice(boundaryIndex)
+  const boundaryIndex = findLastCompactBoundaryIndex(messages)
+  const sliced = boundaryIndex === -1 ? messages : messages.slice(boundaryIndex)
   if (!options?.includeSnipped && feature('HISTORY_SNIP')) {
     /* eslint-disable @typescript-eslint/no-require-imports */
     const { projectSnippedView } =
       require('../services/compact/snipProjection.js') as typeof import('../services/compact/snipProjection.js')
     /* eslint-enable @typescript-eslint/no-require-imports */
-    const projected = projectSnippedView(sliced as Message[])
-    return Array.isArray(projected) ? (projected as T[]) : sliced
+    return projectSnippedView(sliced as Message[]) as T[]
   }
   return sliced
 }

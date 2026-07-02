@@ -1,4 +1,4 @@
-import { getExeca } from '../imports.js'
+import { execa } from 'execa'
 import { which } from '../which.js'
 
 export type GhAuthStatus =
@@ -19,7 +19,7 @@ export async function getGhAuthStatus(): Promise<GhAuthStatus> {
   if (!ghPath) {
     return 'not_installed'
   }
-  const { exitCode } = await getExeca()('gh', ['auth', 'token'], {
+  const { exitCode } = await execa('gh', ['auth', 'token'], {
     stdout: 'ignore',
     stderr: 'ignore',
     timeout: 5000,

@@ -31,9 +31,6 @@ import { withTokenCountVCR } from './vcr.js'
 // API constraint: max_tokens must be greater than thinking.budget_tokens
 const TOKEN_COUNT_THINKING_BUDGET = 1024
 const TOKEN_COUNT_MAX_TOKENS = 2048
-const AWS_BEDROCK_RUNTIME_PACKAGE = ['@aws-sdk', 'client-bedrock-runtime'].join(
-  '/',
-)
 // Keep this local to avoid importing analyzeContext.ts, which already depends on tokenEstimation.
 const ROUGH_TOOL_TOKEN_COUNT_OVERHEAD = 500
 
@@ -697,9 +694,9 @@ async function countTokensWithBedrock({
       }),
     }
 
-    const { CountTokensCommand } = (await import(
-      /* @vite-ignore */ AWS_BEDROCK_RUNTIME_PACKAGE
-    )) as typeof import('@aws-sdk/client-bedrock-runtime')
+    const { CountTokensCommand } = await import(
+      '@aws-sdk/client-bedrock-runtime'
+    )
     const input: CountTokensCommandInput = {
       modelId,
       input: {

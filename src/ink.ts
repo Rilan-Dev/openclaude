@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react'
+import { createElement, type ReactNode } from 'react'
 import { ThemeProvider } from './components/design-system/ThemeProvider.js'
 import inkRender, {
   type Instance,
@@ -12,7 +12,7 @@ export type { RenderOptions, Instance, Root }
 // Wrap all CC render calls with ThemeProvider so ThemedBox/ThemedText work
 // without every call site having to mount it. Ink itself is theme-agnostic.
 function withTheme(node: ReactNode): ReactNode {
-  return React.createElement(ThemeProvider, null, node)
+  return createElement(ThemeProvider, null, node)
 }
 
 export async function render(

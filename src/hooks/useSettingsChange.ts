@@ -3,15 +3,10 @@ import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import { getSettings_DEPRECATED } from '../utils/settings/settings.js'
 import type { SettingsJson } from '../utils/settings/types.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 
 export function useSettingsChange(
   onChange: (source: SettingSource, settings: SettingsJson) => void,
 ): void {
-  if (isBrowserRuntime()) {
-    return
-  }
-
   const handleChange = useCallback(
     (source: SettingSource) => {
       // Cache is already reset by the notifier (changeDetector.fanOut) —

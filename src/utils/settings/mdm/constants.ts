@@ -5,7 +5,7 @@
  * Both mdmRawRead.ts and mdmSettings.ts import from here to avoid duplication.
  */
 
-import { homedir } from 'os'
+import { homedir, userInfo } from 'os'
 import { join } from 'path'
 
 /** macOS preference domain for Claude Code MDM profiles. */
@@ -43,7 +43,12 @@ export const MDM_SUBPROCESS_TIMEOUT_MS = 5000
  * included only when appropriate.
  */
 export function getMacOSPlistPaths(): Array<{ path: string; label: string }> {
-  const username = process.env.USER || process.env.USERNAME || ''
+  let username = ''
+  try {
+    username = userInfo().username
+  } catch {
+    // ignore
+  }
 
   const paths: Array<{ path: string; label: string }> = []
 

@@ -1,7 +1,4 @@
 import { feature } from 'bun:bundle';
-import { isBrowserRuntime } from '../utils/imports.js'
-
-const browserRuntime = isBrowserRuntime()
 
 // Defensive compatibility guard for environments where globalThis.File is
 // unexpectedly absent. OpenClaude's supported runtime is Node >=22; this is
@@ -9,7 +6,7 @@ const browserRuntime = isBrowserRuntime()
 // versions and prevents undici's module evaluation from throwing in unusual
 // embedded/runtime setups.
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
-if (!browserRuntime && typeof globalThis.File === 'undefined') {
+if (typeof globalThis.File === 'undefined') {
   try {
     // Some runtimes expose File in node:buffer but not as a global.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -35,35 +32,33 @@ if (!browserRuntime && typeof globalThis.File === 'undefined') {
 // require internal API support not available to external accounts → 500.
 // Users can opt-in with CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=false.
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
-if (!browserRuntime) {
-  process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
+process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
-  // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
-  // eslint-disable-next-line custom-rules/no-top-level-side-effects
-  process.env.COREPACK_ENABLE_AUTO_PIN = '0';
+// Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+process.env.COREPACK_ENABLE_AUTO_PIN = '0';
 
-  // Set max heap size for child processes. The current CLI process is already
-  // running by this point; the package launcher raises its heap before importing
-  // dist/cli.mjs. Keeping NODE_OPTIONS here preserves the larger cap for tools or
-  // subprocesses spawned after startup without overriding user-provided limits.
-  // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level, custom-rules/safe-env-boolean-check
-  if (!process.env.NODE_OPTIONS?.includes('--max-old-space-size')) {
-    // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
-    const existing = process.env.NODE_OPTIONS || ''
-    // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
-    process.env.NODE_OPTIONS = existing ? `${existing} --max-old-space-size=8192` : '--max-old-space-size=8192'
-  }
-
-  // Harness-science L0 ablation baseline. Inlined here (not init.ts) because
-  // BashTool/AgentTool/PowerShellTool capture DISABLE_BACKGROUND_TASKS into
-  // module-level consts at import time — init() runs too late. feature() gate
-  // DCEs this entire block from external builds.
+// Set max heap size for child processes. The current CLI process is already
+// running by this point; the package launcher raises its heap before importing
+// dist/cli.mjs. Keeping NODE_OPTIONS here preserves the larger cap for tools or
+// subprocesses spawned after startup without overriding user-provided limits.
+// eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level, custom-rules/safe-env-boolean-check
+if (!process.env.NODE_OPTIONS?.includes('--max-old-space-size')) {
   // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
-  if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
-    for (const k of ['CLAUDE_CODE_SIMPLE', 'CLAUDE_CODE_DISABLE_THINKING', 'DISABLE_INTERLEAVED_THINKING', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'CLAUDE_CODE_DISABLE_BACKGROUND_TASKS']) {
-      // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
-      process.env[k] ??= '1'
-    }
+  const existing = process.env.NODE_OPTIONS || ''
+  // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
+  process.env.NODE_OPTIONS = existing ? `${existing} --max-old-space-size=8192` : '--max-old-space-size=8192'
+}
+
+// Harness-science L0 ablation baseline. Inlined here (not init.ts) because
+// BashTool/AgentTool/PowerShellTool capture DISABLE_BACKGROUND_TASKS into
+// module-level consts at import time — init() runs too late. feature() gate
+// DCEs this entire block from external builds.
+// eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
+if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
+  for (const k of ['CLAUDE_CODE_SIMPLE', 'CLAUDE_CODE_DISABLE_THINKING', 'DISABLE_INTERLEAVED_THINKING', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'CLAUDE_CODE_DISABLE_BACKGROUND_TASKS']) {
+    // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
+    process.env[k] ??= '1';
   }
 }
 
@@ -139,17 +134,10 @@ function isBgSessionsEnabled(options: CliEntrypointOptions): boolean {
   return false
 }
 
-async function main(
-  args?: string[],
+export async function main(
+  args: string[] = process.argv.slice(2),
   options: CliEntrypointOptions = {},
 ): Promise<void> {
-  args ??=
-    isBrowserRuntime()
-      ? []
-      : Array.isArray(process.argv)
-        ? process.argv.slice(2)
-        : [];
-        
   const bgSessionsEnabled = isBgSessionsEnabled(options)
   const importers = getCliEntrypointImporters(options.importers)
   let reapplyProviderEnvFileValues = () => {}
@@ -221,7 +209,7 @@ async function main(
 
   // --provider: set provider env vars early so saved-profile resolution,
   // validation, and the startup banner all see the intended provider/model.
-  if (!browserRuntime && args.includes('-provider')) {
+  if (args.includes('--provider')) {
     const {
       applyProviderFlagFromArgs,
       reapplyRememberedProviderFlag,
@@ -281,10 +269,6 @@ async function main(
       resolveOutOfProcessTeammateProviderFromCliArgs,
     } = await importers.agentRouting()
     const { getInitialSettings } = await importers.settings()
-
-    console.log("args:", args);
-    console.log("Isargs:", Array.isArray(args));
-
     const providerOverride = resolveOutOfProcessTeammateProviderFromCliArgs(
       args,
       getInitialSettings(),
@@ -570,6 +554,6 @@ async function main(
 }
 
 // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
-if (!browserRuntime && process.env.OPENCLAUDE_DISABLE_CLI_ENTRYPOINT_AUTO_RUN !== '1') {
+if (process.env.OPENCLAUDE_DISABLE_CLI_ENTRYPOINT_AUTO_RUN !== '1') {
   void main();
 }

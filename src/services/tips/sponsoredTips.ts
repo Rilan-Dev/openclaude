@@ -1,7 +1,6 @@
-import chalk from 'chalk'
 import { color } from '../../components/design-system/color.js'
-import { isBrowserRuntime } from '../../utils/imports.js'
 import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
+import { renderSponsorLink } from './tipLink.js'
 import type { Tip, TipContext, TipSponsor } from './types.js'
 
 const DEFAULT_FREQUENCY = 10
@@ -40,18 +39,14 @@ function renderSponsoredTip(
   body: string,
   ctx: TipContext,
 ): string {
-  if (isBrowserRuntime()) {
-    const label = sponsor.label ?? 'Sponsored'
-    const url = sponsor.url ? ` ${sponsor.url}` : ''
-    return `${label} · ${sponsor.name} — ${body}${url}`
-  }
-
   const green = color('success', ctx.theme)
   const label = sponsor.label ?? 'Sponsored'
-  const badge = green(`${label} · ${sponsor.name}`)
+  // Sponsor name becomes a clickable hyperlink to its URL rather than printing
+  // the raw URL inline; falls back to the dimmed URL where OSC 8 is unsupported.
+  const { display, trailing } = renderSponsorLink(sponsor.name, sponsor.url)
+  const badge = green(`${label} · ${display}`)
   const text = green(body)
-  const url = sponsor.url ? ` ${chalk.dim(sponsor.url)}` : ''
-  return `${badge} — ${text}${url}`
+  return `${badge} — ${text}${trailing}`
 }
 
 export const sponsoredTips: Tip[] = [

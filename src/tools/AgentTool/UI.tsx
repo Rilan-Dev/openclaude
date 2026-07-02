@@ -281,9 +281,6 @@ export function renderToolResultMessage(data: Output, progressMessagesForMessage
     usage: {
       ...usage,
       inference_geo: null,
-      output_tokens_details: {
-        thinking_tokens: 0,
-      },
       iterations: null,
       speed: null
     }

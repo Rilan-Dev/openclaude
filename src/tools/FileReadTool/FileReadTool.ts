@@ -1,5 +1,7 @@
 import type { Base64ImageSource } from '@anthropic-ai/sdk/resources/index.mjs'
 import { readdir, readFile as readFileAsync } from 'fs/promises'
+import * as path from 'path'
+import { posix, win32 } from 'path'
 import { z } from 'zod/v4'
 import {
   PDF_AT_MENTION_INLINE_THRESHOLD,
@@ -46,13 +48,6 @@ import {
   ImageResizeError,
   maybeResizeAndDownsampleImageBuffer,
 } from '../../utils/imageResizer.js'
-import {
-  basename,
-  extname,
-  join,
-  posix,
-  win32,
-} from '../../utils/imports.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
@@ -151,7 +146,7 @@ const THIN_SPACE = String.fromCharCode(8239)
  * the alternate path to try if the original doesn't exist, or undefined.
  */
 function getAlternateScreenshotPath(filePath: string): string | undefined {
-  const filename = basename(filePath)
+  const filename = path.basename(filePath)
   const amPmPattern = /^(.+)([ \u202F])(AM|PM)(\.png)$/
   const match = filename.match(amPmPattern)
   if (!match) return undefined
@@ -532,7 +527,7 @@ export const FileReadTool = buildTool({
 
     // Binary extension check (string check on extension only, no I/O).
     // PDF, images, and SVG are excluded - this tool renders them natively.
-    const ext = extname(fullFilePath).toLowerCase()
+    const ext = path.extname(fullFilePath).toLowerCase()
     if (
       hasBinaryExtension(fullFilePath) &&
       !isPDFExtension(ext) &&
@@ -608,7 +603,7 @@ export const FileReadTool = buildTool({
       })
     }
 
-    const ext = extname(file_path).toLowerCase().slice(1)
+    const ext = path.extname(file_path).toLowerCase().slice(1)
     // Use expandPath for consistent path normalization with FileEditTool/FileWriteTool
     // (especially handles whitespace trimming and Windows path separators)
     const fullFilePath = expandPath(file_path)
@@ -822,8 +817,14 @@ function formatFileLines(file: { content: string; startLine: number }): string {
 export const CYBER_RISK_MITIGATION_REMINDER =
   '\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n'
 
-// Models where cyber risk mitigation should be skipped
-const MITIGATION_EXEMPT_MODELS = new Set(['claude-opus-4-6'])
+// Models where cyber risk mitigation should be skipped. The recent Opus models
+// (4.8/4.7) inherit 4.6's exemption — 4.8 is now the first-party default, so
+// without this it would get the reminder on every file read that 4.6 did not.
+const MITIGATION_EXEMPT_MODELS = new Set([
+  'claude-opus-4-8',
+  'claude-opus-4-7',
+  'claude-opus-4-6',
+])
 
 function shouldIncludeFileReadMitigation(): boolean {
   if (isEnvTruthy(process.env.OPENCLAUDE_DISABLE_TOOL_REMINDERS)) {
@@ -1021,7 +1022,7 @@ async function callInner(
       const imageFiles = entries.filter(f => f.endsWith('.jpg')).sort()
       const imageBlocks = await Promise.all(
         imageFiles.map(async f => {
-          const imgPath = join(extractResult.data.file.outputDir, f)
+          const imgPath = path.join(extractResult.data.file.outputDir, f)
           const imgBuffer = await readFileAsync(imgPath)
           const resized = await maybeResizeAndDownsampleImageBuffer(
             imgBuffer,

@@ -426,7 +426,6 @@ function logAPISuccess({
   const isPostCompaction = consumePostCompaction()
   const hasPrintFlag =
     process.argv.includes('-p') || process.argv.includes('--print')
-  const isTTY = process.stdout?.isTTY ?? false
 
   const now = Date.now()
   const lastCompletion = getLastApiCompletionTimestamp()
@@ -480,7 +479,7 @@ function logAPISuccess({
     didFallBackToNonStreaming,
     isNonInteractiveSession,
     print: hasPrintFlag,
-    isTTY,
+    isTTY: process.stdout.isTTY ?? false,
     querySource:
       querySource as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     ...(gateway

@@ -1,7 +1,6 @@
 import { c as _c } from "react-compiler-runtime";
 import type { ReactNode } from 'react';
 import React from 'react';
-import { isBrowserInkRuntime } from '../browser-dom.js';
 import { supportsHyperlinks } from '../supports-hyperlinks.js';
 import Text from './Text.js';
 export type Props = {
@@ -17,13 +16,6 @@ export default function Link(t0) {
     fallback
   } = t0;
   const content = children ?? url;
-  if (isBrowserInkRuntime()) {
-    return <Text><a href={url} rel="noreferrer noopener" target="_blank" style={{
-      color: 'inherit',
-      textDecoration: 'underline',
-      cursor: 'pointer'
-    }}>{content}</a></Text>;
-  }
   if (supportsHyperlinks()) {
     let t1;
     if ($[0] !== content || $[1] !== url) {

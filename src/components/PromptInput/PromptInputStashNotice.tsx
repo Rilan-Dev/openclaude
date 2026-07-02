@@ -2,7 +2,6 @@ import { c as _c } from "react-compiler-runtime";
 import figures from 'figures';
 import * as React from 'react';
 import { Box, Text } from 'src/ink.js';
-import { isBrowserRuntime } from '../../utils/imports.js';
 type Props = {
   hasStash: boolean;
 };
@@ -13,16 +12,6 @@ export function PromptInputStashNotice(t0) {
   } = t0;
   if (!hasStash) {
     return null;
-  }
-  if (isBrowserRuntime()) {
-    return (
-      <div className="repl-stashNotice" aria-live="polite">
-        <span className="repl-stashNoticeBadge">Stashed</span>
-        <span className="repl-stashNoticeCopy">
-          Auto-restores after you submit
-        </span>
-      </div>
-    )
   }
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {

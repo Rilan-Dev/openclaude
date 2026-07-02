@@ -2,7 +2,6 @@ import { sep } from 'path'
 import { logEvent } from '../services/analytics/index.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gitExe } from './git.js'
-import { isBrowserRuntime } from './imports.js'
 
 /**
  * Returns the paths of all worktrees for the current git repository.
@@ -17,10 +16,6 @@ import { isBrowserRuntime } from './imports.js'
  * @returns Array of absolute worktree paths
  */
 export async function getWorktreePaths(cwd: string): Promise<string[]> {
-  if (isBrowserRuntime()) {
-    return []
-  }
-
   const startTime = Date.now()
 
   const { stdout, code } = await execFileNoThrowWithCwd(

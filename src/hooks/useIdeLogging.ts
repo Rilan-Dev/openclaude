@@ -1,17 +1,9 @@
 import { useEffect } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import { getConnectedIdeClient } from '../utils/ide.js'
 import { lazySchema } from '../utils/lazySchema.js'
-
-type LogEventNotification = {
-  method: 'log_event'
-  params: {
-    eventName: string
-    eventData: Record<string, boolean | number | undefined>
-  }
-}
 
 const LogEventSchema = lazySchema(() =>
   z.object({
@@ -25,23 +17,25 @@ const LogEventSchema = lazySchema(() =>
 
 export function useIdeLogging(mcpClients: MCPServerConnection[]): void {
   useEffect(() => {
+    // Skip if there are no clients
     if (!mcpClients.length) {
       return
     }
 
+    // Find the IDE client from the MCP clients list
     const ideClient = getConnectedIdeClient(mcpClients)
-    if (!ideClient) {
-      return
+    if (ideClient) {
+      // Register the log event handler
+      ideClient.client.setNotificationHandler(
+        LogEventSchema(),
+        notification => {
+          const { eventName, eventData } = notification.params
+          logEvent(
+            `tengu_ide_${eventName}`,
+            eventData as { [key: string]: boolean | number | undefined },
+          )
+        },
+      )
     }
-
-    const schema = LogEventSchema() as unknown as Parameters<
-      typeof ideClient.client.setNotificationHandler
-    >[0]
-
-    ideClient.client.setNotificationHandler(schema, notification => {
-      const { eventName, eventData } = notification.params as LogEventNotification['params']
-
-      logEvent(`tengu_ide_${eventName}`, eventData)
-    })
   }, [mcpClients])
 }

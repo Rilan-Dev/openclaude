@@ -3,7 +3,6 @@ import type { BetaContentBlock } from '@anthropic-ai/sdk/resources/beta/messages
 import {
   createAssistantMessage,
   createUserMessage,
-  getMessagesAfterCompactBoundary,
   ensureToolResultPairing,
   selectToolPairSafeMessageRange,
   validateToolResultPairing,
@@ -357,19 +356,4 @@ test('selectToolPairSafeMessageRange drops a partial assistant group when the la
   )
 
   expect(selected.messages).toEqual([head])
-})
-
-test('getMessagesAfterCompactBoundary always returns a real array', () => {
-  const first = createUserMessage({ content: 'first' })
-  const second = createUserMessage({ content: 'second' })
-  const arrayLikeMessages = {
-    0: first,
-    1: second,
-    length: 2,
-  } as never
-
-  const result = getMessagesAfterCompactBoundary(arrayLikeMessages)
-
-  expect(Array.isArray(result)).toBe(true)
-  expect(result).toEqual([first, second])
 })

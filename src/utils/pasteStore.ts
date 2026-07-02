@@ -1,9 +1,9 @@
+import { createHash } from 'crypto'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { logForDebugging } from './debug.js'
 import { getClaudeConfigHomeDir } from './envUtils.js'
 import { isENOENT } from './errors.js'
-import { hashContent } from './hash.js'
 
 const PASTE_STORE_DIR = 'paste-cache'
 
@@ -19,7 +19,7 @@ function getPasteStoreDir(): string {
  * Exported so callers can get the hash synchronously before async storage.
  */
 export function hashPastedText(content: string): string {
-  return hashContent(content).slice(0, 16)
+  return createHash('sha256').update(content).digest('hex').slice(0, 16)
 }
 
 /**

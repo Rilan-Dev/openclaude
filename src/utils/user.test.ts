@@ -37,7 +37,6 @@ async function importActualUserTestDeps() {
 async function installCommonMocks(options?: {
   oauthEmail?: string
   gitEmail?: string
-  gitEmailResult?: { exitCode: number; stdout: string } | null
 }) {
   // NOTE: Do NOT mock ../bootstrap/state.js here.
   // mock.module() is process-global in bun:test and mock.restore() does NOT
@@ -47,14 +46,6 @@ async function installCommonMocks(options?: {
   // which is fine — these tests only assert email, not sessionId.
   const { authModule, configModule, cwdModule, execaModule } =
     await importActualUserTestDeps()
-
-  const execaStub = async () =>
-    options?.gitEmailResult === null
-      ? undefined
-      : options?.gitEmailResult ?? {
-          exitCode: options?.gitEmail ? 0 : 1,
-          stdout: options?.gitEmail ?? '',
-        }
 
   mock.module('./auth.js', () => ({
     ...authModule,
@@ -81,10 +72,6 @@ async function installCommonMocks(options?: {
     getCwd: () => 'C:\\repo',
   }))
 
-  mock.module('./imports.js', () => ({
-    getExeca: () => execaStub,
-  }))
-
   mock.module('./env.js', () => ({
     ...realEnv,
     env: { platform: 'windows' },
@@ -99,7 +86,10 @@ async function installCommonMocks(options?: {
 
   mock.module('execa', () => ({
     ...execaModule,
-    execa: execaStub,
+    execa: async () => ({
+      exitCode: options?.gitEmail ? 0 : 1,
+      stdout: options?.gitEmail ?? '',
+    }),
     execaSync: () => ({
       exitCode: 1,
       stdout: '',
@@ -141,27 +131,23 @@ describe('user email fallbacks', () => {
 
     await installCommonMocks()
 
-    const { getCoreUserData, resetUserCache } = await importFreshUserModule()
-    resetUserCache()
+    const { getCoreUserData } = await importFreshUserModule()
     const result = getCoreUserData()
 
     expect(result.email).toBeUndefined()
   })
 
-  test('initUser tolerates a missing git subprocess result', async () => {
+  test('initUser falls back to git email when oauth email is missing', async () => {
     process.env.USER_TYPE = 'ant'
     process.env.COO_CREATOR = 'alice'
     ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 
-    await installCommonMocks({
-      gitEmailResult: null,
-    })
+    await installCommonMocks({ gitEmail: 'git@example.com' })
 
-    const { initUser, getCoreUserData, resetUserCache } = await importFreshUserModule()
-    resetUserCache()
+    const { initUser, getCoreUserData } = await importFreshUserModule()
     await initUser()
 
     const result = getCoreUserData()
-    expect(result.email).toBeUndefined()
+    expect(result.email).toBe('git@example.com')
   })
 })

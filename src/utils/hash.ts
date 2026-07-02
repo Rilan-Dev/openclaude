@@ -1,8 +1,8 @@
-import { isBrowserRuntime } from './imports.js'
-
 /**
  * djb2 string hash — fast non-cryptographic hash returning a signed 32-bit int.
- * Deterministic across runtimes.
+ * Deterministic across runtimes (unlike Bun.hash which uses wyhash). Use as a
+ * fallback when Bun.hash isn't available, or when you need on-disk-stable
+ * output (e.g. cache directory names that must survive runtime upgrades).
  */
 export function djb2Hash(str: string): number {
   let hash = 0
@@ -12,53 +12,35 @@ export function djb2Hash(str: string): number {
   return hash
 }
 
-function fnv1a64Hex(content: string, seed = 0xcbf29ce484222325n): string {
-  // FNV-1a 64-bit, encoded as fixed-width hex for browser-safe sync hashing.
-  let hash = seed
-  const prime = 0x100000001b3n
-  const mask = 0xffffffffffffffffn
-
-  for (let i = 0; i < content.length; i += 1) {
-    hash ^= BigInt(content.charCodeAt(i))
-    hash = (hash * prime) & mask
-  }
-
-  return hash.toString(16).padStart(16, '0')
-}
-
-function browserStableHashHex(content: string): string {
-  // Concatenate four salted FNV-1a passes so the browser fallback keeps a
-  // 64-character output shape without depending on Node crypto.
-  return [0n, 1n, 2n, 3n]
-    .map(salt => fnv1a64Hex(content, 0xcbf29ce484222325n ^ salt))
-    .join('')
-}
-
 /**
- * Hash arbitrary content for change detection.
- *
- * Browser runtime always uses the pure JS fallback so web UI code never
- * depends on Node crypto shims. Bun runtime keeps the fast path.
+ * Hash arbitrary content for change detection. Bun.hash is ~100x faster than
+ * sha256 and collision-resistant enough for diff detection (not crypto-safe).
  */
 export function hashContent(content: string): string {
-  if (isBrowserRuntime()) {
-    return browserStableHashHex(content)
-  }
-  if (typeof Bun !== 'undefined' && typeof Bun.hash === 'function') {
+  if (typeof Bun !== 'undefined') {
     return Bun.hash(content).toString()
   }
-  return browserStableHashHex(content)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require('crypto') as typeof import('crypto')
+  return crypto.createHash('sha256').update(content).digest('hex')
 }
 
 /**
- * Hash two strings without allocating a concatenated temp string.
+ * Hash two strings without allocating a concatenated temp string. Bun path
+ * seed-chains wyhash (hash(a) feeds as seed to hash(b)); Node path uses
+ * incremental SHA-256 update. Seed-chaining naturally disambiguates
+ * ("ts","code") vs ("tsc","ode") so no separator is needed under Bun.
  */
 export function hashPair(a: string, b: string): string {
-  if (isBrowserRuntime()) {
-    return browserStableHashHex(`${a}\0${b}`)
-  }
-  if (typeof Bun !== 'undefined' && typeof Bun.hash === 'function') {
+  if (typeof Bun !== 'undefined') {
     return Bun.hash(b, Bun.hash(a)).toString()
   }
-  return browserStableHashHex(`${a}\0${b}`)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const crypto = require('crypto') as typeof import('crypto')
+  return crypto
+    .createHash('sha256')
+    .update(a)
+    .update('\0')
+    .update(b)
+    .digest('hex')
 }

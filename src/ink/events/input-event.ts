@@ -193,7 +193,6 @@ export class InputEvent extends Event {
   readonly keypress: ParsedKey
   readonly key: Key
   readonly input: string
-  private _defaultPrevented = false
 
   constructor(keypress: ParsedKey) {
     super()
@@ -202,13 +201,5 @@ export class InputEvent extends Event {
     this.keypress = keypress
     this.key = key
     this.input = input
-  }
-
-  get defaultPrevented(): boolean {
-    return this._defaultPrevented
-  }
-
-  preventDefault(): void {
-    this._defaultPrevented = true
   }
 }

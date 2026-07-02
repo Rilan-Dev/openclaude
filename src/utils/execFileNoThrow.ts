@@ -1,10 +1,11 @@
-// This file represents useful wrappers over node:child_process.
+// This file represents useful wrappers over node:child_process
 // These wrappers ease error handling and cross-platform compatibility.
-// By resolving cross-spawn lazily we keep the browser bundle from pulling in
-// child_process transitively.
+// By using cross-spawn, Windows gets .cmd/.bat compatibility without falling
+// back to a generic shell command string.
 
+import { spawn } from 'cross-spawn'
+import path from 'node:path'
 import { getCwd } from '../utils/cwd.js'
-import { isAbsolute, isBrowserRuntime, runtimeRequire } from './imports.js'
 import { logError } from './log.js'
 
 export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
@@ -45,14 +46,10 @@ const SAFE_BARE_EXECUTABLE_PATTERN = /^[A-Za-z0-9_.-]+$/
 
 function hasPathSyntax(value: string): boolean {
   return (
-    value.includes('\\') ||
+    value.includes(path.sep) ||
     value.includes('/') ||
-    isAbsolute(value)
+    path.isAbsolute(value)
   )
-}
-
-function getSpawn(): (typeof import('cross-spawn'))['spawn'] {
-  return runtimeRequire<typeof import('cross-spawn')>('cross-spawn').spawn
 }
 
 function validateExecutable(file: string): string | null {
@@ -173,15 +170,6 @@ export function execFileNoThrowWithCwd(
     maxBuffer: DEFAULT_MAX_BUFFER,
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
-  if (isBrowserRuntime()) {
-    return Promise.resolve({
-      stdout: '',
-      stderr: '',
-      code: 1,
-      error: 'Subprocess execution is not available in the browser WebUI',
-    })
-  }
-
   const executableError = validateExecutable(file)
   if (executableError) {
     return Promise.resolve({
@@ -224,7 +212,7 @@ export function execFileNoThrowWithCwd(
 
   return new Promise(resolve => {
     const stdinMode = finalInput !== undefined ? 'pipe' : finalStdin ?? 'pipe'
-    const child = getSpawn()(file, args, {
+    const child = spawn(file, args, {
       cwd: finalCwd,
       env: sanitizedEnv.value,
       shell: false,

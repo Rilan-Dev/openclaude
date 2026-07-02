@@ -1,91 +1,10 @@
+import { unlink } from 'fs/promises'
 import { CircularBuffer } from '../CircularBuffer.js'
 import { logForDebugging } from '../debug.js'
-import { isBrowserRuntime, runtimeRequire } from '../imports.js'
+import { readFileRange, tailFile } from '../fsOperations.js'
 import { getMaxOutputLength } from '../shell/outputLimits.js'
 import { safeJoinLines } from '../stringUtils.js'
 import { DiskTaskOutput, getTaskOutputPath } from './diskOutput.js'
-
-type FsPromisesModule = typeof import('fs/promises')
-
-function getFsPromisesModule(): FsPromisesModule {
-  return runtimeRequire<FsPromisesModule>('fs/promises')
-}
-
-async function readTaskOutputRange(
-  path: string,
-  offset: number,
-  maxBytes: number,
-): Promise<{ content: string; bytesRead: number; bytesTotal: number } | null> {
-  if (isBrowserRuntime()) {
-    return null
-  }
-  const { open } = getFsPromisesModule()
-  await using fh = await open(path, 'r')
-  const size = (await fh.stat()).size
-  if (size <= offset) {
-    return null
-  }
-  const bytesToRead = Math.min(size - offset, maxBytes)
-  const buffer = Buffer.allocUnsafe(bytesToRead)
-
-  let totalRead = 0
-  while (totalRead < bytesToRead) {
-    const { bytesRead } = await fh.read(
-      buffer,
-      totalRead,
-      bytesToRead - totalRead,
-      offset + totalRead,
-    )
-    if (bytesRead === 0) {
-      break
-    }
-    totalRead += bytesRead
-  }
-
-  return {
-    content: buffer.toString('utf8', 0, totalRead),
-    bytesRead: totalRead,
-    bytesTotal: size,
-  }
-}
-
-async function tailTaskOutput(
-  path: string,
-  maxBytes: number,
-): Promise<{ content: string; bytesRead: number; bytesTotal: number }> {
-  if (isBrowserRuntime()) {
-    return { content: '', bytesRead: 0, bytesTotal: 0 }
-  }
-  const { open } = getFsPromisesModule()
-  await using fh = await open(path, 'r')
-  const size = (await fh.stat()).size
-  if (size === 0) {
-    return { content: '', bytesRead: 0, bytesTotal: 0 }
-  }
-  const offset = Math.max(0, size - maxBytes)
-  const bytesToRead = size - offset
-  const buffer = Buffer.allocUnsafe(bytesToRead)
-
-  let totalRead = 0
-  while (totalRead < bytesToRead) {
-    const { bytesRead } = await fh.read(
-      buffer,
-      totalRead,
-      bytesToRead - totalRead,
-      offset + totalRead,
-    )
-    if (bytesRead === 0) {
-      break
-    }
-    totalRead += bytesRead
-  }
-
-  return {
-    content: buffer.toString('utf8', 0, totalRead),
-    bytesRead: totalRead,
-    bytesTotal: size,
-  }
-}
 
 const DEFAULT_MAX_MEMORY = 8 * 1024 * 1024 // 8MB
 const POLL_INTERVAL_MS = 1000
@@ -160,9 +79,6 @@ export class TaskOutput {
    * useEffect when the progress component mounts.
    */
   static startPolling(taskId: string): void {
-    if (isBrowserRuntime()) {
-      return
-    }
     const instance = TaskOutput.#registry.get(taskId)
     if (!instance || !instance.#onProgress) {
       return
@@ -179,9 +95,6 @@ export class TaskOutput {
    * when the progress component unmounts.
    */
   static stopPolling(taskId: string): void {
-    if (isBrowserRuntime()) {
-      return
-    }
     TaskOutput.#activePolling.delete(taskId)
     if (TaskOutput.#activePolling.size === 0 && TaskOutput.#pollInterval) {
       clearInterval(TaskOutput.#pollInterval)
@@ -198,7 +111,7 @@ export class TaskOutput {
       if (!entry.#onProgress) {
         continue
       }
-      void tailTaskOutput(entry.path, PROGRESS_TAIL_BYTES).then(
+      void tailFile(entry.path, PROGRESS_TAIL_BYTES).then(
         ({ content, bytesRead, bytesTotal }) => {
           if (!entry.#onProgress) {
             return
@@ -382,12 +295,9 @@ export class TaskOutput {
   }
 
   async #readStdoutFromFile(): Promise<string> {
-    if (isBrowserRuntime()) {
-      return ''
-    }
     const maxBytes = getMaxOutputLength()
     try {
-      const result = await readTaskOutputRange(this.path, 0, maxBytes)
+      const result = await readFileRange(this.path, 0, maxBytes)
       if (!result) {
         this.#outputFileRedundant = true
         return ''
@@ -461,11 +371,7 @@ export class TaskOutput {
 
   /** Delete the output file (fire-and-forget safe). */
   async deleteOutputFile(): Promise<void> {
-    if (isBrowserRuntime()) {
-      return
-    }
     try {
-      const { unlink } = getFsPromisesModule()
       await unlink(this.path)
     } catch {
       // File may already be deleted or not exist

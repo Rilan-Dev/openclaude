@@ -7,7 +7,6 @@ import { Text } from '../../ink.js';
 import { getInitializationStatus, getLspServerManager } from '../../services/lsp/manager.js';
 import { useSetAppState } from '../../state/AppState.js';
 import { logForDebugging } from '../../utils/debug.js';
-import { isBrowserRuntime } from '../../utils/imports.js';
 const LSP_POLL_INTERVAL_MS = 5000;
 
 /**
@@ -20,9 +19,6 @@ const LSP_POLL_INTERVAL_MS = 5000;
  * Active in normal REPL sessions. The manager itself no-ops in --bare mode.
  */
 export function useLspInitializationNotification() {
-  if (isBrowserRuntime()) {
-    return;
-  }
   const $ = _c(10);
   const {
     addNotification

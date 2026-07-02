@@ -134,6 +134,253 @@ function rewriteBrowserMappedImports(
   return out
 }
 
+function rewriteMainForWebRender(code: string, normalizedId: string): string {
+  if (
+    !normalizedId.endsWith('/src/main.tsx') &&
+    normalizedId !== 'src/main.tsx'
+  ) {
+    return code
+  }
+
+  let out = code.replace(
+    /export async function main\(\) \{/,
+    `export async function main() {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/main.tsx main() started')
+  }`,
+  )
+
+  out = out.replace(
+    /await\s+launchRepl\(\s*root\s*,\s*\{/g,
+    "if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {\n          console.log('[OpenClaude WebUI trace] src/main.tsx calling launchRepl()')\n        }\n        await launchRepl(root, {\n        renderMode: 'web',",
+  )
+
+  return out
+}
+
+function rewriteCliEntrypointForWebTrace(code: string, normalizedId: string): string {
+  if (
+    !normalizedId.endsWith('/src/entrypoints/cli.tsx') &&
+    normalizedId !== 'src/entrypoints/cli.tsx'
+  ) {
+    return code
+  }
+
+  return code.replace(
+    /export async function main\(\s*args: string\[] = process\.argv\.slice\(2\),\s*options: CliEntrypointOptions = \{\},\s*\): Promise<void> \{/,
+    `export async function main(
+  args: string[] = process.argv.slice(2),
+  options: CliEntrypointOptions = {},
+): Promise<void> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/entrypoints/cli.tsx main() started')
+  }`,
+  ).replace(
+    /  const \{ printStartupScreen \} = await importers\.startupScreen\(\)\s*printStartupScreen\(earlyModelFlag\)/,
+    `  if (process.env.OPENCLAUDE_RENDER_MODE !== 'web') {
+    const { printStartupScreen } = await importers.startupScreen()
+    printStartupScreen(earlyModelFlag)
+  }`,
+  ).replace(
+    /  \/\/ Hydrate GitHub credentials after profile is applied so CLAUDE_CODE_USE_GITHUB from profile is available\s*\{\s*const \{\s*hydrateGithubModelsTokenFromSecureStorage,\s*refreshGithubModelsTokenIfNeeded,\s*\} = await importers\.githubModelsCredentials\(\)\s*await refreshGithubModelsTokenIfNeeded\(\)\s*hydrateGithubModelsTokenFromSecureStorage\(\)\s*\}/,
+    `  // Hydrate GitHub credentials after profile is applied so CLAUDE_CODE_USE_GITHUB from profile is available
+  if (process.env.OPENCLAUDE_RENDER_MODE !== 'web' || process.env.CLAUDE_CODE_USE_GITHUB) {
+    const {
+      hydrateGithubModelsTokenFromSecureStorage,
+      refreshGithubModelsTokenIfNeeded,
+    } = await importers.githubModelsCredentials()
+    await refreshGithubModelsTokenIfNeeded()
+    hydrateGithubModelsTokenFromSecureStorage()
+  }`,
+  )
+}
+
+function rewriteInteractiveSetupForWeb(code: string, normalizedId: string): string {
+  if (
+    !normalizedId.endsWith('/src/interactiveHelpers.tsx') &&
+    normalizedId !== 'src/interactiveHelpers.tsx'
+  ) {
+    return code
+  }
+
+  let out = code
+
+  out = out.replace(
+    /export async function renderAndRun\(root: Root, element: React\.ReactNode\): Promise<void> \{\s*root\.render\(element\);\s*startDeferredPrefetches\(\);\s*await root\.waitUntilExit\(\);\s*await gracefulShutdown\(0\);\s*\}/,
+    `export async function renderAndRun(root: Root, element: React.ReactNode): Promise<void> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/replLauncher.tsx handed REPL to Ink root.render()')
+    root.render(element)
+    startDeferredPrefetches()
+    return
+  }
+
+  root.render(element);
+  startDeferredPrefetches();
+  await root.waitUntilExit();
+  await gracefulShutdown(0);
+}`,
+  )
+
+  return out
+}
+
+function rewriteReplLauncherForWeb(code: string, normalizedId: string): string {
+  if (
+    !normalizedId.endsWith('/src/replLauncher.tsx') &&
+    normalizedId !== 'src/replLauncher.tsx'
+  ) {
+    return code
+  }
+
+  return code
+    .replace(
+      /export async function launchRepl\(root: Root, appProps: AppWrapperProps, replProps: REPLProps, renderAndRun: \(root: Root, element: React\.ReactNode\) => Promise<void>\): Promise<void> \{/,
+      `export async function launchRepl(root: Root, appProps: AppWrapperProps, replProps: REPLProps, renderAndRun: (root: Root, element: React.ReactNode) => Promise<void>): Promise<void> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    console.log('[OpenClaude WebUI trace] src/replLauncher.tsx launchRepl() started')
+  }`,
+    )
+    .replace(
+      /    const \[\s*\{ App \},\s*\{ REPL \},\s*\/\/ \{ ChatWindow \},\s*\{ AppStateProvider \},\s*\{ startDeferredPrefetches \},\s*\] = await Promise\.all\(\[\s*import\('\.\/components\/App\.js'\),\s*import\('\.\/screens\/REPL\.js'\),\s*\/\/ import\('\.\/screens\/ChatWindow\.js'\),\s*import\('\.\/state\/AppState\.js'\),\s*import\('\.\/main\.js'\),\s*\]\)/,
+      `    const [
+      { App },
+      { REPL },
+      // { ChatWindow },
+      { default: InternalInkApp },
+      { TerminalWriteProvider },
+      { startDeferredPrefetches },
+    ] = await Promise.all([
+      import('./components/App.js'),
+      import('./screens/REPL.js'),
+      // import('./screens/ChatWindow.js'),
+      import('./ink/components/App.js'),
+      import('./ink/useTerminalNotification.js'),
+      import('./main.js'),
+    ])`,
+    )
+    .replace(
+      /    browserRoot\.render\(\s*<React\.StrictMode>\s*<AppStateProvider\s*initialState=\{appProps\.initialState\}\s*onChangeAppState=\{onChangeAppState\}\s*>\s*\{appElement\}\s*<\/AppStateProvider>\s*<\/React\.StrictMode>,\s*\)/,
+      `    browserRoot.render(
+      <React.StrictMode>
+        <InternalInkApp
+          stdin={process.stdin}
+          stdout={process.stdout}
+          stderr={process.stderr}
+          exitOnCtrlC={false}
+          onExit={() => undefined}
+          terminalColumns={Math.max(96, Math.floor((globalThis.innerWidth ?? 1200) / 8))}
+          terminalRows={Math.max(640, Math.floor(globalThis.innerHeight ?? 800))}
+          selection={{
+            anchor: null,
+            focus: null,
+            isDragging: false,
+            anchorSpan: null,
+            scrolledOffAbove: [],
+            scrolledOffBelow: [],
+            scrolledOffAboveSW: [],
+            scrolledOffBelowSW: [],
+            lastPressHadAlt: false,
+          }}
+          onSelectionChange={() => undefined}
+          onClickAt={() => false}
+          onHoverAt={() => undefined}
+          getHyperlinkAt={() => undefined}
+          onOpenHyperlink={() => undefined}
+          onMultiClick={() => undefined}
+          onSelectionDrag={() => undefined}
+          onStdinResume={() => undefined}
+          onCursorDeclaration={() => undefined}
+          dispatchKeyboardEvent={() => undefined}
+        >
+          <TerminalWriteProvider value={() => undefined}>
+            {appElement}
+          </TerminalWriteProvider>
+        </InternalInkApp>
+      </React.StrictMode>,
+    )`,
+    )
+}
+
+function suppressUnsupportedBrowserDynamicImportWarnings(
+  code: string,
+  normalizedId: string,
+): string {
+  if (
+    !normalizedId.endsWith('/src/utils/bash/registry.ts') &&
+    normalizedId !== 'src/utils/bash/registry.ts'
+  ) {
+    return code
+  }
+
+  return code.replace(
+    "import(`@withfig/autocomplete/build/${command}.js`)",
+    "import(/* @vite-ignore */ `@withfig/autocomplete/build/${command}.js`)",
+  )
+}
+
+function rewriteBrowserOnlyNetworkStartup(code: string, normalizedId: string): string {
+  if (
+    normalizedId.endsWith('/src/utils/releaseNotes.ts') ||
+    normalizedId === 'src/utils/releaseNotes.ts'
+  ) {
+    return code.replace(
+      /async function fetchGitHubReleases\(\): Promise<GitHubRelease\[]> \{/,
+      `async function fetchGitHubReleases(): Promise<GitHubRelease[]> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    return []
+  }`,
+    )
+  }
+
+  if (
+    normalizedId.endsWith('/src/utils/plugins/officialMarketplaceGcs.ts') ||
+    normalizedId === 'src/utils/plugins/officialMarketplaceGcs.ts'
+  ) {
+    return code.replace(
+      /export async function fetchOfficialMarketplaceFromGcs\(\s*installLocation: string,\s*marketplacesCacheDir: string,\s*\): Promise<string \| null> \{/,
+      `export async function fetchOfficialMarketplaceFromGcs(
+  installLocation: string,
+  marketplacesCacheDir: string,
+): Promise<string | null> {
+  if (process.env.OPENCLAUDE_RENDER_MODE === 'web') {
+    return null
+  }`,
+    )
+  }
+
+  return code
+}
+
+function rewriteAgentPermissionDefaultsForWeb(
+  code: string,
+  normalizedId: string,
+): string {
+  if (
+    normalizedId.endsWith('/src/tools/AgentTool/AgentTool.tsx') ||
+    normalizedId.endsWith('/src/tools/AgentTool/resumeAgent.ts') ||
+    normalizedId === 'src/tools/AgentTool/AgentTool.tsx' ||
+    normalizedId === 'src/tools/AgentTool/resumeAgent.ts'
+  ) {
+    return code.replace(
+      /mode:\s*selectedAgent\.permissionMode\s*\?\?\s*'acceptEdits'/g,
+      "mode: selectedAgent.permissionMode ?? (process.env.OPENCLAUDE_RENDER_MODE === 'web' ? 'bubble' : 'acceptEdits')",
+    )
+  }
+
+  if (
+    normalizedId.endsWith('/src/tools/AgentTool/runAgent.ts') ||
+    normalizedId === 'src/tools/AgentTool/runAgent.ts'
+  ) {
+    return code.replace(
+      /const agentPermissionMode = agentDefinition\.permissionMode/,
+      "const agentPermissionMode = agentDefinition.permissionMode ?? (process.env.OPENCLAUDE_RENDER_MODE === 'web' && isAsync ? 'bubble' : undefined)",
+    )
+  }
+
+  return code
+}
+
 function readOptionalDeclaredModules(): Set<string> {
   const modules = new Set<string>()
   const file = path.resolve(repoRoot, 'src/optionalModules.d.ts')
@@ -418,6 +665,7 @@ export function browserAliasesFromRootPackage(): Record<string, string> {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
   const browser = pkg.browser ?? {}
   const aliases: Record<string, string> = {}
+  const nodeBuiltinsShim = path.resolve(webuiRoot, 'shims/nodeBuiltins.js')
   const reactBrowserKeys = new Set([
     'react',
     'react/jsx-runtime',
@@ -433,6 +681,9 @@ export function browserAliasesFromRootPackage(): Record<string, string> {
       aliases[key] = path.resolve(repoRoot, value)
     }
   }
+
+  aliases['path/posix'] = nodeBuiltinsShim
+  aliases['node:path/posix'] = nodeBuiltinsShim
 
   return aliases
 }
@@ -542,6 +793,15 @@ export function openClaudeCompatPlugin(): Plugin {
         (source.startsWith('./') || source.startsWith('../'))
       ) {
         const cleanImporter = importer.split('?')[0]
+        const normalizedImporter = normalizePath(cleanImporter)
+
+        if (
+          source === '../services/api/credentialPool.js' &&
+          normalizedImporter.endsWith('/src/integrations/routeMetadata.ts')
+        ) {
+          return path.resolve(rootSrc, 'services/api/credentialPool.ts')
+        }
+
         const resolved = tryResolveFile(
           path.resolve(path.dirname(cleanImporter), source),
         )
@@ -611,6 +871,20 @@ export function openClaudeCompatPlugin(): Plugin {
         transformed,
         cleanId,
         browserAliases,
+      )
+
+      transformed = rewriteCliEntrypointForWebTrace(transformed, normalizedId)
+      transformed = rewriteMainForWebRender(transformed, normalizedId)
+      transformed = rewriteInteractiveSetupForWeb(transformed, normalizedId)
+      transformed = rewriteReplLauncherForWeb(transformed, normalizedId)
+      transformed = suppressUnsupportedBrowserDynamicImportWarnings(
+        transformed,
+        normalizedId,
+      )
+      transformed = rewriteBrowserOnlyNetworkStartup(transformed, normalizedId)
+      transformed = rewriteAgentPermissionDefaultsForWeb(
+        transformed,
+        normalizedId,
       )
 
       if (transformed.includes('feature(') || transformed.includes('bun:bundle')) {

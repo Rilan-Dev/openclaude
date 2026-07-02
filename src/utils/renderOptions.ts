@@ -1,33 +1,25 @@
+import { openSync } from 'fs'
+import { ReadStream } from 'tty'
 import type { RenderOptions } from '../ink.js'
-import { isBrowserRuntime, runtimeRequire } from './imports.js'
 import { isEnvTruthy } from './envUtils.js'
 import { logError } from './log.js'
 
-type ReadStreamLike = {
-  isTTY?: boolean
-}
-
-// Cached stdin override - computed once per process.
-let cachedStdinOverride: ReadStreamLike | undefined | null = null
+// Cached stdin override - computed once per process
+let cachedStdinOverride: ReadStream | undefined | null = null
 
 /**
  * Gets a ReadStream for /dev/tty when stdin is piped.
  * This allows interactive Ink rendering even when stdin is a pipe.
  * Result is cached for the lifetime of the process.
  */
-function getStdinOverride(): ReadStreamLike | undefined {
-  if (isBrowserRuntime()) {
-    cachedStdinOverride = undefined
-    return undefined
-  }
-
+function getStdinOverride(): ReadStream | undefined {
   // Return cached result if already computed
   if (cachedStdinOverride !== null) {
     return cachedStdinOverride
   }
 
   // No override needed if stdin is already a TTY
-  if (process.stdin?.isTTY) {
+  if (process.stdin.isTTY) {
     cachedStdinOverride = undefined
     return undefined
   }
@@ -52,10 +44,6 @@ function getStdinOverride(): ReadStreamLike | undefined {
 
   // Try to open /dev/tty as an alternative input source
   try {
-    const { openSync } = runtimeRequire<typeof import('fs')>('fs')
-    const { ReadStream } = runtimeRequire<{
-      ReadStream: new (fd: number) => ReadStreamLike
-    }>('tty')
     const ttyFd = openSync('/dev/tty', 'r')
     const ttyStream = new ReadStream(ttyFd)
     // Explicitly set isTTY to true since we know /dev/tty is a TTY.

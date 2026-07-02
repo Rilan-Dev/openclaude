@@ -1,7 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import figures from 'figures';
 import React, { createContext, type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { fileURLToPath } from '../utils/urlPath.js';
+import { fileURLToPath } from 'url';
 import { ModalContext } from '../context/modalContext.js';
 import { PromptOverlayProvider, usePromptOverlay, usePromptOverlayDialog } from '../context/promptOverlayContext.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -11,7 +11,6 @@ import { Box, Text } from '../ink.js';
 import type { Message } from '../types/message.js';
 import { openBrowser, openPath } from '../utils/browser.js';
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js';
-import { isBrowserRuntime } from '../utils/imports.js';
 import { plural } from '../utils/stringUtils.js';
 import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js';
 import PromptInputFooterSuggestions from './PromptInput/PromptInputFooterSuggestions.js';
@@ -272,7 +271,6 @@ export function FullscreenLayout(t0) {
   const $ = _c(47);
   const {
     scrollable,
-    nonscrollable,
     bottom,
     overlay,
     bottomFloat,
@@ -337,41 +335,6 @@ export function FullscreenLayout(t0) {
     t7 = $[6];
   }
   useLayoutEffect(_temp3, t7);
-  if (isBrowserRuntime()) {
-    const sticky = hideSticky ? null : stickyPrompt;
-    const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
-    const browserModal = modal != null ? <ModalContext.Provider value={{
-      rows: Math.max(8, terminalRows - MODAL_TRANSCRIPT_PEEK - 1),
-      columns: Math.max(48, columns - 4),
-      scrollRef: modalScrollRef ?? null
-    }}><div className="repl-webModalBackdrop" role="presentation">
-          <div className="repl-webModalPanel" role="dialog" aria-modal="true">
-            <div className="repl-webModalHandle" />
-            {modal}
-          </div>
-        </div></ModalContext.Provider> : null;
-
-    return <PromptOverlayProvider uiMode="web">
-      <div className="repl-webFullscreen" data-has-overlay={overlay ? 'true' : undefined}>
-        {/* <div className="repl-webAurora repl-webAuroraOne" />
-        <div className="repl-webAurora repl-webAuroraTwo" /> */}
-        <main className="repl-webConversationWindow" aria-label="OpenClaude conversation">
-          {headerPrompt ? <WebStickyPromptHeader text={headerPrompt.text} onClick={headerPrompt.scrollTo} /> : null}
-          <section className="repl-webScrollPane">
-            <ScrollChromeContext.Provider value={chromeCtx}>{scrollable}</ScrollChromeContext.Provider>
-            {overlay ? <div className="repl-webInlineOverlay">{overlay}</div> : null}
-          </section>
-          {nonscrollable}
-          {!hidePill && newMessageCount > 0 && overlay == null ? <WebNewMessagesPill count={newMessageCount} onClick={onPillClick} /> : null}
-          {bottomFloat != null ? <div className="repl-webBottomFloat">{bottomFloat}</div> : null}
-        </main>
-        <footer className="repl-webComposerDock" aria-label="Prompt composer">
-          {bottom}
-        </footer>
-        {browserModal}
-      </div>
-    </PromptOverlayProvider>;
-  }
   if (isFullscreenEnvEnabled()) {
     const sticky = hideSticky ? null : stickyPrompt;
     const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
@@ -387,7 +350,7 @@ export function FullscreenLayout(t0) {
     const t9 = padCollapsed ? 0 : 1;
     let t10;
     if ($[9] !== scrollable) {
-      t10 = <ScrollChromeContext.Provider value={chromeCtx}>{scrollable}</ScrollChromeContext.Provider>;
+      t10 = <ScrollChromeContext value={chromeCtx}>{scrollable}</ScrollChromeContext>;
       $[9] = scrollable;
       $[10] = t10;
     } else {
@@ -456,11 +419,11 @@ export function FullscreenLayout(t0) {
     }
     let t18;
     if ($[33] !== columns || $[34] !== modal || $[35] !== modalScrollRef || $[36] !== terminalRows) {
-      t18 = modal != null && <ModalContext.Provider value={{
+      t18 = modal != null && <ModalContext value={{
         rows: terminalRows - MODAL_TRANSCRIPT_PEEK - 1,
         columns: columns - 4,
         scrollRef: modalScrollRef ?? null
-      }}><Box position="absolute" bottom={0} left={0} right={0} maxHeight={terminalRows - MODAL_TRANSCRIPT_PEEK} flexDirection="column" overflow="hidden" opaque={true}><Box flexShrink={0}><Text color="permission">{"\u2594".repeat(columns)}</Text></Box><Box flexDirection="column" paddingX={2} flexShrink={0} overflow="hidden">{modal}</Box></Box></ModalContext.Provider>;
+      }}><Box position="absolute" bottom={0} left={0} right={0} maxHeight={terminalRows - MODAL_TRANSCRIPT_PEEK} flexDirection="column" overflow="hidden" opaque={true}><Box flexShrink={0}><Text color="permission">{"\u2594".repeat(columns)}</Text></Box><Box flexDirection="column" paddingX={2} flexShrink={0} overflow="hidden">{modal}</Box></Box></ModalContext>;
       $[33] = columns;
       $[34] = modal;
       $[35] = modalScrollRef;
@@ -525,38 +488,6 @@ function _temp2(url) {
   }
 }
 function _temp() {}
-
-function WebNewMessagesPill({
-  count,
-  onClick,
-}: {
-  count: number;
-  onClick?: () => void;
-}) {
-  const label = count > 0 ? `${count} new ${plural(count, "message")}` : "Jump to bottom";
-  return (
-    <button type="button" className="repl-webNewMessagesPill" onClick={onClick}>
-      <span>{label}</span>
-      <span aria-hidden="true">↓</span>
-    </button>
-  );
-}
-
-function WebStickyPromptHeader({
-  text,
-  onClick,
-}: {
-  text: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className="repl-webStickyPrompt" onClick={onClick}>
-      <span className="repl-webStickyPromptMarker">Context</span>
-      <span className="repl-webStickyPromptText">{text}</span>
-    </button>
-  );
-}
-
 function NewMessagesPill(t0) {
   const $ = _c(10);
   const {

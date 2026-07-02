@@ -37,7 +37,6 @@ import {
 import type { SystemPrompt } from '../utils/systemPromptType.js'
 import { getTaskListId, listTasks } from '../utils/tasks.js'
 import { getAgentName, getTeamName, isTeammate } from '../utils/teammate.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const extractMemoriesModule = feature('EXTRACT_MEMORIES')
@@ -323,9 +322,11 @@ export async function* handleStopHooks(
 
           queryDepth: toolUseContext.queryTracking?.depth,
         })
-        yield createUserInterruptionMessage({
-          toolUse: false,
-        })
+        if (toolUseContext.abortController.signal.reason !== 'interrupt') {
+          yield createUserInterruptionMessage({
+            toolUse: false,
+          })
+        }
         return {
           blockingErrors: [],
           preventContinuation: true,

@@ -1,5 +1,5 @@
 import * as path from 'path'
-import { pathToFileURL } from '../../utils/urlPath.js'
+import { pathToFileURL } from 'url'
 import type { InitializeParams } from 'vscode-languageserver-protocol'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'

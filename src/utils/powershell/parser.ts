@@ -1,4 +1,4 @@
-import { getExeca } from '../imports.js'
+import { execa } from 'execa'
 import { logForDebugging } from '../debug.js'
 import { memoizeWithLRU } from '../memoize.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
@@ -1192,7 +1192,7 @@ async function parsePowerShellCommandImpl(
   let timedOut = false
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await getExeca()(pwshPath, args, {
+      const result = await execa(pwshPath, args, {
         timeout: parseTimeoutMs,
         reject: false,
       })

@@ -41,14 +41,9 @@ import {
 } from '../utils/permissions/filesystem.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
 import { setShellIfWindows } from '../utils/windowsPaths.js'
-import { isBrowserRuntime } from '../utils/imports.js'
 
 
 export const init = memoize(async (): Promise<void> => {
-  if (isBrowserRuntime()) {
-    return
-  }
-
   const initStartTime = Date.now()
   logForDiagnosticsNoPII('info', 'init_started')
   profileCheckpoint('init_function_start')
@@ -149,10 +144,12 @@ export const init = memoize(async (): Promise<void> => {
     // inject proxy vars without a static import of the upstreamproxy module.
     if (isEnvTruthy(process.env.CLAUDE_CODE_REMOTE)) {
       try {
-        const upstreamproxyModuleId = ['../upstreamproxy', '/upstreamproxy.js'].join('')
-        const subprocessEnvModuleId = ['../utils', '/subprocessEnv.js'].join('')
-        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(/* @vite-ignore */ upstreamproxyModuleId)
-        const { registerUpstreamProxyEnvFn } = await import(/* @vite-ignore */ subprocessEnvModuleId)
+        const { initUpstreamProxy, getUpstreamProxyEnv } = await import(
+          '../upstreamproxy/upstreamproxy.js'
+        )
+        const { registerUpstreamProxyEnvFn } = await import(
+          '../utils/subprocessEnv.js'
+        )
         registerUpstreamProxyEnvFn(getUpstreamProxyEnv)
         await initUpstreamProxy()
       } catch (err) {

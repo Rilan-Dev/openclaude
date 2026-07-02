@@ -140,6 +140,25 @@ describe('getKnownProviderSecretEnvKeys', () => {
     const missing = representative.filter((key) => !known.has(key))
     expect(missing, `representative provider keys missing from redaction set: ${missing.join(', ')}`).toEqual([])
   })
+
+  test('does not statically import the heavy descriptor artifacts at module load', async () => {
+    // Regression guard: providerSecrets sits on the bootstrap startup path
+    // (bootstrap -> providerConfig -> providerProfile -> providerSecrets), so a
+    // static import of integrationArtifacts.generated would eagerly evaluate the
+    // whole descriptor graph and undo the lazy-loading win. The descriptor
+    // arrays must instead be pulled in via a lazy require inside the function.
+    const source = await Bun.file(
+      new URL('./providerSecrets.ts', import.meta.url),
+    ).text()
+    // Strip comments so a benign mention of the module in a comment can neither
+    // satisfy nor trip these assertions, and match imports regardless of
+    // indentation/aliasing rather than only at column 0.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '')
+    expect(code).not.toMatch(/\bimport\b[\s\S]*?\bfrom\b\s*['"][^'"]*integrationArtifacts\.generated/)
+    expect(code).toMatch(/\brequire\(\s*['"][^'"]*integrationArtifacts\.generated/)
+  })
 })
 
 describe('sanitizeApiKey', () => {
@@ -218,6 +237,19 @@ describe('redactSecretValueForDisplay', () => {
     expect(redactSecretValueForDisplay(token, { GEMINI_ACCESS_TOKEN: token })).toBe('gem...ken')
   })
 
+  test('redacts individual members of pooled OpenAI credentials', () => {
+    const pool = 'lowercasecredentialaaaaaaaaaaaa,lowercasecredentialbbbbbbbbbbbb'
+    expect(
+      redactSecretValueForDisplay('lowercasecredentialaaaaaaaaaaaa', {
+        OPENAI_API_KEYS: pool,
+      }),
+    ).toBe('low...aaa')
+    expect(
+      sanitizeProviderConfigValue('lowercasecredentialbbbbbbbbbbbb', {
+        OPENAI_API_KEYS: pool,
+      }),
+    ).toBeUndefined()
+  })
   test('redacts configured provider secrets after trimming source env values', () => {
     const providerSecret = 'ogw-provider-secret'
     expect(

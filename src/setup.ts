@@ -53,7 +53,6 @@ import {
   generateTmuxSessionName,
   worktreeBranchName,
 } from './utils/worktree.js'
-import { isBrowserRuntime } from './utils/imports.js'
 
 export async function setup(
   cwd: string,
@@ -67,12 +66,6 @@ export async function setup(
   messagingSocketPath?: string,
 ): Promise<void> {
   logForDiagnosticsNoPII('info', 'setup_started')
-
-  if (isBrowserRuntime()) {
-    // The browser web UI already installs its own runtime shims and does not
-    // need the CLI startup checks, shell setup, or process exit handling.
-    return
-  }
 
   const nodeVersion = checkSupportedNodeVersion(process.version)
   if (!nodeVersion.ok) {

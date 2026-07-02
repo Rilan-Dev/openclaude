@@ -1,5 +1,4 @@
 import { setMaxListeners } from 'events'
-import { isBrowserRuntime } from './imports.js'
 
 /**
  * Default max listeners for standard operations
@@ -18,15 +17,7 @@ export function createAbortController(
   maxListeners: number = DEFAULT_MAX_LISTENERS,
 ): AbortController {
   const controller = new AbortController()
-
-  try {
-    if (!isBrowserRuntime()) {
-      setMaxListeners(maxListeners, controller.signal)
-    }
-  } catch {
-    // Browser/DOM AbortSignal does not support Node's setMaxListeners API.
-  }
-
+  setMaxListeners(maxListeners, controller.signal)
   return controller
 }
 

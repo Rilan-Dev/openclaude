@@ -10,6 +10,7 @@
  */
 
 import type { UUID } from 'crypto'
+import { randomInt } from 'crypto'
 import {
   OUTPUT_FILE_TAG,
   STATUS_TAG,
@@ -33,7 +34,6 @@ import {
   runWithAgentContext,
   type SubagentContext,
 } from '../utils/agentContext.js'
-import { randomInt } from '../utils/imports.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'

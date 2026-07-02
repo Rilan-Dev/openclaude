@@ -2,8 +2,6 @@ import type { McpbManifest } from '@anthropic-ai/mcpb'
 import { errorMessage } from '../errors.js'
 import { jsonParse } from '../slowOperations.js'
 
-const MCPB_PACKAGE = '@anthropic-ai/mcpb'
-
 /**
  * Parses and validates a DXT manifest from a JSON object.
  *
@@ -15,17 +13,15 @@ const MCPB_PACKAGE = '@anthropic-ai/mcpb'
 export async function validateManifest(
   manifestJson: unknown,
 ): Promise<McpbManifest> {
-  const { McpbManifestSchema } = await import(/* @vite-ignore */ MCPB_PACKAGE)
+  const { McpbManifestSchema } = await import('@anthropic-ai/mcpb')
   const parseResult = McpbManifestSchema.safeParse(manifestJson)
 
   if (!parseResult.success) {
     const errors = parseResult.error.flatten()
     const errorMessages = [
-    ...Object.entries(errors.fieldErrors).flatMap(([field, errs]) =>
-      Array.isArray(errs) && errs.length > 0
-        ? [`${field}: ${errs.join(', ')}`]
-        : [],
-    ),
+      ...Object.entries(errors.fieldErrors).map(
+        ([field, errs]) => `${field}: ${errs?.join(', ')}`,
+      ),
       ...(errors.formErrors || []),
     ]
       .filter(Boolean)

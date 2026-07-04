@@ -2,6 +2,7 @@ import { c as _c } from "react-compiler-runtime";
 import React from 'react';
 import { useIsInsideModal } from '../../context/modalContext.js';
 import { Box } from '../../ink.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Theme } from '../../utils/theme.js';
 import { Divider } from './Divider.js';
 type PaneProps = {
@@ -36,7 +37,11 @@ export function Pane(t0) {
     children,
     color
   } = t0;
-  if (useIsInsideModal()) {
+  const isInsideModal = useIsInsideModal();
+  if (isBrowserRuntime()) {
+    return <div className="oc-webPane" data-color={color}>{children}</div>;
+  }
+  if (isInsideModal) {
     let t1;
     if ($[0] !== children) {
       t1 = <Box flexDirection="column" paddingX={1} flexShrink={0}>{children}</Box>;

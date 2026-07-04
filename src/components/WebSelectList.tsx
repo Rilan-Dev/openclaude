@@ -38,6 +38,16 @@ export function WebSelectList({
 }: Props): React.ReactNode {
   const activeValue = focusedValue ?? selectedValue
   const activeOptionRef = React.useRef<HTMLButtonElement | null>(null)
+  const [query, setQuery] = React.useState('')
+  const showSearch = options.length > 7
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visibleOptions = normalizedQuery
+    ? options.filter(option => {
+        const label = plainText(option.label).toLocaleLowerCase()
+        const description = option.description?.toLocaleLowerCase() ?? ''
+        return label.includes(normalizedQuery) || description.includes(normalizedQuery)
+      })
+    : options
 
   React.useEffect(() => {
     activeOptionRef.current?.scrollIntoView({
@@ -54,8 +64,21 @@ export function WebSelectList({
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
 
+      {showSearch ? (
+        <label className="repl-webPickerSearch">
+          <span>Search</span>
+          <input
+            value={query}
+            type="search"
+            spellCheck={false}
+            placeholder="Filter options..."
+            onChange={event => setQuery(event.currentTarget.value)}
+          />
+        </label>
+      ) : null}
+
       <div className="repl-webPickerList" role="listbox" aria-label={title}>
-        {options.map(option => {
+        {visibleOptions.map(option => {
           const isSelected = selectedValue === option.value
           const isFocused = focusedValue === option.value
           const isActive = activeValue === option.value
@@ -78,9 +101,7 @@ export function WebSelectList({
                 }
               }}
             >
-              <span className="repl-webPickerOptionMark" aria-hidden="true">
-                {isSelected ? 'On' : option.disabled ? 'Off' : ''}
-              </span>
+              <span className="repl-webPickerOptionMark" aria-hidden="true" />
               <span className="repl-webPickerOptionCopy">
                 <span className="repl-webPickerOptionTitle">
                   {plainText(option.label)}
@@ -94,6 +115,11 @@ export function WebSelectList({
             </button>
           )
         })}
+        {visibleOptions.length === 0 ? (
+          <div className="repl-webPickerEmpty" role="status">
+            No matching options.
+          </div>
+        ) : null}
       </div>
 
       {hiddenCount > 0 ? (

@@ -2,6 +2,7 @@ import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Text } from '../../ink.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 type Props = {
   instructions?: string;
 };
@@ -12,6 +13,9 @@ export function AgentNavigationFooter(t0) {
   } = t0;
   const instructions = t1 === undefined ? "Press \u2191\u2193 to navigate \xB7 Enter to select \xB7 Esc to go back" : t1;
   const exitState = useExitOnCtrlCDWithKeybindings();
+  if (isBrowserRuntime()) {
+    return null;
+  }
   const t2 = exitState.pending ? `Press ${exitState.keyName} again to exit` : instructions;
   let t3;
   if ($[0] !== t2) {

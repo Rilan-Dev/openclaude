@@ -46,6 +46,9 @@ export function CtrlOToExpand() {
   return t0;
 }
 export function ctrlOToExpand(): string {
+  if (isBrowserRuntime()) {
+    return '';
+  }
   const shortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
   return chalk.dim(`(${shortcut} to expand)`);
 }

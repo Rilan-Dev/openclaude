@@ -2,6 +2,7 @@ import React from 'react';
 import { type ExitState, useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Theme } from '../../utils/theme.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { Byline } from './Byline.js';
@@ -55,6 +56,7 @@ export function Dialog({
         <KeyboardShortcutHint shortcut="Enter" action="confirm" />
         {isCancelActive && <ConfigurableShortcutHint action="confirm:no" context="Confirmation" fallback="Esc" description="cancel" />}
       </Byline>;
+  const showInputGuide = !hideInputGuide && !isBrowserRuntime();
   const content = <>
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
@@ -63,7 +65,7 @@ export function Dialog({
         </Box>
         {children}
       </Box>
-      {!hideInputGuide && <Box marginTop={1}><FullWidthRow><Text dimColor={true} italic={true}>{inputGuide ? inputGuide(exitState) : defaultInputGuide}</Text></FullWidthRow></Box>}
+      {showInputGuide && <Box marginTop={1}><FullWidthRow><Text dimColor={true} italic={true}>{inputGuide ? inputGuide(exitState) : defaultInputGuide}</Text></FullWidthRow></Box>}
     </>;
   if (hideBorder) {
     return content;

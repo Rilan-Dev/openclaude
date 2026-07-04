@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 export function isDisclosureElement(node: React.ReactNode): boolean {
-  return React.isValidElement(node) && node.type === 'details';
+  return React.isValidElement(node) && (node.type === 'details' || node.type === BrowserToolResultDisclosure);
 }
 
 export function BrowserToolResultDisclosure({

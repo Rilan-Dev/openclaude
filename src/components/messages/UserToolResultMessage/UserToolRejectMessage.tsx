@@ -5,7 +5,9 @@ import { useTheme } from '../../../ink.js';
 import { filterToolProgressMessages, type Tool, type Tools } from '../../../Tool.js';
 import type { ProgressMessage } from '../../../types/message.js';
 import type { buildMessageLookups } from '../../../utils/messages.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import { FallbackToolUseRejectedMessage } from '../../FallbackToolUseRejectedMessage.js';
+import { BrowserToolResultDisclosure, isDisclosureElement } from './BrowserToolResultDisclosure.js';
 type Props = {
   input: {
     [key: string]: unknown;
@@ -34,6 +36,9 @@ export function UserToolRejectMessage(t0) {
   } = useTerminalSize();
   const [theme] = useTheme();
   if (!tool || !tool.renderToolUseRejectedMessage) {
+    if (isBrowserRuntime()) {
+      return <BrowserToolResultDisclosure title="Tool use rejected" detail="Denied" state="error"><FallbackToolUseRejectedMessage /></BrowserToolResultDisclosure>;
+    }
     let t1;
     if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
       t1 = <FallbackToolUseRejectedMessage />;
@@ -51,6 +56,10 @@ export function UserToolRejectMessage(t0) {
     bb0: {
       const parsedInput = t1.safeParse(input);
       if (!parsedInput.success) {
+        if (isBrowserRuntime()) {
+          t3 = <BrowserToolResultDisclosure title="Tool use rejected" detail="Invalid request" state="error"><FallbackToolUseRejectedMessage /></BrowserToolResultDisclosure>;
+          break bb0;
+        }
         let t4;
         if ($[12] === Symbol.for("react.memo_cache_sentinel")) {
           t4 = <FallbackToolUseRejectedMessage />;
@@ -89,6 +98,9 @@ export function UserToolRejectMessage(t0) {
   }
   if (t3 !== Symbol.for("react.early_return_sentinel")) {
     return t3;
+  }
+  if (isBrowserRuntime()) {
+    return isDisclosureElement(t2) ? t2 : <BrowserToolResultDisclosure title={tool.userFacingName(input) || "Tool use rejected"} detail="Denied" state="error">{t2}</BrowserToolResultDisclosure>;
   }
   return t2;
 }

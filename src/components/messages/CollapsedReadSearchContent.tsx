@@ -13,6 +13,7 @@ import { getDisplayPath } from '../../utils/file.js';
 import { formatDuration, formatSecondsShort } from '../../utils/format.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import type { buildMessageLookups } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { CtrlOToExpand } from '../CtrlOToExpand.js';
 import { useSelectedMessageBg } from '../messageActions.js';
@@ -27,6 +28,15 @@ const teamMemCollapsed = feature('TEAMMEM') ? require('./teamMemCollapsed.js') a
 // (bash commands, file reads, search patterns) are actually readable instead
 // of flickering past in a single frame.
 const MIN_HINT_DISPLAY_MS = 700;
+
+function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return count === 1 ? singular : plural;
+}
+
+function joinSummaryParts(parts: string[]): string {
+  return parts.filter(Boolean).join(', ');
+}
+
 type Props = {
   message: CollapsedReadSearchGroup;
   inProgressToolUseIDs: Set<string>;
@@ -139,6 +149,65 @@ function VerboseToolUse(t0) {
   }
   return t1;
 }
+
+function BrowserVerboseToolUse({
+  content,
+  tools,
+  lookups,
+  inProgressToolUseIDs,
+  shouldAnimate,
+  theme,
+}: {
+  content: Extract<NormalizedAssistantMessage['message']['content'][number], { type: 'tool_use' }>;
+  tools: Tools;
+  lookups: ReturnType<typeof buildMessageLookups>;
+  inProgressToolUseIDs: Set<string>;
+  shouldAnimate: boolean;
+  theme: ThemeName;
+}): React.ReactNode {
+  const tool = findToolByName(tools, content.name) ?? findToolByName(getReplPrimitiveTools(), content.name);
+  if (!tool) return null;
+
+  const isResolved = lookups.resolvedToolUseIDs.has(content.id);
+  const isError = lookups.erroredToolUseIDs.has(content.id);
+  const isInProgress = inProgressToolUseIDs.has(content.id);
+  const resultMessage = lookups.toolResultByToolUseID.get(content.id);
+  const rawToolResult = resultMessage?.type === 'user' ? resultMessage.toolUseResult : undefined;
+  const parsedOutput = tool.outputSchema?.safeParse(rawToolResult);
+  const toolResult = parsedOutput?.success ? parsedOutput.data : undefined;
+  const parsedInput = tool.inputSchema.safeParse(content.input);
+  const input = parsedInput.success ? parsedInput.data : undefined;
+  const toolUseMessage = input ? tool.renderToolUseMessage(input, { theme, verbose: true }) : null;
+  const state = isError ? 'error' : isResolved ? 'done' : isInProgress ? 'running' : 'queued';
+  const title = tool.userFacingName(input) || content.name;
+  const statusLabel = state === 'done' ? 'Completed' : state === 'error' ? 'Needs attention' : state === 'running' ? 'Running' : 'Queued';
+
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--call" data-tool-state={state} open={isInProgress || isError}>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">{title}</span>
+        {toolUseMessage ? <span className="oc-toolDisclosureMeta">{toolUseMessage}</span> : null}
+      </summary>
+      <div className="oc-toolDisclosureBody">
+        <div className="oc-toolCallDetails">
+          <span>{statusLabel}</span>
+          {shouldAnimate && isInProgress ? <span>Streaming tool output</span> : null}
+        </div>
+        {isResolved && !isError && toolResult !== undefined ? (
+          <div className="oc-toolNestedResult">
+            {tool.renderToolResultMessage?.(toolResult, [], {
+              verbose: true,
+              tools,
+              theme,
+            })}
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 export function CollapsedReadSearchContent({
   message,
   inProgressToolUseIDs,
@@ -226,6 +295,54 @@ export function CollapsedReadSearchContent({
       } else if (msg.type === 'grouped_tool_use') {
         toolUses.push(...msg.messages);
       }
+    }
+    if (isBrowserRuntime()) {
+      return (
+        <div className="oc-toolVerboseStack">
+          {toolUses.map(message => {
+            const content = message.message.content[0];
+            if (content?.type !== 'tool_use') return null;
+            return (
+              <BrowserVerboseToolUse
+                key={content.id}
+                content={content}
+                tools={tools}
+                lookups={lookups}
+                inProgressToolUseIDs={inProgressToolUseIDs}
+                shouldAnimate={shouldAnimate}
+                theme={theme}
+              />
+            );
+          })}
+          {message.hookInfos && message.hookInfos.length > 0 ? (
+            <details className="oc-toolDisclosure oc-toolDisclosure--group">
+              <summary className="oc-toolDisclosureSummary">
+                <span className="oc-toolDisclosureStatus" />
+                <span className="oc-toolDisclosureTitle">Ran {message.hookCount} PreToolUse {message.hookCount === 1 ? 'hook' : 'hooks'}</span>
+                <span className="oc-toolDisclosureMeta">{formatSecondsShort(message.hookTotalMs ?? 0)}</span>
+              </summary>
+              <div className="oc-toolDisclosureBody">
+                {message.hookInfos.map((info, index) => (
+                  <div key={`hook-${index}`} className="oc-toolReadReceipt">
+                    {info.command} ({formatSecondsShort(info.durationMs ?? 0)})
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+          {message.relevantMemories?.map(memory => (
+            <details key={memory.path} className="oc-toolDisclosure oc-toolDisclosure--group">
+              <summary className="oc-toolDisclosureSummary">
+                <span className="oc-toolDisclosureStatus" />
+                <span className="oc-toolDisclosureTitle">Recalled {basename(memory.path)}</span>
+              </summary>
+              <div className="oc-toolDisclosureBody">
+                <pre className="oc-toolPlainPre">{memory.content}</pre>
+              </div>
+            </details>
+          ))}
+        </div>
+      );
     }
     return <Box flexDirection="column">
         {toolUses.map(msg_0 => {
@@ -445,6 +562,45 @@ export function CollapsedReadSearchContent({
         {memoryWriteCount === 1 ? 'memory' : 'memories'}
       </Text>);
   }
+
+  if (isBrowserRuntime()) {
+    const summaryParts = [
+      searchCount > 0 ? `${isActiveGroup ? 'Searching' : 'Searched'} ${searchCount} ${pluralize(searchCount, 'pattern')}` : '',
+      readCount > 0 ? `${isActiveGroup ? 'Reading' : 'Read'} ${readCount} ${pluralize(readCount, 'file')}` : '',
+      listCount > 0 ? `${isActiveGroup ? 'Listing' : 'Listed'} ${listCount} ${pluralize(listCount, 'directory', 'directories')}` : '',
+      replCount > 0 ? `${isActiveGroup ? 'Running' : 'Ran'} ${replCount} REPL ${pluralize(replCount, 'call')}` : '',
+      mcpCallCount > 0 ? `${isActiveGroup ? 'Querying' : 'Queried'} ${mcpCallCount} MCP ${pluralize(mcpCallCount, 'call')}` : '',
+      bashCount > 0 ? `${isActiveGroup ? 'Running' : 'Ran'} ${bashCount} bash ${pluralize(bashCount, 'command')}` : '',
+      gitOpBashCount > 0 ? `${gitOpBashCount} git ${pluralize(gitOpBashCount, 'operation')}` : '',
+      memoryReadCount > 0 ? `${isActiveGroup ? 'Recalling' : 'Recalled'} ${memoryReadCount} ${pluralize(memoryReadCount, 'memory', 'memories')}` : '',
+      memorySearchCount > 0 ? `${isActiveGroup ? 'Searching' : 'Searched'} memories` : '',
+      memoryWriteCount > 0 ? `${isActiveGroup ? 'Writing' : 'Wrote'} ${memoryWriteCount} ${pluralize(memoryWriteCount, 'memory', 'memories')}` : '',
+    ];
+    const title = joinSummaryParts(summaryParts) || (isActiveGroup ? 'Using tools' : 'Used tools');
+    const detail = displayedHint ? displayedHint.split('\n')[0] : undefined;
+    const status = anyError ? 'error' : isActiveGroup ? 'running' : 'done';
+
+    return (
+      <details className="oc-toolDisclosure oc-toolDisclosure--group" data-tool-state={status} open={isActiveGroup}>
+        <summary className="oc-toolDisclosureSummary">
+          <span className="oc-toolDisclosureStatus" />
+          <span className="oc-toolDisclosureTitle">{title}</span>
+          {detail ? <span className="oc-toolDisclosureMeta">{detail}{shellProgressSuffix}</span> : null}
+        </summary>
+        <div className="oc-toolDisclosureBody">
+          {displayedHint ? (
+            <div className="oc-toolReadReceipt">{displayedHint}{shellProgressSuffix}</div>
+          ) : null}
+          {message.hookTotalMs !== undefined && message.hookTotalMs > 0 ? (
+            <div className="oc-toolReadReceipt">
+              Ran {message.hookCount} PreToolUse {message.hookCount === 1 ? 'hook' : 'hooks'} ({formatSecondsShort(message.hookTotalMs)})
+            </div>
+          ) : null}
+        </div>
+      </details>
+    );
+  }
+
   return <Box flexDirection="column" marginTop={1} backgroundColor={bg}>
       <Box flexDirection="row">
         {isActiveGroup ? <ToolUseLoader shouldAnimate isUnresolved isError={anyError} /> : <Box minWidth={2} />}

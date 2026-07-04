@@ -11,6 +11,7 @@ import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import type { ElicitationRequestEvent } from '../../services/mcp/elicitationHandler.js';
 import { openBrowser } from '../../utils/browser.js';
 import { getEnumLabel, getEnumValues, getMultiSelectLabel, getMultiSelectValues, isDateTimeSchema, isEnumSchema, isMultiSelectEnumSchema, validateElicitationInput, validateElicitationInputAsync } from '../../utils/mcp/elicitationValidation.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { plural } from '../../utils/stringUtils.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { Byline } from '../design-system/Byline.js';
@@ -954,6 +955,133 @@ function ElicitationFormDialog({
           </Box>}
       </Box>;
   }
+  if (isBrowserRuntime()) {
+    const canSubmit = validateRequired() && Object.keys(validationErrors).length === 0;
+    return (
+      <section className="repl-mcpElicitationCard" aria-label={`MCP server ${serverName} requests input`}>
+        <div className="repl-mcpElicitationHeader">
+          <p className="repl-webPickerKicker">MCP Input Request</p>
+          <h2>{serverName} needs more information</h2>
+          <p>{message}</p>
+        </div>
+        {schemaFields.length > 0 ? (
+          <div className="repl-mcpElicitationFields">
+            {schemaFields.map(({ name, schema, isRequired }) => {
+              const value = formValues[name];
+              const error = validationErrors[name];
+              const title = schema.title || name;
+              const description = schema.description;
+              let control: React.ReactNode;
+              if (isMultiSelectEnumSchema(schema)) {
+                const selected = Array.isArray(value) ? value : [];
+                control = (
+                  <div className="repl-mcpChoiceGrid">
+                    {getMultiSelectValues(schema).map(optionValue => {
+                      const checked = selected.includes(optionValue);
+                      return (
+                        <label key={optionValue} className="repl-mcpChoice">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const nextValue = checked
+                                ? selected.filter(item => item !== optionValue)
+                                : [...selected, optionValue];
+                              setField(name, nextValue.length > 0 ? nextValue : undefined);
+                              validateMultiSelect(name, schema);
+                            }}
+                          />
+                          <span>{getMultiSelectLabel(schema, optionValue)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              } else if (isEnumSchema(schema)) {
+                control = (
+                  <select
+                    value={value === undefined ? '' : String(value)}
+                    onChange={event_0 => {
+                      const nextValue = event_0.currentTarget.value;
+                      setField(name, nextValue === '' ? undefined : nextValue);
+                    }}
+                  >
+                    <option value="">Select an option</option>
+                    {getEnumValues(schema).map(optionValue => (
+                      <option key={optionValue} value={optionValue}>
+                        {getEnumLabel(schema, optionValue)}
+                      </option>
+                    ))}
+                  </select>
+                );
+              } else if (schema.type === 'boolean') {
+                control = (
+                  <label className="repl-mcpSwitch">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(value)}
+                      onChange={event_1 => setField(name, event_1.currentTarget.checked)}
+                    />
+                    <span>{value ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                );
+              } else if (isTextField(schema)) {
+                control = (
+                  <input
+                    type={schema.type === 'number' || schema.type === 'integer' ? 'number' : 'text'}
+                    value={value === undefined ? '' : String(value)}
+                    placeholder={isDateTimeSchema(schema) ? 'Describe a date or paste an ISO value' : 'Enter value'}
+                    onChange={event_2 => commitTextField(name, schema, event_2.currentTarget.value)}
+                  />
+                );
+              } else {
+                control = (
+                  <input
+                    value={value === undefined ? '' : String(value)}
+                    placeholder="Enter value"
+                    onChange={event_3 => setField(name, event_3.currentTarget.value)}
+                  />
+                );
+              }
+              return (
+                <label key={name} className="repl-mcpElicitationField">
+                  <span>
+                    {title}
+                    {isRequired ? <em>Required</em> : null}
+                  </span>
+                  {description ? <small>{description}</small> : null}
+                  {control}
+                  {error ? <strong>{error}</strong> : null}
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="repl-mcpElicitationEmpty">No extra fields are required. Confirm whether this server can continue.</p>
+        )}
+        <div className="repl-mcpElicitationActions">
+          <button
+            type="button"
+            className="repl-webPickerPrimary"
+            disabled={!canSubmit}
+            onClick={() => {
+              if (canSubmit) {
+                onResponse('accept', formValues);
+              }
+            }}
+          >
+            Allow and continue
+          </button>
+          <button type="button" className="repl-webPickerButton" onClick={() => onResponse('decline')}>
+            Decline
+          </button>
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => onResponse('cancel')}>
+            Cancel
+          </button>
+        </div>
+      </section>
+    );
+  }
   return <Dialog title={`MCP server \u201c${serverName}\u201d requests your input`} subtitle={`\n${message}`} color="permission" onCancel={() => onResponse('cancel')} isCancelActive={(!currentField || !!focusedButton) && !expandedAccordion} inputGuide={exitState => exitState.pending ? <Text>Press {exitState.keyName} again to exit</Text> : <Byline>
             <ConfigurableShortcutHint action="confirm:no" context="Confirmation" fallback="Esc" description="cancel" />
             <KeyboardShortcutHint shortcut="↑↓" action="navigate" />
@@ -1092,6 +1220,64 @@ function ElicitationURLDialog({
       }
     }
   });
+  if (isBrowserRuntime()) {
+    const actionLabel = waitingState?.actionLabel ?? 'Continue without waiting';
+    if (phase === 'waiting') {
+      return (
+        <section className="repl-mcpElicitationCard" aria-label={`MCP server ${serverName} is waiting`}>
+          <div className="repl-mcpElicitationHeader">
+            <p className="repl-webPickerKicker">MCP External Action</p>
+            <h2>Waiting for completion</h2>
+            <p>{message}</p>
+          </div>
+          <div className="repl-mcpUrlBox">
+            <span>{urlBeforeDomain}</span>
+            <strong>{domain}</strong>
+            <span>{urlAfterDomain}</span>
+          </div>
+          <p className="repl-mcpElicitationEmpty">Complete the browser flow, then continue here.</p>
+          <div className="repl-mcpElicitationActions">
+            <button type="button" className="repl-webPickerPrimary" onClick={() => void openBrowser(url)}>
+              Reopen URL
+            </button>
+            <button type="button" className="repl-webPickerButton" onClick={() => onWaitingDismiss?.(showCancel ? 'retry' : 'dismiss')}>
+              {actionLabel}
+            </button>
+            {showCancel ? (
+              <button type="button" className="repl-webPickerGhostButton" onClick={() => onWaitingDismiss?.('cancel')}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+        </section>
+      );
+    }
+    return (
+      <section className="repl-mcpElicitationCard" aria-label={`MCP server ${serverName} wants to open a URL`}>
+        <div className="repl-mcpElicitationHeader">
+          <p className="repl-webPickerKicker">MCP URL Request</p>
+          <h2>{serverName} wants to open a page</h2>
+          <p>{message}</p>
+        </div>
+        <div className="repl-mcpUrlBox">
+          <span>{urlBeforeDomain}</span>
+          <strong>{domain}</strong>
+          <span>{urlAfterDomain}</span>
+        </div>
+        <div className="repl-mcpElicitationActions">
+          <button type="button" className="repl-webPickerPrimary" onClick={handleAccept}>
+            Open and continue
+          </button>
+          <button type="button" className="repl-webPickerButton" onClick={() => onResponse('decline')}>
+            Decline
+          </button>
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => onResponse('cancel')}>
+            Cancel
+          </button>
+        </div>
+      </section>
+    );
+  }
   if (phase === 'waiting') {
     const actionLabel = waitingState?.actionLabel ?? 'Continue without waiting';
     return <Dialog title={`MCP server \u201c${serverName}\u201d \u2014 waiting for completion`} subtitle={`\n${message}`} color="permission" onCancel={() => onWaitingDismiss?.('cancel')} isCancelActive inputGuide={exitState => exitState.pending ? <Text>Press {exitState.keyName} again to exit</Text> : <Byline>

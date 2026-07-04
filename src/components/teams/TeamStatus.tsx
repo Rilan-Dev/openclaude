@@ -2,6 +2,7 @@ import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { Text } from '../../ink.js';
 import { useAppState } from '../../state/AppState.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 type Props = {
   teamsSelected: boolean;
   showHint: boolean;
@@ -32,7 +33,7 @@ export function TeamStatus(t0) {
   }
   let t2;
   if ($[2] !== showHint || $[3] !== teamsSelected) {
-    t2 = showHint && teamsSelected ? <><Text dimColor={true}>· </Text><Text dimColor={true}>Enter to view</Text></> : null;
+    t2 = showHint && teamsSelected ? <><Text dimColor={true}>· </Text><Text dimColor={true}>{isBrowserRuntime() ? 'Open details' : 'Enter to view'}</Text></> : null;
     $[2] = showHint;
     $[3] = teamsSelected;
     $[4] = t2;

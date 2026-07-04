@@ -3,6 +3,7 @@ import * as React from 'react';
 import { extractTag } from 'src/utils/messages.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
 import { FilePathLink } from '../../components/FilePathLink.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { Text } from '../../ink.js';
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js';
@@ -49,30 +50,57 @@ function BrowserReadPreview({
   const lineRange = numLines > 0 ? `lines ${startLine}-${startLine + numLines - 1}` : '0 lines';
 
   return (
-    <MessageResponse>
-      <div className="oc-toolResultPreview oc-toolResultPreview--read">
-        <div className="oc-toolResultPreviewHeader">
-          <div>
-            <div className="oc-toolResultPreviewKicker">Read</div>
-            <div className="oc-toolResultPreviewTitle">{getDisplayPath(filePath)}</div>
+    <details className="oc-toolDisclosure oc-toolDisclosure--read" open>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">Read {getDisplayPath(filePath)}</span>
+        <span className="oc-toolDisclosureMeta">{lineRange}</span>
+      </summary>
+      <div className="oc-toolDisclosureBody">
+        <div className="oc-toolResultPreview oc-toolResultPreview--read">
+          <div className="oc-toolResultPreviewHeader" aria-hidden="true">
+            <div className="oc-toolResultPreviewKicker">Read preview</div>
+            <div className="oc-toolResultPreviewMeta">
+              <span>{lineRange}</span>
+              <span>{totalLines} total</span>
+            </div>
           </div>
-          <div className="oc-toolResultPreviewMeta">
-            <span>{lineRange}</span>
-            <span>{totalLines} total</span>
+          <div className="oc-toolResultPreviewBody">
+            {content ? (
+              <pre>{preview.content}</pre>
+            ) : (
+              <div className="oc-toolResultPreviewEmpty">The file exists, but this range returned no readable content.</div>
+            )}
           </div>
+          {preview.isTruncated ? (
+            <div className="oc-toolResultPreviewTruncated">Preview truncated for browser performance. The full content is still available to the model.</div>
+          ) : null}
         </div>
-        <div className="oc-toolResultPreviewBody">
-          {content ? (
-            <pre>{preview.content}</pre>
-          ) : (
-            <div className="oc-toolResultPreviewEmpty">The file exists, but this range returned no readable content.</div>
-          )}
-        </div>
-        {preview.isTruncated ? (
-          <div className="oc-toolResultPreviewTruncated">Preview truncated for browser performance. The full content is still available to the model.</div>
-        ) : null}
       </div>
-    </MessageResponse>
+    </details>
+  );
+}
+
+function BrowserReadSummary({
+  title,
+  detail,
+  body,
+}: {
+  title: string;
+  detail?: string;
+  body?: string;
+}): React.ReactNode {
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--read">
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">{title}</span>
+        {detail ? <span className="oc-toolDisclosureMeta">{detail}</span> : null}
+      </summary>
+      <div className="oc-toolDisclosureBody">
+        <div className="oc-toolReadReceipt">{body ?? detail ?? title}</div>
+      </div>
+    </details>
   );
 }
 
@@ -148,6 +176,9 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
           originalSize
         } = output.file;
         const formattedSize = formatFileSize(originalSize);
+        if (isBrowserRuntime()) {
+          return <BrowserReadSummary title="Read image" detail={formattedSize} body={`Image loaded · ${formattedSize}`} />;
+        }
         return <MessageResponse height={1}>
           <Text>Read image ({formattedSize})</Text>
         </MessageResponse>;
@@ -159,6 +190,9 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
         } = output.file;
         if (!cells || cells.length < 1) {
           return <Text color="error">No cells found in notebook</Text>;
+        }
+        if (isBrowserRuntime()) {
+          return <BrowserReadSummary title={`Read ${cells.length} ${cells.length === 1 ? 'cell' : 'cells'}`} body="Notebook cells loaded" />;
         }
         return <MessageResponse height={1}>
           <Text>
@@ -172,12 +206,18 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
           originalSize
         } = output.file;
         const formattedSize = formatFileSize(originalSize);
+        if (isBrowserRuntime()) {
+          return <BrowserReadSummary title="Read PDF" detail={formattedSize} body={`PDF loaded · ${formattedSize}`} />;
+        }
         return <MessageResponse height={1}>
           <Text>Read PDF ({formattedSize})</Text>
         </MessageResponse>;
       }
     case 'parts':
       {
+        if (isBrowserRuntime()) {
+          return <BrowserReadSummary title={`Read ${output.file.count} ${output.file.count === 1 ? 'file' : 'files'}`} detail={formatFileSize(output.file.originalSize)} body="File parts loaded and available to the model" />;
+        }
         return <MessageResponse height={1}>
           <Text>
             Read <Text bold>{output.file.count}</Text>{' '}
@@ -207,6 +247,9 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
       }
     case 'file_unchanged':
       {
+        if (isBrowserRuntime()) {
+          return <BrowserReadSummary title="Unchanged since last read" body="No new file content was loaded" />;
+        }
         return <MessageResponse height={1}>
           <Text dimColor>Unchanged since last read</Text>
         </MessageResponse>;
@@ -222,11 +265,25 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
     // FileReadTool throws from call() so errors lack <tool_use_error> wrapping —
     // check the raw string directly for the cwd note marker.
     if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="Read failed" detail="File not found" state="error" defaultOpen>
+            <div className="oc-toolResultError">{result}</div>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse>
           <Text color="error">File not found</Text>
         </MessageResponse>;
     }
     if (extractTag(result, 'tool_use_error')) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="Read failed" detail="Unable to read file" state="error" defaultOpen>
+            <div className="oc-toolResultError">{extractTag(result, 'tool_use_error') ?? result}</div>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse>
           <Text color="error">Error reading file</Text>
         </MessageResponse>;

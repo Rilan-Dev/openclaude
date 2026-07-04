@@ -19,6 +19,7 @@ import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketpla
 import { installPluginFromMarketplace } from '../../utils/plugins/pluginInstallationHelpers.js';
 import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js';
 import type { PluginMarketplaceEntry } from '../../utils/plugins/schemas.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { plural } from '../../utils/stringUtils.js';
 import { truncateToWidth } from '../../utils/truncate.js';
 import { findPluginOptionsTarget, PluginOptionsFlow } from './PluginOptionsFlow.js';
@@ -565,6 +566,207 @@ export function BrowseMarketplace({
           break;
       }
     }} />;
+  }
+
+  if (isBrowserRuntime()) {
+    const backToPluginMenu = () => setParentViewState({
+      type: 'menu'
+    });
+    const openMarketplace = (marketplace: MarketplaceInfo, index: number) => {
+      setSelectedIndex(index);
+      setSelectedMarketplace(marketplace.name);
+      setViewState('plugin-list');
+    };
+    const toggleInstallSelection = (plugin: InstallablePlugin) => {
+      if (plugin.isInstalled || installingPlugins.has(plugin.pluginId)) return;
+      setSelectedForInstall(prev => {
+        const next = new Set(prev);
+        if (next.has(plugin.pluginId)) {
+          next.delete(plugin.pluginId);
+        } else {
+          next.add(plugin.pluginId);
+        }
+        return next;
+      });
+    };
+    const openPlugin = (plugin: InstallablePlugin, index: number) => {
+      setSelectedIndex(index);
+      if (plugin.isInstalled) {
+        setParentViewState({
+          type: 'manage-plugins',
+          targetPlugin: plugin.entry.name,
+          targetMarketplace: plugin.marketplaceName
+        });
+        return;
+      }
+      setSelectedPlugin(plugin);
+      setViewState('plugin-details');
+      setDetailsMenuIndex(0);
+      setInstallError(null);
+    };
+    const runDetailsAction = (action: string) => {
+      if (!selectedPlugin) return;
+      const homepage = selectedPlugin.entry.homepage;
+      const githubRepo = extractGitHubRepo(selectedPlugin);
+      if (action === 'install-user') {
+        void handleSinglePluginInstall(selectedPlugin, 'user');
+      } else if (action === 'install-project') {
+        void handleSinglePluginInstall(selectedPlugin, 'project');
+      } else if (action === 'install-local') {
+        void handleSinglePluginInstall(selectedPlugin, 'local');
+      } else if (action === 'homepage' && homepage) {
+        void openBrowser(homepage);
+      } else if (action === 'github' && githubRepo) {
+        void openBrowser(`https://github.com/${githubRepo}`);
+      } else if (action === 'back') {
+        setViewState('plugin-list');
+        setSelectedPlugin(null);
+      }
+    };
+    const pluginComponentSummary = (plugin: InstallablePlugin) => {
+      const parts: string[] = [];
+      if (plugin.entry.commands) parts.push('Commands');
+      if (plugin.entry.agents) parts.push('Agents');
+      if (plugin.entry.hooks) parts.push('Hooks');
+      if (plugin.entry.mcpServers) parts.push('MCP servers');
+      return parts.length > 0 ? parts.join(' · ') : 'Components discovered during installation';
+    };
+
+    if (loading) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplace</span>
+            <h2>Browse plugins</h2>
+            <p>Loading marketplaces, install counts, and plugin metadata.</p>
+          </div>
+          <div className="repl-webPickerLoading" />
+        </section>;
+    }
+
+    if (error) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplace</span>
+            <h2>Browse plugins</h2>
+            <p className="repl-pluginError">{error}</p>
+          </div>
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={backToPluginMenu}>Back to plugins</button>
+          </div>
+        </section>;
+    }
+
+    if (viewState === 'marketplace-list') {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplaces</span>
+            <h2>Select marketplace</h2>
+            <p>Choose a source, then install plugins with browser-native controls.</p>
+          </div>
+          {warning ? <div className="repl-webPickerNotice repl-pluginError">{warning}</div> : null}
+          {marketplaces.length === 0 ? <div className="repl-webPickerNotice">
+              No marketplaces configured. Add a marketplace before browsing plugins.
+            </div> : <div className="repl-webPickerList">
+              {marketplaces.map((marketplace, index) => <button type="button" key={marketplace.name} className="repl-webPickerOption" data-focused={selectedIndex === index ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openMarketplace(marketplace, index)}>
+                  <span className="repl-webPickerOptionMark">{marketplace.installedCount > 0 ? `${marketplace.installedCount}/${marketplace.totalPlugins}` : marketplace.totalPlugins}</span>
+                  <span className="repl-webPickerOptionCopy">
+                    <span className="repl-webPickerOptionTitle">{marketplace.name}</span>
+                    <span className="repl-webPickerOptionDescription">
+                      {marketplace.totalPlugins} {plural(marketplace.totalPlugins, 'plugin')} available
+                      {marketplace.installedCount > 0 ? ` · ${marketplace.installedCount} installed` : ''}
+                      {marketplace.source ? ` · ${marketplace.source}` : ''}
+                    </span>
+                  </span>
+                </button>)}
+            </div>}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={backToPluginMenu}>Back to plugins</button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+          type: 'manage-marketplaces'
+        })}>Manage marketplaces</button>
+          </div>
+        </section>;
+    }
+
+    if (viewState === 'plugin-details' && selectedPlugin) {
+      const pluginDetailsOptions = buildPluginDetailsMenuOptions(selectedPlugin.entry.homepage, extractGitHubRepo(selectedPlugin));
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugin details</span>
+            <h2>{selectedPlugin.entry.name}</h2>
+            <p>{selectedPlugin.entry.description || `From ${selectedPlugin.marketplaceName}`}</p>
+          </div>
+          <div className="repl-pluginMetaGrid">
+            <span>Marketplace <strong>{selectedPlugin.marketplaceName}</strong></span>
+            {selectedPlugin.entry.version ? <span>Version <strong>{selectedPlugin.entry.version}</strong></span> : null}
+            {selectedPlugin.entry.author ? <span>Author <strong>{typeof selectedPlugin.entry.author === 'string' ? selectedPlugin.entry.author : selectedPlugin.entry.author.name}</strong></span> : null}
+            {selectedPlugin.entry.category ? <span>Category <strong>{selectedPlugin.entry.category}</strong></span> : null}
+          </div>
+          <div className="repl-webPickerNotice">{pluginComponentSummary(selectedPlugin)}</div>
+          <PluginTrustWarning />
+          {installError ? <div className="repl-webPickerNotice repl-pluginError">{installError}</div> : null}
+          <div className="repl-webPickerList">
+            {pluginDetailsOptions.map((option, index) => <button type="button" key={option.action} className="repl-webPickerOption" data-focused={detailsMenuIndex === index ? 'true' : undefined} onMouseEnter={() => setDetailsMenuIndex(index)} onClick={() => runDetailsAction(option.action)}>
+                <span className="repl-webPickerOptionMark">{option.action.startsWith('install-') ? 'GO' : option.action === 'back' ? 'BACK' : 'OPEN'}</span>
+                <span className="repl-webPickerOptionCopy">
+                  <span className="repl-webPickerOptionTitle">{isInstalling && option.action.startsWith('install-') ? 'Installing…' : option.label}</span>
+                  <span className="repl-webPickerOptionDescription">{option.action.startsWith('install-') ? 'Install this plugin into the selected scope.' : option.action === 'back' ? 'Return to the marketplace plugin list.' : 'Open the external plugin resource.'}</span>
+                </span>
+              </button>)}
+          </div>
+        </section>;
+    }
+
+    if (availablePlugins.length === 0) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugins</span>
+            <h2>Install plugins</h2>
+            <p>All plugins from {selectedMarketplace ?? 'this marketplace'} are already installed.</p>
+          </div>
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={handleBack}>Back</button>
+          </div>
+        </section>;
+    }
+
+    return <section className="repl-webPicker repl-pluginSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Plugins</span>
+          <h2>{selectedMarketplace ?? 'Install plugins'}</h2>
+          <p>Review plugins, select multiple items, or open details before installing.</p>
+        </div>
+        <div className="repl-webPickerList">
+          {availablePlugins.map((plugin, index) => {
+          const selected = selectedForInstall.has(plugin.pluginId);
+          const installing = installingPlugins.has(plugin.pluginId);
+          const installCount = installCounts && selectedMarketplace === OFFICIAL_MARKETPLACE_NAME ? installCounts.get(plugin.pluginId) ?? 0 : null;
+          return <div key={plugin.pluginId} className="repl-webPickerOption" data-focused={selectedIndex === index ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(index)}>
+                <button type="button" className="repl-pluginInlineToggle" disabled={plugin.isInstalled || installing} aria-pressed={selected} onClick={() => toggleInstallSelection(plugin)}>
+                  {plugin.isInstalled ? 'Installed' : installing ? 'Installing…' : selected ? 'Selected' : 'Select'}
+                </button>
+                <button type="button" className="repl-webPickerOptionCopy repl-pluginOptionMain" onClick={() => openPlugin(plugin, index)}>
+                  <span className="repl-webPickerOptionTitle">
+                    {plugin.entry.name}
+                    {plugin.entry.category ? <span className="repl-pluginMetaMuted"> {plugin.entry.category}</span> : null}
+                  </span>
+                  <span className="repl-webPickerOptionDescription">
+                    {plugin.entry.description ? truncateToWidth(plugin.entry.description, 160) : pluginComponentSummary(plugin)}
+                    {plugin.entry.version ? ` · v${plugin.entry.version}` : ''}
+                    {installCount !== null ? ` · ${formatInstallCount(installCount)} installs` : ''}
+                  </span>
+                </button>
+              </div>;
+        })}
+        </div>
+        {error ? <div className="repl-webPickerNotice repl-pluginError">{error}</div> : null}
+        <div className="repl-webPickerFooter">
+          <button type="button" className="repl-webPickerPrimaryButton" disabled={selectedForInstall.size === 0 || isInstalling} onClick={() => void installSelectedPlugins()}>
+            {isInstalling ? 'Installing…' : `Install ${selectedForInstall.size || ''}`.trim()}
+          </button>
+          <button type="button" className="repl-webPickerGhostButton" onClick={handleBack}>Back</button>
+        </div>
+      </section>;
   }
 
   // Loading state

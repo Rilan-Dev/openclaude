@@ -3,10 +3,12 @@ import React from 'react';
 import { MessageResponse } from 'src/components/MessageResponse.js';
 import { extractTag } from 'src/utils/messages.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js';
 import { Text } from '../../ink.js';
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js';
 import { truncate } from '../../utils/format.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { GrepTool } from '../GrepTool/GrepTool.js';
 export function userFacingName(): string {
   return 'Search';
@@ -37,6 +39,13 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
 }): React.ReactNode {
   if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error')) {
     const errorMessage = extractTag(result, 'tool_use_error');
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Search failed" detail={errorMessage?.includes(FILE_NOT_FOUND_CWD_NOTE) ? 'File not found' : 'Unable to search files'} state="error" defaultOpen>
+          <div className="oc-toolResultError">{errorMessage ?? 'The file search did not complete.'}</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     if (errorMessage?.includes(FILE_NOT_FOUND_CWD_NOTE)) {
       return <MessageResponse>
           <Text color="error">File not found</Text>

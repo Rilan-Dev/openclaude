@@ -4,6 +4,7 @@ import figures from 'figures';
 import * as React from 'react';
 import type { z } from 'zod/v4';
 import { ProgressBar } from '../../components/design-system/ProgressBar.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { linkifyUrlsInText, OutputLine } from '../../components/shell/OutputLine.js';
 import { stringWidth } from '../../ink/stringWidth.js';
@@ -14,6 +15,7 @@ import type { MCPProgress } from '../../types/tools.js';
 import { formatNumber } from '../../utils/format.js';
 import { createHyperlink } from '../../utils/hyperlink.js';
 import { getContentSizeEstimate, type MCPToolResult } from '../../utils/mcpValidation.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js';
 import type { inputSchema } from './MCPTool.js';
 
@@ -56,6 +58,22 @@ export function renderToolUseMessage(input: z.infer<ReturnType<typeof inputSchem
 }
 export function renderToolUseProgressMessage(progressMessagesForMessage: ProgressMessage<MCPProgress>[]): React.ReactNode {
   const lastProgress = progressMessagesForMessage.at(-1);
+  if (isBrowserRuntime()) {
+    const progressData = lastProgress?.data;
+    const progress = progressData?.progress;
+    const total = progressData?.total;
+    const ratio = total !== undefined && total > 0 && progress !== undefined ? Math.min(1, Math.max(0, progress / total)) : null;
+    const detail = ratio !== null ? `${Math.round(ratio * 100)}%` : progressData?.progressMessage ?? 'Running';
+
+    return (
+      <BrowserToolResultDisclosure title="Running MCP tool" detail={detail} state="running">
+        <div className="oc-mcpProgress">
+          <div>{progressData?.progressMessage ?? 'Processing MCP response.'}</div>
+          {ratio !== null ? <progress value={ratio} max={1} /> : null}
+        </div>
+      </BrowserToolResultDisclosure>
+    );
+  }
   if (!lastProgress?.data) {
     return <MessageResponse height={1}>
         <Text dimColor>Running…</Text>
@@ -102,6 +120,13 @@ export function renderToolResultMessage(output: string | MCPToolResult | {
   if (!verbose) {
     const slackSend = trySlackSendCompact(mcpOutput, input);
     if (slackSend !== null) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="MCP tool completed" detail={`Sent to ${slackSend.channel}`} state="done">
+            <a className="oc-toolLink" href={slackSend.url} target="_blank" rel="noreferrer">Open message</a>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse height={1}>
           <Text>
             Sent a message to{' '}
@@ -113,6 +138,9 @@ export function renderToolResultMessage(output: string | MCPToolResult | {
   const estimatedTokens = getContentSizeEstimate(mcpOutput);
   const showWarning = estimatedTokens > MCP_OUTPUT_WARNING_THRESHOLD_TOKENS;
   const warningMessage = showWarning ? `${figures.warning} Large MCP response (~${formatNumber(estimatedTokens)} tokens), this can fill up context quickly` : null;
+  if (isBrowserRuntime()) {
+    return <BrowserMcpResult output={mcpOutput} warningMessage={warningMessage} verbose={verbose} />;
+  }
   let contentElement: React.ReactNode;
   if (Array.isArray(mcpOutput)) {
     const contentBlocks = mcpOutput.map((item, i) => {
@@ -252,6 +280,55 @@ function MCPTextOutput(t0) {
     t3 = $[17];
   }
   return t3;
+}
+
+function BrowserMcpResult({
+  output,
+  warningMessage,
+  verbose
+}: {
+  output: MCPToolResult;
+  warningMessage: string | null;
+  verbose: boolean;
+}): React.ReactNode {
+  const blocks = formatBrowserMcpBlocks(output, verbose);
+  return (
+    <BrowserToolResultDisclosure title="MCP tool completed" detail={warningMessage ?? `${blocks.length} ${blocks.length === 1 ? 'block' : 'blocks'}`} state={warningMessage ? 'queued' : 'done'} defaultOpen={Boolean(warningMessage)}>
+      {warningMessage ? <div className="oc-toolResultWarning">{warningMessage}</div> : null}
+      <div className="oc-mcpResultStack">
+        {blocks.length > 0 ? blocks.map((block, index) => {
+        if (block.type === 'image') {
+          return <div className="oc-mcpImageBlock" key={index}>Image content returned by MCP tool</div>;
+        }
+        return <pre className="oc-toolCodeBlock" key={index}>{block.content}</pre>;
+      }) : <div className="oc-toolResultEmpty">No content returned by this MCP tool.</div>}
+      </div>
+    </BrowserToolResultDisclosure>
+  );
+}
+
+function formatBrowserMcpBlocks(output: MCPToolResult, verbose: boolean): { type: 'text' | 'image'; content: string }[] {
+  if (Array.isArray(output)) {
+    return output.map(item => {
+      if (item.type === 'image') {
+        return { type: 'image' as const, content: '' };
+      }
+      const text = item.type === 'text' && 'text' in item && item.text !== null && item.text !== undefined ? String(item.text) : jsonStringify(item, null, 2);
+      return { type: 'text' as const, content: verbose ? text : truncateMcpBrowserText(text) };
+    });
+  }
+
+  if (!output) {
+    return [];
+  }
+
+  const content = typeof output === 'string' ? output : jsonStringify(output, null, 2);
+  return [{ type: 'text', content: verbose ? content : truncateMcpBrowserText(content) }];
+}
+
+function truncateMcpBrowserText(content: string): string {
+  const maxChars = 18_000;
+  return content.length > maxChars ? `${content.slice(0, maxChars).trimEnd()}\n\n… truncated for display` : content;
 }
 
 /**

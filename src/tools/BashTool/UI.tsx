@@ -16,6 +16,7 @@ import { env } from '../../utils/env.js';
 import { isEnvTruthy } from '../../utils/envUtils.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { ThemeName } from '../../utils/theme.js';
 import type { BashProgress, BashToolInput, Out } from './BashTool.js';
 import BashToolResultMessage from './BashToolResultMessage.js';
@@ -25,6 +26,50 @@ import { parseSedEditCommand } from './sedEditParser.js';
 // Constants for command display
 const MAX_COMMAND_DISPLAY_LINES = 2;
 const MAX_COMMAND_DISPLAY_CHARS = 160;
+
+function BrowserBashProgressMessage({
+  output,
+  elapsedTimeSeconds,
+  totalLines,
+  totalBytes,
+  timeoutMs,
+  taskId,
+}: {
+  output?: string;
+  elapsedTimeSeconds?: number;
+  totalLines?: number;
+  totalBytes?: number;
+  timeoutMs?: number;
+  taskId?: string;
+}): React.ReactNode {
+  const details = [
+    elapsedTimeSeconds !== undefined ? `${Math.max(0, Math.round(elapsedTimeSeconds))}s` : undefined,
+    totalLines !== undefined ? `${totalLines} ${totalLines === 1 ? 'line' : 'lines'}` : undefined,
+    totalBytes !== undefined ? `${totalBytes} bytes` : undefined,
+    timeoutMs ? `timeout ${timeoutMs}ms` : undefined,
+    taskId ? 'background task' : undefined,
+  ].filter(Boolean).join(' · ');
+  const preview = output?.trim();
+
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--bash" data-tool-state={taskId ? 'queued' : 'running'} open={Boolean(preview)}>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">{taskId ? 'Bash running in background' : 'Running bash command'}</span>
+        {details ? <span className="oc-toolDisclosureMeta">{details}</span> : null}
+      </summary>
+      {preview ? (
+        <div className="oc-toolDisclosureBody">
+          <div className="oc-toolResultPreview">
+            <div className="oc-toolResultPreviewBody">
+              <pre>{preview}</pre>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </details>
+  );
+}
 
 // Simple component to show background hint and handle ctrl+b
 // When ctrl+b is pressed, backgrounds ALL running foreground commands
@@ -144,14 +189,31 @@ export function renderToolUseProgressMessage(progressMessagesForMessage: Progres
 }): React.ReactNode {
   const lastProgress = progressMessagesForMessage.at(-1);
   if (!lastProgress || !lastProgress.data) {
+    if (isBrowserRuntime()) {
+      return <BrowserBashProgressMessage />;
+    }
     return <MessageResponse height={1}>
         <Text dimColor>Running…</Text>
       </MessageResponse>;
   }
   const data = lastProgress.data;
+  if (isBrowserRuntime()) {
+    return <BrowserBashProgressMessage output={data.output} elapsedTimeSeconds={data.elapsedTimeSeconds} totalLines={data.totalLines} totalBytes={data.totalBytes} timeoutMs={data.timeoutMs} taskId={data.taskId} />;
+  }
   return <ShellProgressMessage fullOutput={data.fullOutput} output={data.output} elapsedTimeSeconds={data.elapsedTimeSeconds} totalLines={data.totalLines} totalBytes={data.totalBytes} timeoutMs={data.timeoutMs} taskId={data.taskId} verbose={verbose} />;
 }
 export function renderToolUseQueuedMessage(): React.ReactNode {
+  if (isBrowserRuntime()) {
+    return (
+      <details className="oc-toolDisclosure oc-toolDisclosure--bash" data-tool-state="queued">
+        <summary className="oc-toolDisclosureSummary">
+          <span className="oc-toolDisclosureStatus" />
+          <span className="oc-toolDisclosureTitle">Bash command queued</span>
+          <span className="oc-toolDisclosureMeta">Waiting for approval or execution</span>
+        </summary>
+      </details>
+    );
+  }
   return <MessageResponse height={1}>
       <Text dimColor>Waiting…</Text>
     </MessageResponse>;

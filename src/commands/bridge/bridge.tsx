@@ -18,6 +18,7 @@ import { useAppState, useSetAppState } from '../../state/AppState.js';
 import type { ToolUseContext } from '../../Tool.js';
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js';
 import { logForDebugging } from '../../utils/debug.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 type Props = {
   onDone: LocalJSXCommandOnDone;
   name?: string;
@@ -276,6 +277,26 @@ function BridgeDisconnectDialog(t0) {
     t9 = $[16];
   }
   useKeybindings(t8, t9);
+  if (isBrowserRuntime()) {
+    const qrLines = qrText ? qrText.split('\n').filter(Boolean) : [];
+    return (
+      <div className="oc-bridgeCard">
+        <div className="oc-bridgeHeader">
+          <span className="oc-bridgeKicker">Remote control</span>
+          <h2>Session is available</h2>
+          <p>{displayUrl ? `Open ${displayUrl} from another device to connect.` : 'Remote control is active for this session.'}</p>
+        </div>
+        {showQR && qrLines.length > 0 ? (
+          <pre className="oc-bridgeQr">{qrLines.join('\n')}</pre>
+        ) : null}
+        <div className="oc-bridgeActions">
+          <button type="button" className="oc-bridgeDanger" onClick={handleDisconnect}>Disconnect session</button>
+          <button type="button" className="oc-bridgeGhost" onClick={handleShowQR}>{showQR ? 'Hide QR code' : 'Show QR code'}</button>
+          <button type="button" className="oc-bridgePrimary" onClick={handleContinue}>Continue chat</button>
+        </div>
+      </div>
+    );
+  }
   let T0;
   let T1;
   let t10;

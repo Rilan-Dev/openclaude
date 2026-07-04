@@ -8,6 +8,7 @@ import { PRODUCT_DISPLAY_NAME } from '../../constants/product.js';
 import { OutputLine } from '../../components/shell/OutputLine.js';
 import { ShellTimeDisplay } from '../../components/shell/ShellTimeDisplay.js';
 import { Box, Text } from '../../ink.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Out as BashOut } from './BashTool.js';
 type Props = {
   content: Omit<BashOut, 'interrupted'>;
@@ -65,6 +66,50 @@ function extractCwdResetWarning(stderr: string): {
     cwdResetWarning
   };
 }
+
+function BrowserBashResultMessage({
+  stdout,
+  stderr,
+  cwdResetWarning,
+  returnCodeInterpretation,
+  noOutputExpected,
+  backgroundTaskId,
+  timeoutMs,
+}: {
+  stdout: string;
+  stderr: string;
+  cwdResetWarning: string | null;
+  returnCodeInterpretation?: string;
+  noOutputExpected?: boolean;
+  backgroundTaskId?: string;
+  timeoutMs?: number;
+}): React.ReactNode {
+  const visibleOutput = [stdout.trim(), stderr.trim(), cwdResetWarning].filter(Boolean).join('\n\n');
+  const title = stderr.trim() ? 'Bash returned stderr' : backgroundTaskId ? 'Bash running in background' : 'Bash output';
+  const fallback = backgroundTaskId ? 'Running in the background' : returnCodeInterpretation || (noOutputExpected ? 'Done' : '(No output)');
+
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--bash" data-tool-state={stderr.trim() ? 'error' : 'done'} open={Boolean(stderr.trim())}>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">{title}</span>
+        {timeoutMs ? <span className="oc-toolDisclosureMeta">timeout {timeoutMs}ms</span> : null}
+      </summary>
+      <div className="oc-toolDisclosureBody">
+        {visibleOutput ? (
+          <div className="oc-toolResultPreview">
+            <div className="oc-toolResultPreviewBody">
+              <pre>{visibleOutput}</pre>
+            </div>
+          </div>
+        ) : (
+          <div className="oc-toolResultPreviewEmpty">{fallback}</div>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export default function BashToolResultMessage(t0) {
   const $ = _c(34);
   const {
@@ -144,6 +189,9 @@ export default function BashToolResultMessage(t0) {
   }
   if (t7 !== Symbol.for("react.early_return_sentinel")) {
     return t7;
+  }
+  if (isBrowserRuntime()) {
+    return <BrowserBashResultMessage stdout={stdout} stderr={stderr} cwdResetWarning={cwdResetWarning} returnCodeInterpretation={returnCodeInterpretation} noOutputExpected={noOutputExpected} backgroundTaskId={backgroundTaskId} timeoutMs={timeoutMs} />;
   }
   let t8;
   if ($[15] !== cwdResetWarning) {

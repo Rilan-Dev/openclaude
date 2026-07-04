@@ -9,6 +9,7 @@ import { extractTag } from 'src/utils/messages.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
 import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdatedMessage.js';
 import { FilePathLink } from '../../components/FilePathLink.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { Text } from '../../ink.js';
 import type { Tools } from '../../Tool.js';
 import type { Message, ProgressMessage } from '../../types/message.js';
@@ -17,6 +18,7 @@ import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js';
 import { logError } from '../../utils/log.js';
 import { getPlansDirectory } from '../../utils/plans.js';
 import { readEditContext } from '../../utils/readEditContext.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { firstLineOf } from '../../utils/stringUtils.js';
 import type { ThemeName } from '../../utils/theme.js';
 import type { FileEditOutput } from './types.js';
@@ -137,14 +139,35 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
     const errorMessage = extractTag(result, 'tool_use_error');
     // Show a less scary message for intended behavior
     if (errorMessage?.includes('File has not been read yet')) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="Edit blocked" detail="Read file first" state="queued" defaultOpen>
+            <div className="oc-toolResultWarning">OpenClaude needs to read this file before applying edits.</div>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse>
           <Text dimColor>File must be read first</Text>
         </MessageResponse>;
     }
     if (errorMessage?.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="Edit failed" detail="File not found" state="error" defaultOpen>
+            <div className="oc-toolResultError">The file path could not be found in this workspace.</div>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse>
           <Text color="error">File not found</Text>
         </MessageResponse>;
+    }
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Edit failed" detail="Unable to update file" state="error" defaultOpen>
+          <div className="oc-toolResultError">{errorMessage ?? 'Error editing file'}</div>
+        </BrowserToolResultDisclosure>
+      );
     }
     return <MessageResponse>
         <Text color="error">Error editing file</Text>

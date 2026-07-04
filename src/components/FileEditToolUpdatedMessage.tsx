@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text } from '../ink.js';
 import { count } from '../utils/array.js';
+import { getDisplayPath } from '../utils/file.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { MessageResponse } from './MessageResponse.js';
 import { StructuredDiffList } from './StructuredDiffList.js';
 type Props = {
@@ -15,6 +17,49 @@ type Props = {
   verbose: boolean;
   previewHint?: string;
 };
+
+function BrowserFileEditToolUpdatedMessage({
+  filePath,
+  structuredPatch,
+  firstLine,
+  fileContent,
+  numAdditions,
+  numRemovals,
+  columns,
+  previewHint,
+}: Props & {
+  numAdditions: number;
+  numRemovals: number;
+  columns: number;
+}): React.ReactNode {
+  if (previewHint) {
+    return (
+      <details className="oc-toolDisclosure oc-toolDisclosure--diff">
+        <summary className="oc-toolDisclosureSummary">
+          <span className="oc-toolDisclosureStatus" />
+          <span className="oc-toolDisclosureTitle">{previewHint}</span>
+        </summary>
+      </details>
+    );
+  }
+
+  const diffWidth = Math.max(24, columns - 12);
+
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--diff" open>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">Edited {getDisplayPath(filePath)}</span>
+        <span className="oc-toolDisclosureMeta">+{numAdditions} -{numRemovals}</span>
+      </summary>
+      <div className="oc-toolDisclosureBody oc-toolDisclosureBody--diff">
+        <div className="oc-toolDiffPath">{filePath}</div>
+        <StructuredDiffList hunks={structuredPatch} dim={false} width={diffWidth} filePath={filePath} firstLine={firstLine} fileContent={fileContent} />
+      </div>
+    </details>
+  );
+}
+
 export function FileEditToolUpdatedMessage(t0) {
   const $ = _c(22);
   const {
@@ -31,6 +76,9 @@ export function FileEditToolUpdatedMessage(t0) {
   } = useTerminalSize();
   const numAdditions = structuredPatch.reduce(_temp2, 0);
   const numRemovals = structuredPatch.reduce(_temp4, 0);
+  if (isBrowserRuntime()) {
+    return <BrowserFileEditToolUpdatedMessage filePath={filePath} structuredPatch={structuredPatch} firstLine={firstLine} fileContent={fileContent} style={style} verbose={verbose} previewHint={previewHint} numAdditions={numAdditions} numRemovals={numRemovals} columns={columns} />;
+  }
   let t1;
   if ($[0] !== numAdditions) {
     t1 = numAdditions > 0 ? <>Added <Text bold={true}>{numAdditions}</Text>{" "}{numAdditions > 1 ? "lines" : "line"}</> : null;

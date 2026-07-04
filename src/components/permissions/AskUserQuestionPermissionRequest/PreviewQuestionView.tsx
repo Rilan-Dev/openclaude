@@ -9,6 +9,7 @@ import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestio
 import { getExternalEditor } from '../../../utils/editor.js';
 import { toIDEDisplayName } from '../../../utils/ide.js';
 import { editPromptInEditor } from '../../../utils/promptEditor.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import { Divider } from '../../design-system/Divider.js';
 import TextInput from '../../TextInput.js';
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js';
@@ -254,6 +255,51 @@ export function PreviewQuestionView({
   const previewMaxLines = useMemo(() => {
     return minContentHeight ? Math.max(1, minContentHeight - PREVIEW_OVERHEAD) : undefined;
   }, [minContentHeight]);
+
+  if (isBrowserRuntime()) {
+    return <section className="oc-questionSurface oc-questionSurface--preview">
+        <header className="oc-questionHeader">
+          <span className="oc-questionEyebrow">Question {currentQuestionIndex + 1} of {questions.length}</span>
+          <h3>{question.question}</h3>
+        </header>
+        <div className="oc-questionPreviewGrid">
+          <div className="oc-questionOptionList" role="listbox" aria-label={question.question}>
+            {allOptions.map((option, index) => {
+            const isSelected = selectedValue === option.label;
+            const isFocused = focusedIndex === index;
+            return <button key={option.label} type="button" className="oc-questionOption" data-selected={isSelected || undefined} data-focused={isFocused || undefined} onMouseEnter={() => setFocusedIndex(index)} onFocus={() => setFocusedIndex(index)} onClick={() => handleSelectOption(index)}>
+                  <span className="oc-questionOptionIndex">{index + 1}</span>
+                  <span>
+                    <strong>{option.label}</strong>
+                    {option.description ? <small>{option.description}</small> : null}
+                  </span>
+                </button>;
+          })}
+          </div>
+          <div className="oc-questionPreviewPane">
+            <div className="oc-questionPreviewTitle">Preview</div>
+            <pre>{previewContent || 'No preview available'}</pre>
+            <label className="oc-questionNotes">
+              <span>Notes</span>
+              <textarea value={notesValue} placeholder="Add context for this answer" onFocus={() => {
+              setIsInNotesInput(true);
+              onTextInputFocus(true);
+            }} onBlur={handleNotesExit} onChange={event => {
+              onUpdateQuestionState(questionText, {
+                textInputValue: event.currentTarget.value
+              }, false);
+            }} />
+            </label>
+          </div>
+        </div>
+        <footer className="oc-questionActions">
+          <button type="button" onClick={onRespondToClaude}>Respond to Claude</button>
+          {isInPlanMode ? <button type="button" onClick={onFinishPlanInterview}>Plan immediately</button> : null}
+          <button type="button" onClick={onCancel}>Cancel</button>
+        </footer>
+      </section>;
+  }
+
   return <Box flexDirection="column" marginTop={1} tabIndex={0} autoFocus onKeyDown={handleKeyDown}>
       <Divider color="inactive" />
       <Box flexDirection="column" paddingTop={0}>

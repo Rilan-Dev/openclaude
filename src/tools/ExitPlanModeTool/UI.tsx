@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Markdown } from 'src/components/Markdown.js';
 import { MessageResponse } from 'src/components/MessageResponse.js';
 import { RejectedPlanMessage } from 'src/components/messages/UserToolResultMessage/RejectedPlanMessage.js';
+import { BrowserToolResultDisclosure } from 'src/components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { BLACK_CIRCLE } from 'src/constants/figures.js';
 import { getModeColor } from 'src/utils/permissions/PermissionMode.js';
 import { Box, Text } from '../../ink.js';
@@ -9,6 +10,7 @@ import type { ToolProgressData } from '../../Tool.js';
 import type { ProgressMessage } from '../../types/message.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { getPlan } from '../../utils/plans.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { ThemeName } from '../../utils/theme.js';
 import type { Output } from './ExitPlanModeV2Tool.js';
 export function renderToolUseMessage(): React.ReactNode {
@@ -29,6 +31,13 @@ export function renderToolResultMessage(output: Output, _progressMessagesForMess
 
   // Simplified message for empty plans
   if (isEmpty) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Exited plan mode" state="done">
+          <div className="oc-agentProgressLine">No plan content was submitted.</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <Box flexDirection="column" marginTop={1}>
         <Box flexDirection="row">
           <Text color={getModeColor('plan')}>{BLACK_CIRCLE}</Text>
@@ -39,6 +48,13 @@ export function renderToolResultMessage(output: Output, _progressMessagesForMess
 
   // When awaiting leader approval, show a different message
   if (awaitingLeaderApproval) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Plan submitted" detail={filePath ? `Saved to ${displayPath}` : 'Waiting for review'} state="queued">
+          <div className="oc-agentProgressLine">Waiting for team lead review and approval.</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <Box flexDirection="column" marginTop={1}>
         <Box flexDirection="row">
           <Text color={getModeColor('plan')}>{BLACK_CIRCLE}</Text>
@@ -51,6 +67,15 @@ export function renderToolResultMessage(output: Output, _progressMessagesForMess
           </Box>
         </MessageResponse>
       </Box>;
+  }
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="Plan approved" detail={filePath ? `Saved to ${displayPath}` : undefined} state="done" defaultOpen>
+        <div className="oc-planResultMarkdown">
+          <Markdown>{plan}</Markdown>
+        </div>
+      </BrowserToolResultDisclosure>
+    );
   }
   return <Box flexDirection="column" marginTop={1}>
       <Box flexDirection="row">

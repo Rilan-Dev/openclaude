@@ -4,6 +4,7 @@ import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithK
 import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import type { SettingsJson } from '../../utils/settings/types.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { extractDangerousSettings, formatDangerousSettingsList } from './utils.js';
@@ -48,6 +49,23 @@ export function ManagedSettingsSecurityDialog(t0) {
     t2 = $[3];
   }
   const onChange = t2;
+  if (isBrowserRuntime()) {
+    return <section className="repl-webPicker repl-securitySurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Managed settings</span>
+          <h2>Approval required</h2>
+          <p>Your organization configured managed settings that can execute code or inspect prompts and responses.</p>
+        </div>
+        <div className="repl-pluginCompactList">
+          {settingsList.map((item, index) => <span key={index}>{item}</span>)}
+        </div>
+        <div className="repl-webPickerNotice">Only accept if you trust your organization’s IT administration and expected these settings.</div>
+        <div className="repl-webPickerFooter">
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => onChange('accept')}>Trust settings</button>
+          <button type="button" className="repl-webPickerGhostButton repl-pluginDangerButton" onClick={() => onChange('exit')}>Exit</button>
+        </div>
+      </section>;
+  }
   const T0 = PermissionDialog;
   const t3 = "warning";
   const t4 = "warning";

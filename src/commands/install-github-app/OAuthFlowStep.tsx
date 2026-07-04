@@ -10,6 +10,7 @@ import { Box, Link, Text } from '../../ink.js';
 import { OAuthService } from '../../services/oauth/index.js';
 import { saveOAuthTokensIfNeeded } from '../../utils/auth.js';
 import { logError } from '../../utils/log.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 interface OAuthFlowStepProps {
   onSuccess: (token: string) => void;
   onCancel: () => void;
@@ -243,6 +244,60 @@ export function OAuthFlowStep({
       default:
         return null;
     }
+  }
+  if (isBrowserRuntime()) {
+    const copyUrl = () => {
+      if (oauthStatus.state !== 'waiting_for_login') return;
+      void navigator.clipboard?.writeText(oauthStatus.url).then(() => {
+        setUrlCopied(true);
+        clearTimeout(urlCopiedTimerRef.current);
+        urlCopiedTimerRef.current = setTimeout(setUrlCopied, 2000, false);
+      });
+    };
+
+    return <section className="repl-webPicker repl-githubAppSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">GitHub App</span>
+          <h2>Create authentication token</h2>
+          <p>Creating a long-lived Claude token for GitHub Actions.</p>
+        </div>
+        {oauthStatus.state === 'starting' || oauthStatus.state === 'processing' || oauthStatus.state === 'about_to_retry' ? <div className="repl-webPickerLoading" /> : null}
+        {oauthStatus.state === 'waiting_for_login' ? <div className="repl-webPickerList">
+            <div className="repl-webPickerOption">
+              <span className="repl-webPickerOptionMark">AUTH</span>
+              <span className="repl-webPickerOptionCopy">
+                <span className="repl-webPickerOptionTitle">Sign in with Claude</span>
+                <span className="repl-webPickerOptionDescription">Complete browser authentication. If the browser did not open, use the URL below.</span>
+              </span>
+            </div>
+          </div> : null}
+        {oauthStatus.state === 'waiting_for_login' && showPastePrompt ? <div className="repl-githubOAuthPanel">
+            <a href={oauthStatus.url} target="_blank" rel="noreferrer">{oauthStatus.url}</a>
+            <button type="button" className="repl-webPickerGhostButton" onClick={copyUrl}>{urlCopied ? 'Copied' : 'Copy URL'}</button>
+            <label className="repl-githubAppField">
+              <span>Authorization code</span>
+              <input value={pastedCode} onChange={event => setPastedCode(event.currentTarget.value)} onKeyDown={event => {
+              if (event.key === 'Enter') {
+                void handleSubmitCode(pastedCode, oauthStatus.url);
+              }
+            }} placeholder="Paste authorizationCode#state" autoFocus />
+            </label>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => void handleSubmitCode(pastedCode, oauthStatus.url)}>Submit code</button>
+          </div> : null}
+        {oauthStatus.state === 'success' ? <div className="repl-webPickerNotice">Authentication token created. Continuing setup…</div> : null}
+        {oauthStatus.state === 'error' ? <div className="repl-webPickerNotice repl-pluginError">{oauthStatus.message}</div> : null}
+        {oauthStatus.state === 'error' ? <div className="repl-webPickerFooter">
+            {oauthStatus.toRetry ? <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+          setPastedCode('');
+          setCursorOffset(0);
+          setOAuthStatus({
+            state: 'about_to_retry',
+            nextState: oauthStatus.toRetry!
+          });
+        }}>Try again</button> : null}
+            <button type="button" className="repl-webPickerGhostButton" onClick={onCancel}>Return to API key selection</button>
+          </div> : null}
+      </section>;
   }
   return <Box flexDirection="column" gap={1} tabIndex={0} autoFocus onKeyDown={handleKeyDown}>
       {/* Show header inline only for initial starting state */}

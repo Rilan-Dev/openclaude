@@ -618,7 +618,7 @@ export function FullscreenLayout(t0) {
         <div className="repl-webPromptOverlayChrome">
           <div className="repl-webPromptOverlayHeader">
             <span className="repl-webPromptOverlayKicker">Command palette</span>
-            <span className="repl-webPromptOverlayHint">Enter to apply / Esc to close</span>
+            <span className="repl-webPromptOverlayHint">Choose an action from this chat</span>
           </div>
           <PromptInputFooterSuggestions
             suggestions={data.suggestions}

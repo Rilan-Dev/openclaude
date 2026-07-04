@@ -1,6 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import { Box, Text } from '../ink.js';
 import { formatNumber } from '../utils/format.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import type { Theme } from '../utils/theme.js';
 type Props = {
   agentType: string;
@@ -60,6 +61,27 @@ export function AgentProgressLine(t0: Props) {
     t3 = $[4];
   }
   const getStatusText = t3;
+
+  if (isBrowserRuntime()) {
+    const title = hideType ? name ?? description ?? agentType : description ? `${agentType} (${description})` : agentType;
+    const meta = [
+      !isAsync ? `${toolUseCount} tool ${toolUseCount === 1 ? 'use' : 'uses'}` : null,
+      tokens !== null && !isAsync ? `${formatNumber(tokens)} tokens` : null,
+      getStatusText()
+    ].filter(Boolean).join(' · ');
+
+    return (
+      <div className="oc-agentProgressItem" data-status={isError ? 'error' : isResolved ? 'done' : 'running'}>
+        <span className="oc-agentProgressDot" />
+        <div className="oc-agentProgressContent">
+          <div className="oc-agentProgressTitle">{title}</div>
+          {taskDescription && isAsync ? <div className="oc-agentProgressTask">{taskDescription}</div> : null}
+          <div className="oc-agentProgressMeta">{meta}</div>
+        </div>
+      </div>
+    );
+  }
+
   let t4;
   if ($[5] !== treeChar) {
     t4 = <Text dimColor={true}>{treeChar} </Text>;

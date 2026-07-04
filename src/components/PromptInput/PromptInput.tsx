@@ -76,6 +76,7 @@ import { logError } from '../../utils/log.js';
 import { isOpus1mMergeEnabled, modelDisplayString } from '../../utils/model/model.js';
 import { setAutoModeActive } from '../../utils/permissions/autoModeState.js';
 import { cyclePermissionMode, getNextPermissionMode } from '../../utils/permissions/getNextPermissionMode.js';
+import { isDefaultMode, permissionModeTitle } from '../../utils/permissions/PermissionMode.js';
 import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js';
 import { getPlatform } from '../../utils/platform.js';
 import type { ProcessUserInputContext } from '../../utils/processUserInput/processUserInput.js';
@@ -2212,13 +2213,20 @@ function PromptInput({
     setShowThinkingToggle(false);
   }, []);
 
+  const hasAssistantMessages = messages.some(m => m.type === 'assistant');
+
   // Memoize the thinking toggle element
   const thinkingToggleElement = useMemo(() => {
     if (!showThinkingToggle) return null;
+    if (isBrowserRuntime()) {
+      return <div className="oc-thinkingToggleDock" role="dialog" aria-label="Thinking mode controls">
+        <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={hasAssistantMessages} />
+      </div>;
+    }
     return <Box flexDirection="column" marginTop={1}>
-      <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={messages.some(m => m.type === 'assistant')} />
+      <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={hasAssistantMessages} />
     </Box>;
-  }, [showThinkingToggle, thinkingEnabled, handleThinkingSelect, handleThinkingCancel, messages.length]);
+  }, [showThinkingToggle, thinkingEnabled, handleThinkingSelect, handleThinkingCancel, hasAssistantMessages]);
 
   // Portal dialog to DialogOverlay in fullscreen so it escapes the bottom
   // slot's overflowY:hidden clip (same pattern as SuggestionsOverlay).
@@ -2265,7 +2273,7 @@ function PromptInput({
   if (fastModePickerElement) {
     return fastModePickerElement;
   }
-  if (thinkingToggleElement) {
+  if (thinkingToggleElement && !isBrowserRuntime()) {
     return thinkingToggleElement;
   }
   if (showBridgeDialog) {
@@ -2358,6 +2366,19 @@ function PromptInput({
             : historyMatch.display,
         )
         : input
+    const currentPermissionMode = effectiveToolPermissionContext.mode
+    const permissionModeActive = !isDefaultMode(currentPermissionMode)
+    const permissionModeDetails: Partial<Record<PermissionMode, string>> = {
+      acceptEdits: 'Inspect tool calls',
+      bypassPermissions: 'No prompts',
+      dontAsk: 'No prompts',
+      fullAccess: 'Full tool access',
+      plan: 'Planning only',
+      auto: 'Auto classifier',
+    }
+    const permissionModeDetail = permissionModeActive
+      ? permissionModeDetails[currentPermissionMode] ?? 'Tool approvals active'
+      : 'Standard approvals'
 
     return (
       <div
@@ -2375,6 +2396,8 @@ function PromptInput({
 
         <PromptInputStashNotice hasStash={stashedPrompt !== undefined} />
 
+        {thinkingToggleElement}
+
         <ClaudeStyleChatInput
           value={webPromptValue}
           placeholder={typeof placeholder === 'string' ? placeholder : undefined}
@@ -2388,6 +2411,10 @@ function PromptInput({
           isPasting={isPasting}
           selectedModel={modelDisplayString(mainLoopModel_)}
           thinkingEnabled={thinkingEnabled ?? true}
+          permissionModeLabel={permissionModeTitle(currentPermissionMode)}
+          permissionModeDetail={permissionModeDetail}
+          permissionModeActive={permissionModeActive}
+          permissionModeTone={currentPermissionMode}
           suggestions={suggestions}
           selectedSuggestion={selectedSuggestion}
           commandArgumentHint={commandArgumentHint}
@@ -2452,6 +2479,7 @@ function PromptInput({
           }}
           onOpenModelPicker={() => setShowModelPicker(true)}
           onOpenThinkingToggle={() => setShowThinkingToggle(true)}
+          onCyclePermissionMode={handleCycleMode}
         />
 
         {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}

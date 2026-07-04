@@ -43,6 +43,7 @@ import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js';
 import { getPluginEditableScopes } from '../../utils/plugins/pluginStartupCheck.js';
 import { getRelativeSettingsFilePathForSource, getSettings_DEPRECATED, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js';
 import { jsonParse } from '../../utils/slowOperations.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { plural } from '../../utils/stringUtils.js';
 import { formatErrorMessage, getErrorGuidance } from './PluginErrors.js';
 import { PluginOptionsDialog } from './PluginOptionsDialog.js';
@@ -1624,6 +1625,20 @@ export function ManagePlugins({
 
   // No plugins or MCPs installed
   if (unifiedItems.length === 0) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugins</span>
+            <h2>Manage plugins</h2>
+            <p>No plugins or MCP servers are installed.</p>
+          </div>
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+            type: 'menu'
+          })}>Back to plugins</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box marginBottom={1}>
           <Text bold>Manage plugins</Text>
@@ -1727,6 +1742,24 @@ export function ManagePlugins({
   // Flagged plugin detail view
   if (typeof viewState === 'object' && viewState.type === 'flagged-detail') {
     const fp = viewState.plugin;
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Flagged plugin</span>
+            <h2>{fp.name}</h2>
+            <p>{fp.marketplace}</p>
+          </div>
+          <div className="repl-webPickerNotice repl-pluginError">Removed from marketplace: {fp.reason}</div>
+          <div className="repl-pluginDescription">{fp.text}</div>
+          <div className="repl-pluginMetaLine">
+            <span>Flagged {new Date(fp.flaggedAt).toLocaleDateString()}</span>
+          </div>
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={handleFlaggedDismiss}>Dismiss</button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setViewState('plugin-list')}>Back</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box>
           <Text bold>
@@ -1766,6 +1799,47 @@ export function ManagePlugins({
   // Confirm-project-uninstall: warn about shared project settings,
   // offer to disable in settings.local.json instead.
   if (viewState === 'confirm-project-uninstall' && selectedPlugin) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Local disable</span>
+            <h2>{selectedPlugin.plugin.name}</h2>
+            <p>This plugin is enabled in shared project settings. Disable it locally without affecting the team.</p>
+          </div>
+          <div className="repl-pluginMetaGrid">
+            <span>Shared source <strong>{projectSettingsDisplayPath}</strong></span>
+            <span>Local override <strong>{localSettingsDisplayPath}</strong></span>
+          </div>
+          {processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" disabled={isProcessing} onClick={() => {
+            const enabledPlugins: Record<string, boolean | string[]> = {
+              ...(getSettingsForSource('localSettings')?.enabledPlugins ?? {}),
+              [`${selectedPlugin.plugin.name}@${selectedPlugin.marketplace}`]: false
+            };
+            const {
+              error: localError
+            } = updateSettingsForSource('localSettings', {
+              enabledPlugins
+            });
+            if (localError) {
+              setProcessError(`Failed to write settings: ${localError.message}`);
+              return;
+            }
+            clearAllCaches();
+            setResult(`✓ Disabled ${selectedPlugin.plugin.name} in ${localSettingsDisplayPath}. Run /reload-plugins to apply.`);
+            if (onManageComplete) void onManageComplete();
+            setParentViewState({
+              type: 'menu'
+            });
+          }}>{isProcessing ? 'Disabling…' : 'Disable locally'}</button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+            setViewState('plugin-details');
+            setProcessError(null);
+          }}>Cancel</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Text bold color="warning">
           {selectedPlugin.plugin.name} is enabled in {projectSettingsDisplayPath}
@@ -1792,6 +1866,45 @@ export function ManagePlugins({
 
   // Confirm-data-cleanup: prompt before deleting ${CLAUDE_PLUGIN_DATA} dir
   if (typeof viewState === 'object' && viewState.type === 'confirm-data-cleanup' && selectedPlugin) {
+    if (isBrowserRuntime()) {
+      const pluginId = `${selectedPlugin.plugin.name}@${selectedPlugin.marketplace}`;
+      const pluginScope = selectedPlugin.scope;
+      const uninstall = async (deleteDataDir: boolean) => {
+        if (!pluginScope || pluginScope === 'builtin' || !isInstallableScope(pluginScope)) return;
+        setIsProcessing(true);
+        setProcessError(null);
+        try {
+          const result = await uninstallPluginOp(pluginId, pluginScope, deleteDataDir);
+          if (!result.success) throw new Error(result.message);
+          clearAllCaches();
+          setResult(`${figures.tick} ${result.message}${deleteDataDir ? '' : ' · data preserved'}`);
+          if (onManageComplete) void onManageComplete();
+          setParentViewState({
+            type: 'menu'
+          });
+        } catch (error) {
+          setIsProcessing(false);
+          setProcessError(error instanceof Error ? error.message : String(error));
+        }
+      };
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugin data</span>
+            <h2>{selectedPlugin.plugin.name}</h2>
+            <p>This plugin has {viewState.size.human} of persistent data.</p>
+          </div>
+          <div className="repl-pluginPath">{pluginDataDirPath(pluginId)}</div>
+          {processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton repl-pluginDangerButton" disabled={isProcessing} onClick={() => void uninstall(true)}>Delete plugin and data</button>
+            <button type="button" className="repl-webPickerGhostButton" disabled={isProcessing} onClick={() => void uninstall(false)}>Keep data</button>
+            <button type="button" className="repl-webPickerGhostButton" disabled={isProcessing} onClick={() => {
+            setViewState('plugin-details');
+            setProcessError(null);
+          }}>Cancel</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Text bold>
           {selectedPlugin.plugin.name} has {viewState.size.human} of persistent
@@ -1838,6 +1951,41 @@ export function ManagePlugins({
               </Box>;
       })}
         </Box>;
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugin details</span>
+            <h2>{selectedPlugin.plugin.name}</h2>
+            <p>{selectedPlugin.plugin.manifest.description || `${selectedPlugin.marketplace} plugin`}</p>
+          </div>
+          <div className="repl-pluginMetaGrid">
+            <span>Status <strong>{isEnabled_2 ? 'Enabled' : 'Disabled'}</strong></span>
+            <span>Scope <strong>{selectedPlugin.scope || 'user'}</strong></span>
+            {selectedPlugin.plugin.manifest.version ? <span>Version <strong>{selectedPlugin.plugin.manifest.version}</strong></span> : null}
+            {selectedPlugin.plugin.manifest.author ? <span>Author <strong>{selectedPlugin.plugin.manifest.author.name}</strong></span> : null}
+          </div>
+          {filteredPluginErrors.length > 0 ? <div className="repl-webPickerNotice repl-pluginError">
+              {filteredPluginErrors.length} {plural(filteredPluginErrors.length, 'error')} detected.
+            </div> : null}
+          <div className="repl-webPickerList">
+            {detailsMenuItems.map((item, index) => <button type="button" key={index} className="repl-webPickerOption" data-focused={detailsMenuIndex === index ? 'true' : undefined} onMouseEnter={() => setDetailsMenuIndex(index)} onClick={() => item.action()}>
+                <span className="repl-webPickerOptionMark">{item.label.includes('Uninstall') ? 'DEL' : item.label.includes('Update') ? 'UPD' : 'GO'}</span>
+                <span className="repl-webPickerOptionCopy">
+                  <span className="repl-webPickerOptionTitle">{item.label}</span>
+                  <span className="repl-webPickerOptionDescription">Apply this plugin action.</span>
+                </span>
+              </button>)}
+          </div>
+          {isProcessing ? <div className="repl-webPickerNotice">Processing…</div> : null}
+          {processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+            setViewState('plugin-list');
+            setSelectedPlugin(null);
+          }}>Back to installed plugins</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box>
           <Text bold>
@@ -1922,6 +2070,36 @@ export function ManagePlugins({
     const failedPlugin_0 = viewState.plugin;
     const firstError = failedPlugin_0.errors[0];
     const errorMessage_0 = firstError ? formatErrorMessage(firstError) : 'Failed to load';
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Failed plugin</span>
+            <h2>{failedPlugin_0.name}</h2>
+            <p>{failedPlugin_0.marketplace} · {failedPlugin_0.scope}</p>
+          </div>
+          <div className="repl-webPickerNotice repl-pluginError">{errorMessage_0}</div>
+          {failedPlugin_0.scope === 'managed' ? <div className="repl-webPickerNotice">Managed by your organization. Contact your admin.</div> : null}
+          {processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+          <div className="repl-webPickerFooter">
+            {failedPlugin_0.scope !== 'managed' ? <button type="button" className="repl-webPickerGhostButton repl-pluginDangerButton" disabled={isProcessing} onClick={() => {
+            void (async () => {
+              setIsProcessing(true);
+              setProcessError(null);
+              const successResult = isInstallableScope(failedPlugin_0.scope) ? await uninstallPluginOp(failedPlugin_0.id, failedPlugin_0.scope, false) : await uninstallPluginOp(failedPlugin_0.id, 'user', false);
+              if (successResult.success) {
+                if (onManageComplete) await onManageComplete();
+                setIsProcessing(false);
+                setViewState('plugin-list');
+              } else {
+                setIsProcessing(false);
+                setProcessError(successResult.message);
+              }
+            })();
+          }}>{isProcessing ? 'Removing…' : 'Remove failed plugin'}</button> : null}
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setViewState('plugin-list')}>Back</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Text>
           <Text bold>{failedPlugin_0.name}</Text>
@@ -2135,6 +2313,165 @@ export function ManagePlugins({
 
   // Plugin list view (main management interface)
   const visibleItems = pagination.getVisibleItems(filteredItems);
+  if (isBrowserRuntime()) {
+    const getScopeLabel = (scope: string): string => {
+      switch (scope) {
+        case 'flagged':
+          return 'Flagged';
+        case 'project':
+          return 'Project';
+        case 'local':
+          return 'Local';
+        case 'user':
+          return 'User';
+        case 'enterprise':
+          return 'Enterprise';
+        case 'managed':
+          return 'Managed';
+        case 'builtin':
+        case 'dynamic':
+          return 'Built-in';
+        default:
+          return scope;
+      }
+    };
+    const openItem = (item: UnifiedInstalledItem, index: number) => {
+      setSelectedIndex(index);
+      if (item.type === 'plugin') {
+        const state = pluginStates.find(pluginState => pluginState.plugin.name === item.plugin.name && pluginState.marketplace === item.marketplace);
+        if (state) {
+          setSelectedPlugin(state);
+          setViewState('plugin-details');
+          setDetailsMenuIndex(0);
+          setProcessError(null);
+        }
+      } else if (item.type === 'flagged-plugin') {
+        setViewState({
+          type: 'flagged-detail',
+          plugin: {
+            id: item.id,
+            name: item.name,
+            marketplace: item.marketplace,
+            reason: item.reason,
+            text: item.text,
+            flaggedAt: item.flaggedAt
+          }
+        });
+        setProcessError(null);
+      } else if (item.type === 'failed-plugin') {
+        setViewState({
+          type: 'failed-plugin-details',
+          plugin: {
+            id: item.id,
+            name: item.name,
+            marketplace: item.marketplace,
+            errors: item.errors,
+            scope: item.scope
+          }
+        });
+        setDetailsMenuIndex(0);
+        setProcessError(null);
+      } else if (item.type === 'mcp') {
+        setViewState({
+          type: 'mcp-detail',
+          client: item.client
+        });
+        setProcessError(null);
+      }
+    };
+    const toggleItem = (item: UnifiedInstalledItem) => {
+      if (item.type === 'flagged-plugin' || item.type === 'failed-plugin') return;
+      if (item.type === 'mcp') {
+        void toggleMcpServer(item.client.name);
+        return;
+      }
+      const pluginId = `${item.plugin.name}@${item.marketplace}`;
+      const mergedSettings = getSettings_DEPRECATED();
+      const currentPending = pendingToggles.get(pluginId);
+      const isEnabled = mergedSettings?.enabledPlugins?.[pluginId] !== false;
+      if (item.scope === 'builtin' || isInstallableScope(item.scope)) {
+        const nextPending = new Map(pendingToggles);
+        if (currentPending) {
+          nextPending.delete(pluginId);
+          void (async () => {
+            try {
+              if (currentPending === 'will-disable') {
+                await enablePluginOp(pluginId);
+              } else {
+                await disablePluginOp(pluginId);
+              }
+              clearAllCaches();
+            } catch (error) {
+              logError(error);
+            }
+          })();
+        } else {
+          nextPending.set(pluginId, isEnabled ? 'will-disable' : 'will-enable');
+          void (async () => {
+            try {
+              if (isEnabled) {
+                await disablePluginOp(pluginId);
+              } else {
+                await enablePluginOp(pluginId);
+              }
+              clearAllCaches();
+            } catch (error) {
+              logError(error);
+            }
+          })();
+        }
+        setPendingToggles(nextPending);
+      }
+    };
+    return <section className="repl-webPicker repl-pluginSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Plugins</span>
+          <h2>Manage plugins</h2>
+          <p>Installed plugins and MCP servers, grouped by scope.</p>
+        </div>
+        <label className="repl-pluginSearch">
+          <span>Search</span>
+          <input value={searchQuery} onChange={event => {
+          setSearchQuery(event.currentTarget.value);
+          setSelectedIndex(0);
+        }} placeholder="Search installed plugins…" />
+        </label>
+        {filteredItems.length === 0 && searchQuery ? <div className="repl-webPickerNotice">No items match “{searchQuery}”.</div> : null}
+        <div className="repl-webPickerList repl-pluginList">
+          {filteredItems.map((item, index) => {
+          const isSelected = selectedIndex === index && !isSearchMode;
+          const statusLabel = item.type === 'plugin' ? item.pendingToggle === 'will-disable' ? 'Will disable' : item.pendingToggle === 'will-enable' ? 'Will enable' : item.isEnabled ? 'Enabled' : 'Disabled' : item.type === 'mcp' ? item.status : item.type === 'failed-plugin' ? 'Failed' : 'Flagged';
+          return <div key={item.id} className="repl-webPickerOption" role="button" tabIndex={0} data-focused={isSelected ? 'true' : undefined} data-selected={item.type === 'plugin' && item.pendingToggle ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openItem(item, index)} onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openItem(item, index);
+            }
+          }}>
+                <span className="repl-webPickerOptionMark">{item.type === 'mcp' ? 'MCP' : item.type === 'failed-plugin' ? 'ERR' : item.type === 'flagged-plugin' ? 'FLAG' : item.isEnabled ? 'ON' : 'OFF'}</span>
+                <span className="repl-webPickerOptionCopy">
+                  <span className="repl-webPickerOptionTitle">{item.name}<small>{getScopeLabel(item.scope)}</small></span>
+                  <span className="repl-webPickerOptionDescription">{'description' in item && item.description ? item.description : statusLabel}</span>
+                  <span className="repl-pluginMetaLine">
+                    <span>{statusLabel}</span>
+                    {'marketplace' in item ? <span>{item.marketplace}</span> : null}
+                    {'errorCount' in item && item.errorCount > 0 ? <span>{item.errorCount} {plural(item.errorCount, 'error')}</span> : null}
+                  </span>
+                </span>
+                {(item.type === 'plugin' || item.type === 'mcp') ? <span className="repl-pluginInlineActions" onClick={event => event.stopPropagation()}>
+                    <button type="button" onClick={() => toggleItem(item)}>{item.type === 'mcp' ? 'Toggle' : item.pendingToggle ? 'Undo' : item.isEnabled ? 'Disable' : 'Enable'}</button>
+                  </span> : null}
+              </div>;
+        })}
+        </div>
+        {pendingToggles.size > 0 ? <div className="repl-webPickerNotice">Run /reload-plugins to apply {pendingToggles.size} pending {plural(pendingToggles.size, 'change')}.</div> : null}
+        <div className="repl-webPickerFooter">
+          <span>{filteredItems.length} items shown</span>
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+          type: 'menu'
+        })}>Back</button>
+        </div>
+      </section>;
+  }
   return <Box flexDirection="column">
       {/* Search box */}
       <Box marginBottom={1}>

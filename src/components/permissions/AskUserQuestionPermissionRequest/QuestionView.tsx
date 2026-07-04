@@ -9,6 +9,7 @@ import { getExternalEditor } from '../../../utils/editor.js';
 import { toIDEDisplayName } from '../../../utils/ide.js';
 import type { ImageDimensions } from '../../../utils/imageResizer.js';
 import { editPromptInEditor } from '../../../utils/promptEditor.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js';
 import { Divider } from '../../design-system/Divider.js';
 import { FilePathLink } from '../../FilePathLink.js';
@@ -229,6 +230,11 @@ export function QuestionView(t0) {
   }
   const options = t7;
   const hasAnyPreview = !question.multiSelect && question.options.some(_temp3);
+
+  if (isBrowserRuntime() && !hasAnyPreview) {
+    return <BrowserQuestionView question={question} questions={questions} currentQuestionIndex={currentQuestionIndex} questionStates={questionStates} options={options} isInPlanMode={isInPlanMode} planFilePath={planFilePath} onUpdateQuestionState={onUpdateQuestionState} onAnswer={onAnswer} onSubmit={onSubmit} onCancel={onCancel} onRespondToClaude={onRespondToClaude} onFinishPlanInterview={onFinishPlanInterview} />;
+  }
+
   if (hasAnyPreview) {
     let t8;
     if ($[30] !== answers || $[31] !== currentQuestionIndex || $[32] !== hideSubmitTab || $[33] !== minContentHeight || $[34] !== minContentWidth || $[35] !== onAnswer || $[36] !== onCancel || $[37] !== onFinishPlanInterview || $[38] !== onRespondToClaude || $[39] !== onTabNext || $[40] !== onTabPrev || $[41] !== onTextInputFocus || $[42] !== onUpdateQuestionState || $[43] !== question || $[44] !== questionStates || $[45] !== questions) {
@@ -440,6 +446,101 @@ export function QuestionView(t0) {
   }
   return t26;
 }
+
+function BrowserQuestionView({
+  question,
+  questions,
+  currentQuestionIndex,
+  questionStates,
+  options,
+  isInPlanMode,
+  planFilePath,
+  onUpdateQuestionState,
+  onAnswer,
+  onSubmit,
+  onCancel,
+  onRespondToClaude,
+  onFinishPlanInterview
+}: {
+  question: Question;
+  questions: Question[];
+  currentQuestionIndex: number;
+  questionStates: Record<string, QuestionState>;
+  options: OptionWithDescription[];
+  isInPlanMode: boolean;
+  planFilePath?: string;
+  onUpdateQuestionState: (questionText: string, updates: Partial<QuestionState>, isMultiSelect: boolean) => void;
+  onAnswer: (questionText: string, label: string | string[], textInput?: string, shouldAdvance?: boolean) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  onRespondToClaude: () => void;
+  onFinishPlanInterview: () => void;
+}): React.ReactNode {
+  const questionText = question.question;
+  const questionState = questionStates[questionText];
+  const selectedValue = questionState?.selectedValue;
+  const selectedValues = Array.isArray(selectedValue) ? selectedValue : selectedValue ? [selectedValue as string] : [];
+  const otherText = questionState?.textInputValue ?? '';
+  const submitLabel = currentQuestionIndex === questions.length - 1 ? 'Submit answers' : 'Next question';
+
+  const updateSingleAnswer = (value: string) => {
+    onUpdateQuestionState(questionText, { selectedValue: value }, false);
+    onAnswer(questionText, value, value === '__other__' ? otherText : undefined);
+  };
+
+  const updateMultiAnswer = (value: string) => {
+    const nextValues = selectedValues.includes(value) ? selectedValues.filter(item => item !== value) : [...selectedValues, value];
+    onUpdateQuestionState(questionText, { selectedValue: nextValues }, true);
+    const answerValues = nextValues.filter(item => item !== '__other__');
+    if (nextValues.includes('__other__') && otherText.trim()) {
+      answerValues.push(otherText.trim());
+    }
+    onAnswer(questionText, answerValues, undefined, false);
+  };
+
+  const updateOtherText = (value: string) => {
+    onUpdateQuestionState(questionText, { textInputValue: value }, Boolean(question.multiSelect));
+  };
+
+  return <section className="oc-questionSurface">
+      <header className="oc-questionHeader">
+        <span className="oc-questionEyebrow">Question {currentQuestionIndex + 1} of {questions.length}</span>
+        <h3>{question.question}</h3>
+        {isInPlanMode && planFilePath ? <p>Planning file: {planFilePath}</p> : null}
+      </header>
+      <div className="oc-questionOptionList" role="listbox" aria-label={question.question}>
+        {options.map(option => {
+        const isOther = option.value === '__other__';
+        const isSelected = selectedValues.includes(option.value);
+        return <div key={option.value} className="oc-questionOptionWrap" data-selected={isSelected || undefined}>
+              <button type="button" className="oc-questionOption" data-selected={isSelected || undefined} onClick={() => question.multiSelect ? updateMultiAnswer(option.value) : updateSingleAnswer(option.value)}>
+                <span className="oc-questionOptionIndex">{isSelected ? 'On' : '+'}</span>
+                <span>
+                  <strong>{option.label}</strong>
+                  {option.description ? <small>{option.description}</small> : null}
+                </span>
+              </button>
+              {isOther && isSelected ? <input className="oc-questionOtherInput" value={otherText} placeholder="Type your answer" onChange={event => updateOtherText(event.currentTarget.value)} onBlur={() => {
+              if (question.multiSelect) {
+                const answerValues = selectedValues.filter(item => item !== '__other__');
+                if (otherText.trim()) answerValues.push(otherText.trim());
+                onAnswer(questionText, answerValues, undefined, false);
+              } else {
+                onAnswer(questionText, '__other__', otherText);
+              }
+            }} /> : null}
+            </div>;
+      })}
+      </div>
+      <footer className="oc-questionActions">
+        {question.multiSelect ? <button type="button" onClick={onSubmit}>{submitLabel}</button> : null}
+        <button type="button" onClick={onRespondToClaude}>Respond to Claude</button>
+        {isInPlanMode ? <button type="button" onClick={onFinishPlanInterview}>Plan immediately</button> : null}
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </footer>
+    </section>;
+}
+
 function _temp4(v) {
   return v !== "__other__";
 }

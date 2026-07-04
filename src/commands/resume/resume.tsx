@@ -9,7 +9,7 @@ import { saveGoalState } from '../../services/goal/persistence.js';
 import { resumeGoal } from '../../services/goal/state.js';
 import type { GoalState } from '../../services/goal/types.js';
 import type { CommandResultDisplay, ResumeEntrypoint } from '../../commands.js';
-import { LogSelector } from '../../components/LogSelector.js';
+import { getResumeLogDisplayTitle, LogSelector } from '../../components/LogSelector.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { SessionSummary } from '../../components/SessionSummary.js';
 import { Spinner } from '../../components/Spinner.js';
@@ -25,8 +25,10 @@ import { checkCrossProjectResume } from '../../utils/crossProjectResume.js';
 import { getWorktreePaths } from '../../utils/getWorktreePaths.js';
 import { logError } from '../../utils/log.js';
 import { loadReplayIndex } from '../../utils/replayIndex.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { getLastSessionLog, getSessionIdFromLog, getTranscriptPathForSession, isCustomTitleEnabled, isLiteLog, loadAllProjectsMessageLogs, loadFullLog, loadSameRepoMessageLogs, searchSessionsByCustomTitle } from '../../utils/sessionStorage.js';
 import { validateUuid } from '../../utils/uuid.js';
+import { formatReplayDuration } from '../../utils/replayFormat.js';
 type ResumeResult = {
   resultType: 'sessionNotFound';
   arg: string;
@@ -47,6 +49,85 @@ function resumeHelpMessage(result: ResumeResult): string {
 type ResumeConfirmationSession = {
   sessionId: UUID;
   log: LogOption;
+}
+
+function BrowserResumeStatus({
+  title,
+  detail,
+  tone = 'default',
+}: {
+  title: string;
+  detail?: string;
+  tone?: 'default' | 'warning' | 'error';
+}): React.ReactNode {
+  return (
+    <div className="oc-resumeStateCard" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'}>
+      <div className={tone === 'default' ? 'oc-resumeStateSpinner' : 'oc-resumeStateIcon'} />
+      <div>
+        <div className="oc-resumeStateTitle">{title}</div>
+        {detail ? <div className="oc-resumeStateDetail">{detail}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function getBrowserCrossWorkspaceResumeMessage(
+  log: LogOption,
+  showAllProjects: boolean,
+  worktreePaths: string[],
+): string | null {
+  if (!isBrowserRuntime()) return null;
+  const crossProjectCheck = checkCrossProjectResume(log, showAllProjects, worktreePaths);
+  if (!crossProjectCheck.isCrossProject || crossProjectCheck.isSameRepoWorktree) return null;
+  return 'This conversation belongs to another workspace. Open the original workspace in WebUI to continue with the right files, tools, and MCP context.';
+}
+
+function BrowserResumeSummary({
+  selectedSession,
+  sessionSummary,
+  resuming,
+  onResume,
+  onCancel,
+}: {
+  selectedSession: ResumeConfirmationSession;
+  sessionSummary: import('../../types/logs.js').ReplaySummary;
+  resuming: boolean;
+  onResume: (session: ResumeConfirmationSession) => void;
+  onCancel: () => void;
+}): React.ReactNode {
+  const toolCount = Object.values(sessionSummary.toolBreakdown).reduce((total, count) => total + count, 0);
+  const title = getResumeLogDisplayTitle(selectedSession.log) || 'Untitled conversation';
+
+  return (
+    <div className="oc-resumeConfirmCard" role="dialog" aria-label="Resume conversation">
+      <span className="oc-resumeConfirmKicker">Resume session</span>
+      <h2>{title}</h2>
+      <div className="oc-resumeConfirmStats">
+        <span>{sessionSummary.totalSteps} steps</span>
+        <span>{toolCount} tools</span>
+        <span>{sessionSummary.filesModified.length} files</span>
+        <span>{formatReplayDuration(sessionSummary.durationMs)}</span>
+      </div>
+      {sessionSummary.filesModified.length > 0 ? (
+        <div className="oc-resumeConfirmFiles">
+          {sessionSummary.filesModified.slice(0, 4).map(file => (
+            <span key={file}>{file}</span>
+          ))}
+          {sessionSummary.filesModified.length > 4 ? (
+            <span>and {sessionSummary.filesModified.length - 4} more files</span>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="oc-resumeConfirmActions">
+        <button type="button" onClick={() => onResume(selectedSession)} disabled={resuming}>
+          {resuming ? 'Opening...' : 'Open conversation'}
+        </button>
+        <button type="button" onClick={onCancel} disabled={resuming}>
+          Back to sessions
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function ResumeConfirmation({
@@ -71,6 +152,18 @@ export function ResumeConfirmation({
   }, {
     isActive: !resuming,
   });
+
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserResumeSummary
+        selectedSession={selectedSession}
+        sessionSummary={sessionSummary}
+        resuming={resuming}
+        onResume={onResume}
+        onCancel={onCancel}
+      />
+    );
+  }
 
   return (
     <Box flexDirection="column">
@@ -109,6 +202,17 @@ function ResumeError(t0) {
     t2 = $[2];
   }
   React.useEffect(t1, t2);
+  if (isBrowserRuntime()) {
+    return (
+      <div className="oc-resumeStateCard oc-resumeStateCard--error" role="alert">
+        <div>
+          <div className="oc-resumeStateTitle">Could not resume conversation</div>
+          <div className="oc-resumeStateDetail">{message}</div>
+          <div className="oc-resumeStateQuery">/resume {args}</div>
+        </div>
+      </div>
+    );
+  }
   let t3;
   if ($[3] !== args) {
     t3 = <Text dimColor={true}>{figures.pointer} /resume {args}</Text>;
@@ -152,6 +256,7 @@ function ResumeCommand({
   const [showAllProjects, setShowAllProjects] = React.useState(false);
   const [selectedSession, setSelectedSession] = React.useState<{ sessionId: UUID; log: LogOption } | null>(null);
   const [sessionSummary, setSessionSummary] = React.useState<import('../../types/logs.js').ReplaySummary | null>(null);
+  const [browserNotice, setBrowserNotice] = React.useState<string | null>(null);
   const {
     rows
   } = useTerminalSize();
@@ -186,6 +291,7 @@ function ResumeCommand({
     void loadLogs(newValue, worktreePaths);
   }, [showAllProjects, loadLogs, worktreePaths]);
   async function handleSelect(log: LogOption) {
+    setBrowserNotice(null);
     const sessionId = validateUuid(getSessionIdFromLog(log));
     if (!sessionId) {
       onDone('Failed to resume conversation');
@@ -196,8 +302,13 @@ function ResumeCommand({
     const fullLog = isLiteLog(log) ? await loadFullLog(log) : log;
 
     // Check if this conversation is from a different directory
+    const browserCrossWorkspaceMessage = getBrowserCrossWorkspaceResumeMessage(fullLog, showAllProjects, worktreePaths);
+    if (browserCrossWorkspaceMessage) {
+      setBrowserNotice(browserCrossWorkspaceMessage);
+      return;
+    }
     const crossProjectCheck = checkCrossProjectResume(fullLog, showAllProjects, worktreePaths);
-    if (crossProjectCheck.isCrossProject) {
+    if (!isBrowserRuntime() && crossProjectCheck.isCrossProject) {
       if (crossProjectCheck.isSameRepoWorktree) {
         // Same repo worktree - can resume directly
         // Try to load replay summary
@@ -256,12 +367,18 @@ function ResumeCommand({
     });
   }
   if (loading) {
+    if (isBrowserRuntime()) {
+      return <BrowserResumeStatus title="Loading conversations" detail="Finding resumable sessions for this workspace." />;
+    }
     return <Box>
         <Spinner />
         <Text> Loading conversations…</Text>
       </Box>;
   }
   if (resuming) {
+    if (isBrowserRuntime()) {
+      return <BrowserResumeStatus title="Opening conversation" detail="Restoring messages, tools, and session context." />;
+    }
     return <Box>
         <Spinner />
         <Text> Resuming conversation…</Text>
@@ -273,8 +390,21 @@ function ResumeCommand({
     return <ResumeConfirmation selectedSession={selectedSession} sessionSummary={sessionSummary} resuming={resuming} onResume={handleConfirmResume} onCancel={handleCancelResume} />;
   }
 
-  return <LogSelector logs={logs} maxHeight={insideModal ? Math.floor(rows / 2) : rows - 2} onCancel={handleCancel} onSelect={handleSelect} onLogsChanged={() => loadLogs(showAllProjects, worktreePaths)} showAllProjects={showAllProjects} onToggleAllProjects={handleToggleAllProjects} onAgenticSearch={agenticSessionSearch} />;
+  if (isBrowserRuntime()) {
+    return (
+      <div className="oc-resumeShell">
+        {browserNotice ? <BrowserResumeStatus title="Different workspace" detail={browserNotice} tone="warning" /> : null}
+        <LogSelector logs={logs} maxHeight={insideModal ? Math.floor(rows / 2) : rows - 2} onCancel={handleCancel} onSelect={handleSelect} onLogsChanged={() => loadLogs(showAllProjects, worktreePaths)} showAllProjects={showAllProjects} onToggleAllProjects={handleToggleAllProjects} onAgenticSearch={agenticSessionSearch} />
+      </div>
+    );
+  }
+
+  return <Box flexDirection="column">
+      {browserNotice ? <BrowserResumeStatus title="Different workspace" detail={browserNotice} tone="warning" /> : null}
+      <LogSelector logs={logs} maxHeight={insideModal ? Math.floor(rows / 2) : rows - 2} onCancel={handleCancel} onSelect={handleSelect} onLogsChanged={() => loadLogs(showAllProjects, worktreePaths)} showAllProjects={showAllProjects} onToggleAllProjects={handleToggleAllProjects} onAgenticSearch={agenticSessionSearch} />
+    </Box>;
 }
+
 export function filterResumableSessions(logs: LogOption[], currentSessionId: string): LogOption[] {
   return logs.filter(l => !l.isSidechain && getSessionIdFromLog(l) !== currentSessionId);
 }
@@ -491,6 +621,10 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     if (matchingLogs.length > 0) {
       const log = matchingLogs[0]!;
       const fullLog = isLiteLog(log) ? await loadFullLog(log) : log;
+      const browserCrossWorkspaceMessage = getBrowserCrossWorkspaceResumeMessage(fullLog, false, worktreePaths);
+      if (browserCrossWorkspaceMessage) {
+        return <ResumeError message={browserCrossWorkspaceMessage} args={arg} onDone={() => onDone(browserCrossWorkspaceMessage)} />;
+      }
       return resumeWithOptionalSummary(
         maybeSessionId,
         fullLog,
@@ -505,6 +639,10 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     // firstPrompt extraction fail, causing the session to be dropped).
     const directLog = await getLastSessionLog(maybeSessionId);
     if (directLog) {
+      const browserCrossWorkspaceMessage = getBrowserCrossWorkspaceResumeMessage(directLog, true, worktreePaths);
+      if (browserCrossWorkspaceMessage) {
+        return <ResumeError message={browserCrossWorkspaceMessage} args={arg} onDone={() => onDone(browserCrossWorkspaceMessage)} />;
+      }
       return resumeWithOptionalSummary(
         maybeSessionId,
         directLog,
@@ -525,6 +663,10 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       const sessionId = getSessionIdFromLog(log);
       if (sessionId) {
         const fullLog = isLiteLog(log) ? await loadFullLog(log) : log;
+        const browserCrossWorkspaceMessage = getBrowserCrossWorkspaceResumeMessage(fullLog, true, worktreePaths);
+        if (browserCrossWorkspaceMessage) {
+          return <ResumeError message={browserCrossWorkspaceMessage} args={arg} onDone={() => onDone(browserCrossWorkspaceMessage)} />;
+        }
         return resumeWithOptionalSummary(
           sessionId,
           fullLog,

@@ -3,6 +3,7 @@ import React from 'react';
 import { z } from 'zod/v4';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { Box, Text } from '../../ink.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
@@ -23,6 +24,7 @@ import { countCharInString } from '../../utils/stringUtils.js';
 import { getTaskOutput } from '../../utils/task/diskOutput.js';
 import { updateTaskState } from '../../utils/task/framework.js';
 import { formatTaskOutput } from '../../utils/task/outputFormatting.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { AgentPromptDisplay, AgentResponseDisplay } from '../AgentTool/UI.js';
 import BashToolResultMessage from '../BashTool/BashToolResultMessage.js';
@@ -327,6 +329,21 @@ export const TaskOutputTool: Tool<InputSchema, TaskOutputToolOutput> = buildTool
       taskDescription?: string;
       taskType?: string;
     } | undefined;
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure
+          title="Waiting for task output"
+          detail={progressData?.taskType}
+          state="running"
+        >
+          <div className="oc-agentProgressStack">
+            <div className="oc-agentProgressLine">
+              {progressData?.taskDescription || 'Waiting for the background task to finish.'}
+            </div>
+          </div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <Box flexDirection="column">
           {progressData?.taskDescription && <Text>&nbsp;&nbsp;{progressData.taskDescription}</Text>}
           <Text>
@@ -350,6 +367,93 @@ export const TaskOutputTool: Tool<InputSchema, TaskOutputToolOutput> = buildTool
     return <FallbackToolUseErrorMessage result={result} verbose={verbose} />;
   }
 } satisfies ToolDef<InputSchema, TaskOutputToolOutput>);
+
+function BrowserTaskOutputResult({
+  result,
+  verbose,
+  theme,
+}: {
+  result: TaskOutputToolOutput;
+  verbose: boolean;
+  theme: ThemeName;
+}): React.ReactNode {
+  if (!result.task) {
+    return (
+      <BrowserToolResultDisclosure title="Task output" detail="No output">
+        <div className="oc-toolResultPreviewEmpty">No task output is available yet.</div>
+      </BrowserToolResultDisclosure>
+    );
+  }
+
+  const { task } = result;
+  const output = task.result || task.output || '';
+  const lineCount = output ? countCharInString(output, '\n') + 1 : 0;
+
+  if (task.task_type === 'local_bash') {
+    const bashOut = {
+      stdout: task.output,
+      stderr: '',
+      isImage: false,
+      dangerouslyDisableSandbox: true,
+      returnCodeInterpretation: task.error,
+    };
+    return (
+      <BrowserToolResultDisclosure
+        title={task.description || 'Background command output'}
+        detail={task.status}
+      >
+        <BashToolResultMessage content={bashOut} verbose={verbose} />
+      </BrowserToolResultDisclosure>
+    );
+  }
+
+  if (result.retrieval_status === 'timeout' || result.retrieval_status === 'not_ready' || task.status === 'running') {
+    return (
+      <BrowserToolResultDisclosure title={task.description || 'Background task'} detail="Still running" state="running">
+        <div className="oc-toolResultPreviewEmpty">The task is still running. Output will appear here when it is ready.</div>
+      </BrowserToolResultDisclosure>
+    );
+  }
+
+  if (task.task_type === 'local_agent') {
+    return (
+      <BrowserToolResultDisclosure
+        title={task.description || 'Agent output'}
+        detail={lineCount > 0 ? `${lineCount} lines` : task.status}
+      >
+        {verbose && task.prompt ? <AgentPromptDisplay prompt={task.prompt} theme={theme} dim /> : null}
+        {output ? (
+          <div className="oc-toolResultPreview oc-toolResultPreview--task">
+            <div className="oc-toolResultPreviewBody">
+              <pre>{output}</pre>
+            </div>
+          </div>
+        ) : (
+          <div className="oc-toolResultPreviewEmpty">The agent did not return text output.</div>
+        )}
+        {task.error ? <div className="oc-toolResultError">{task.error}</div> : null}
+      </BrowserToolResultDisclosure>
+    );
+  }
+
+  return (
+    <BrowserToolResultDisclosure
+      title={task.description || 'Task output'}
+      detail={[task.status, lineCount > 0 ? `${lineCount} lines` : null].filter(Boolean).join(' · ')}
+    >
+      {output ? (
+        <div className="oc-toolResultPreview oc-toolResultPreview--task">
+          <div className="oc-toolResultPreviewBody">
+            <pre>{output}</pre>
+          </div>
+        </div>
+      ) : (
+        <div className="oc-toolResultPreviewEmpty">No text output was returned.</div>
+      )}
+    </BrowserToolResultDisclosure>
+  );
+}
+
 function TaskOutputResultDisplay(t0) {
   const $ = _c(54);
   const {
@@ -368,6 +472,9 @@ function TaskOutputResultDisplay(t0) {
     t2 = $[1];
   }
   const result = t2;
+  if (isBrowserRuntime()) {
+    return <BrowserTaskOutputResult result={result} verbose={verbose} theme={theme} />;
+  }
   if (!result.task) {
     let t3;
     if ($[2] === Symbol.for("react.memo_cache_sentinel")) {

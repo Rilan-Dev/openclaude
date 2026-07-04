@@ -1505,8 +1505,8 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     }
   }
 
-  function returnToMenu(): void {
-    setMenuFocusValue('done')
+  function returnToMenu(nextFocusValue = 'done'): void {
+    setMenuFocusValue(nextFocusValue)
     setScreen('menu')
   }
 
@@ -1734,6 +1734,15 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       : null
 
     refreshProfiles()
+    if (isBrowserRuntime()) {
+      const refreshedProfiles = getProviderProfiles()
+      setProfiles(
+        refreshedProfiles.some(profile => profile.id === saved.id)
+          ? refreshedProfiles
+          : [...refreshedProfiles, saved],
+      )
+      setActiveProfileId(getActiveProviderProfile()?.id ?? saved.id)
+    }
     const successMessage =
       profileId
         ? `Updated provider: ${saved.name}`
@@ -1765,7 +1774,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     setEditingProfileId(null)
     setFormStepIndex(0)
     setErrorMessage(undefined)
-    returnToMenu()
+    returnToMenu(profileId ? 'edit' : 'activate')
   }
 
   function applyPresetApiFormat(
@@ -1838,6 +1847,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       if (isBrowserRuntime()) {
         return (
           <WebSelectList
+            kicker="Provider setup"
             title="Atomic Chat setup"
             subtitle={atomicChatSelection.message}
             options={fallbackOptions}
@@ -1865,6 +1875,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     if (isBrowserRuntime()) {
       return (
         <WebSelectList
+          kicker="Provider setup"
           title="Choose an Atomic Chat model"
           subtitle="Pick one of the models loaded in Atomic Chat to save into a local provider profile."
           options={atomicChatSelection.options}
@@ -1961,6 +1972,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       if (isBrowserRuntime()) {
         return (
           <WebSelectList
+            kicker="Provider setup"
             title="Ollama setup"
             subtitle={ollamaSelection.message}
             options={fallbackOptions}
@@ -1988,6 +2000,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     if (isBrowserRuntime()) {
       return (
         <WebSelectList
+          kicker="Provider setup"
           title="Choose an Ollama model"
           subtitle="Pick one of the installed Ollama models to save into a local provider profile."
           options={ollamaSelection.options}
@@ -2149,6 +2162,8 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     onSubmit: (value: string) => void
     onBack: () => void
   }): React.ReactNode {
+    const fieldLabel = stepLabel.replace(/^Step \d+ of \d+:\s*/, '')
+
     return (
       <section className="repl-providerFormSurface repl-providerManagerSurface">
         <div className="repl-providerFormHeader">
@@ -2170,7 +2185,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
           }}
         >
           <label className="repl-providerFormField">
-            <span>{stepLabel.replace(/^Step \d+ of \d+:\s*/, '')}</span>
+            <span>{fieldLabel}</span>
             <input
               autoFocus
               value={value}
@@ -2203,7 +2218,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
         </form>
 
         <p className="repl-providerFormHint">
-          Press Enter to continue. Press Esc to go back.
+          {fieldLabel} is used immediately for this session after saving.
         </p>
       </section>
     )
@@ -2290,6 +2305,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     if (isBrowserRuntime()) {
       return (
         <WebSelectList
+          kicker="Session routing"
           title={mode === 'first-run' ? 'Set up provider' : 'Choose provider preset'}
           subtitle="Pick a preset, then complete the details it needs."
           options={options.map(option => ({
@@ -2331,6 +2347,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       if (currentStepKey === 'apiFormat') {
         return (
           <WebSelectList
+            kicker="Provider format"
             title={editingProfileId ? 'Edit provider profile' : 'Create provider profile'}
             subtitle={
               <>
@@ -2842,6 +2859,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
             )}
           </div>
           <WebSelectList
+            kicker="Session routing"
             title="Provider actions"
             options={menuOptions}
             selectedValue={menuFocusValue}
@@ -2930,6 +2948,7 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
       if (isBrowserRuntime()) {
         return (
           <WebSelectList
+            kicker="Session routing"
             title={title}
             subtitle={emptyMessage}
             options={[
@@ -2969,12 +2988,13 @@ export function ProviderManager({ mode, onDone }: Props): React.ReactNode {
     if (isBrowserRuntime()) {
       return (
         <WebSelectList
+          kicker="Session routing"
           title={title}
           subtitle="Choose the provider profile that should power this chat session."
           options={selectOptions}
           selectedValue={activeProfileId}
           focusedValue={activeProfileId}
-          className="repl-providerChoiceList"
+          className="repl-providerChoiceList repl-providerPresetList"
           onSelect={onSelect}
           onCancel={() => returnToMenu()}
         />

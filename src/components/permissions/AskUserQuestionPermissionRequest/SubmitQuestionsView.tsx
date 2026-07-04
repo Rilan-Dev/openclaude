@@ -9,6 +9,7 @@ import { Divider } from '../../design-system/Divider.js';
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js';
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js';
 import { QuestionNavigationBar } from './QuestionNavigationBar.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 type Props = {
   questions: Question[];
   currentQuestionIndex: number;
@@ -29,6 +30,43 @@ export function SubmitQuestionsView(t0) {
     minContentHeight,
     onFinalResponse
   } = t0;
+
+  if (isBrowserRuntime()) {
+    const answeredQuestions = questions.filter(question => question?.question && answers[question.question]);
+
+    return (
+      <section className="oc-questionSurface oc-questionSurface--submit">
+        <header className="oc-questionHeader">
+          <span className="oc-questionEyebrow">Review answers</span>
+          <h3>Submit your response</h3>
+          <p>{allQuestionsAnswered ? 'Everything is ready to send.' : 'Some questions are still unanswered.'}</p>
+        </header>
+
+        {answeredQuestions.length > 0 ? (
+          <div className="oc-questionReviewList">
+            {answeredQuestions.map(question => (
+              <div className="oc-questionReviewItem" key={question.question}>
+                <strong>{question.question}</strong>
+                <span>{answers[question.question]}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="oc-questionReviewEmpty">No answers selected yet.</div>
+        )}
+
+        <footer className="oc-questionActions">
+          <button type="button" onClick={() => onFinalResponse('submit')} disabled={!allQuestionsAnswered}>
+            Submit answers
+          </button>
+          <button type="button" onClick={() => onFinalResponse('cancel')}>
+            Cancel
+          </button>
+        </footer>
+      </section>
+    );
+  }
+
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = <Divider color="inactive" />;

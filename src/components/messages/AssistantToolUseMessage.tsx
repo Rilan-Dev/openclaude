@@ -279,15 +279,21 @@ export function AssistantToolUseMessage(t0) {
         : isQueued
           ? "queued"
           : "running";
-    return <div className="oc-toolCallCard" data-tool-state={toolState}>
-        <div className="oc-toolCallHeader">
-          <span className="oc-toolCallStatus" />
-          <span className="oc-toolCallName">{userFacingToolName}</span>
-          {renderedToolUseMessage !== "" ? <span className="oc-toolCallSummary">{renderedToolUseMessage}</span> : null}
+    return <details className="oc-toolDisclosure oc-toolDisclosure--call" data-tool-state={toolState} open={Boolean(t13 || t14)}>
+        <summary className="oc-toolDisclosureSummary">
+          <span className="oc-toolDisclosureStatus" />
+          <span className="oc-toolDisclosureTitle">{userFacingToolName}</span>
+          {renderedToolUseMessage !== "" ? <span className="oc-toolDisclosureMeta">{renderedToolUseMessage}</span> : null}
+        </summary>
+        <div className="oc-toolDisclosureBody">
+          <div className="oc-toolCallDetails">
+            <span>{toolState === "done" ? "Completed" : toolState === "queued" ? "Queued" : toolState === "error" ? "Needs attention" : "Running"}</span>
+            {renderedToolUseMessage !== "" ? <span>{renderedToolUseMessage}</span> : null}
+          </div>
         </div>
-        {t13 ? <div className="oc-toolCallBody">{t13}</div> : null}
-        {t14 ? <div className="oc-toolCallBody">{t14}</div> : null}
-      </div>;
+        {t13 ? <div className="oc-toolDisclosureBody">{t13}</div> : null}
+        {t14 ? <div className="oc-toolDisclosureBody">{t14}</div> : null}
+      </details>;
   }
   let t15;
   if ($[73] !== t12 || $[74] !== t13 || $[75] !== t14) {

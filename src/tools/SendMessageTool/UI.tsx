@@ -1,6 +1,8 @@
 import React from 'react';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { Text } from '../../ink.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { jsonParse } from '../../utils/slowOperations.js';
 import type { Input, SendMessageToolOutput } from './SendMessageTool.js';
 export function renderToolUseMessage(input: Partial<Input>): React.ReactNode {
@@ -23,6 +25,13 @@ export function renderToolResultMessage(content: SendMessageToolOutput | string,
   }
   if ('request_id' in result && 'target' in result) {
     return null;
+  }
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="Message sent" detail="Agent communication" state="done">
+        <div className="oc-toolResultEmpty">{result.message}</div>
+      </BrowserToolResultDisclosure>
+    );
   }
   return <MessageResponse>
       <Text dimColor>{result.message}</Text>

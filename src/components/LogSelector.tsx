@@ -104,6 +104,151 @@ type Snippet = {
   match: string;
   after: string;
 };
+
+type BrowserResumePickerProps = {
+  logs: LogOption[];
+  countLabel: string;
+  filterIndicators: string[];
+  searchQuery: string;
+  snippetMap: Map<LogOption, Snippet>;
+  focusedIndex: number;
+  showAllProjects: boolean;
+  agenticSearchStatus: AgenticSearchState['status'];
+  onCancel?: () => void;
+  onLoadMore?: (count: number) => void;
+  onSelect: (log: LogOption) => void;
+  onToggleAllProjects?: () => void;
+  setFocusedIndex: (index: number) => void;
+  setSearchQuery: (query: string) => void;
+  setViewMode: (mode: ViewMode) => void;
+};
+
+function BrowserResumePicker({
+  logs,
+  countLabel,
+  filterIndicators,
+  searchQuery,
+  snippetMap,
+  focusedIndex,
+  showAllProjects,
+  agenticSearchStatus,
+  onCancel,
+  onLoadMore,
+  onSelect,
+  onToggleAllProjects,
+  setFocusedIndex,
+  setSearchQuery,
+  setViewMode,
+}: BrowserResumePickerProps): React.ReactNode {
+  return (
+    <section className="repl-webResumePicker" role="dialog" aria-label="Resume conversation">
+      <header className="repl-webResumeHeader">
+        <div>
+          <p className="repl-webResumeEyebrow">History</p>
+          <h2>Resume conversation</h2>
+          <p className="repl-webResumeSubtitle">Pick up a previous session with its messages, tools, and context.</p>
+        </div>
+        <div className="repl-webResumeHeaderActions">
+          <span className="repl-webResumeCount">{countLabel}</span>
+          {onToggleAllProjects ? (
+            <button type="button" className="repl-webResumeGhostButton" onClick={onToggleAllProjects}>
+              {showAllProjects ? 'Current workspace' : 'All workspaces'}
+            </button>
+          ) : null}
+          {onLoadMore ? (
+            <button type="button" className="repl-webResumeGhostButton" onClick={() => onLoadMore(20)}>
+              Load more
+            </button>
+          ) : null}
+          {onCancel ? (
+            <button type="button" className="repl-webResumeGhostButton" onClick={onCancel}>
+              Close
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="repl-webResumeSearchRow">
+        <label className="repl-webResumeSearch">
+          <span>Search conversations</span>
+          <input
+            value={searchQuery}
+            placeholder="Search by title, prompt, branch, or project..."
+            onChange={event => {
+              setSearchQuery(event.target.value);
+              setViewMode('search');
+            }}
+            onFocus={() => setViewMode('search')}
+          />
+        </label>
+      </div>
+
+      {filterIndicators.length > 0 ? (
+        <div className="repl-webResumeFilterPills">
+          {filterIndicators.map(filter => (
+            <span key={filter}>{filter}</span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="repl-webResumeBody">
+        {agenticSearchStatus === 'searching' ? (
+          <div className="repl-webResumeStatus">Searching conversations...</div>
+        ) : null}
+        {logs.length === 0 ? (
+          <div className="repl-webResumeEmpty">No matching sessions found.</div>
+        ) : (
+          <div className="repl-webResumeList">
+            {logs.map((log, index) => {
+              const title = cleanBrowserResumeText(getResumeLogDisplayTitle(log));
+              const metadata = joinBrowserResumeMeta(log, formatLogMetadata(log));
+              const projectPath = cleanBrowserResumeText(log.projectPath || '');
+              const selected = focusedIndex === index + 1;
+              const snippet = snippetMap.get(log);
+              const snippetText = snippet ? cleanBrowserResumeText(`${snippet.before}${snippet.match}${snippet.after}`) : null;
+
+              return (
+                <button
+                  key={`${log.sessionId ?? title}-${index}`}
+                  type="button"
+                  className="repl-webResumeCard"
+                  data-selected={selected ? 'true' : undefined}
+                  onMouseEnter={() => setFocusedIndex(index + 1)}
+                  onFocus={() => setFocusedIndex(index + 1)}
+                  onClick={() => onSelect(log)}
+                >
+                  <span className="repl-webResumeCardMain">
+                    <span className="repl-webResumeCardTop">
+                      <span className="repl-webResumeCardTitle">{title || 'Untitled conversation'}</span>
+                      <span className="repl-webResumeOpenPill">Open</span>
+                    </span>
+                    {snippetText ? <span className="repl-webResumeCardSnippet">{snippetText}</span> : null}
+                    <span className="repl-webResumeCardMeta">{metadata}</span>
+                    {projectPath ? <span className="repl-webResumeCardProject">{projectPath}</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {searchQuery ? (
+        <button
+          type="button"
+          className="repl-webResumeClearSearch"
+          onClick={() => {
+            setSearchQuery('');
+            setViewMode('list');
+          }}
+        >
+          Clear search
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
 function formatSnippet({
   before,
   match,
@@ -133,6 +278,19 @@ function extractSnippet(text: string, query: string, contextChars: number): Snip
     after: afterRaw.replace(/\s+/g, ' ').trimEnd() + (snippetEnd < text.length ? '…' : '')
   };
 }
+function cleanBrowserResumeText(value: string): string {
+  return value
+    .replace(/\u001b\[[0-9;]*m/g, '')
+    .replace(/^[\s>❯›▸└╰│─]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function joinBrowserResumeMeta(log: LogOption, metadata: string): string {
+  const parts = [metadata, log.projectPath].map(part => cleanBrowserResumeText(part || '')).filter(Boolean);
+  return parts.join(' · ');
+}
+
 function buildLogLabel(log: LogOption, maxLabelWidth: number, options?: {
   isGroupHeader?: boolean;
   isChild?: boolean;
@@ -1322,44 +1480,25 @@ export function LogSelector(t0: LogSelectorProps) {
   if (isBrowserRuntime()) {
     const visibleLogs = displayedLogs;
     const countLabel = visibleLogs.length === 1 ? "1 session" : `${visibleLogs.length} sessions`;
-    const activeTitle = focusedLog ? getResumeLogDisplayTitle(focusedLog) : "";
-    return <div className="oc-resumePicker" role="dialog" aria-label="Resume conversation">
-        <div className="oc-resumePickerHeader">
-          <div>
-            <span className="oc-resumePickerKicker">Conversation history</span>
-            <h2>Resume session</h2>
-          </div>
-          <span className="oc-resumePickerCount">{countLabel}</span>
-        </div>
-        <div className="oc-resumeSearch">
-          <span>Search</span>
-          <input value={searchQuery} placeholder="Find a previous conversation..." onChange={event => {
-            setSearchQuery(event.target.value);
-            setViewMode("search");
-          }} onFocus={() => setViewMode("search")} />
-        </div>
-        {filterIndicators.length > 0 ? <div className="oc-resumeFilters">{filterIndicators.map(filter => <span key={filter}>{filter}</span>)}</div> : null}
-        {agenticSearchState.status === "searching" ? <div className="oc-resumeNotice">Searching conversations...</div> : null}
-        {visibleLogs.length === 0 ? <div className="oc-resumeEmpty">No matching sessions found.</div> : <div className="oc-resumeList">
-            {visibleLogs.map((log, index) => {
-              const title = getResumeLogDisplayTitle(log);
-              const metadata = formatLogMetadata(log);
-              const selected = activeTitle === title || focusedIndex === index + 1;
-              const snippet = snippetMap.get(log);
-              return <button key={`${log.sessionId ?? title}-${index}`} type="button" className="oc-resumeItem" data-selected={selected ? "true" : undefined} onMouseEnter={() => setFocusedIndex(index + 1)} onFocus={() => setFocusedIndex(index + 1)} onClick={() => onSelect(log)}>
-                  <span className="oc-resumeItemTitle">{title || "Untitled conversation"}</span>
-                  {snippet ? <span className="oc-resumeItemSnippet">{snippet.before}{snippet.match}{snippet.after}</span> : null}
-                  <span className="oc-resumeItemMeta">{metadata}{log.projectPath ? ` · ${log.projectPath}` : ""}</span>
-                </button>;
-            })}
-          </div>}
-        <div className="oc-resumePickerFooter">
-          <button type="button" onClick={() => setViewMode("list")}>Clear search</button>
-          {onToggleAllProjects ? <button type="button" onClick={onToggleAllProjects}>{showAllProjects ? "Current project" : "All projects"}</button> : null}
-          {onLoadMore ? <button type="button" onClick={() => onLoadMore(20)}>Load more</button> : null}
-          {onCancel ? <button type="button" onClick={onCancel}>Cancel</button> : null}
-        </div>
-      </div>;
+    return (
+      <BrowserResumePicker
+        logs={visibleLogs}
+        countLabel={countLabel}
+        filterIndicators={filterIndicators}
+        searchQuery={searchQuery}
+        snippetMap={snippetMap}
+        focusedIndex={focusedIndex}
+        showAllProjects={showAllProjects}
+        agenticSearchStatus={agenticSearchState.status}
+        onCancel={onCancel}
+        onLoadMore={onLoadMore}
+        onSelect={onSelect}
+        onToggleAllProjects={onToggleAllProjects}
+        setFocusedIndex={setFocusedIndex}
+        setSearchQuery={setSearchQuery}
+        setViewMode={setViewMode}
+      />
+    );
   }
   const t57 = maxHeight - 1;
   let t58;

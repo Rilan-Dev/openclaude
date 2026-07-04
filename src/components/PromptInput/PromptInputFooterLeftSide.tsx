@@ -316,20 +316,28 @@ function ModeIndicator({
     const modeTone = currentMode && hasActiveMode ? currentMode : 'default';
     const isRemote = getIsRemoteMode();
     const canCycleMode = !isRemote && typeof onCycleMode === 'function';
+    const modeDetail: Partial<Record<string, string>> = {
+      acceptEdits: 'Review tool calls',
+      bypassPermissions: 'No prompts',
+      fullAccess: 'Full tool access',
+      dontAsk: 'No prompts',
+      plan: 'Planning only',
+      auto: 'Auto classifier',
+    };
     const detail = isRemote
       ? 'Remote session'
       : currentMode && hasActiveMode
-        ? 'Tool approvals active'
+        ? modeDetail[currentMode] ?? 'Tool approvals active'
         : 'Standard approvals';
 
     return (
-      <div className="repl-promptFooterModeCluster" data-mode={modeTone}>
+      <div className="repl-promptFooterModeCluster" data-mode={modeTone} data-active={hasActiveMode ? 'true' : undefined}>
         <span className="repl-promptFooterModeDot" />
         <span className="repl-promptFooterModeLabel">{modeLabel}</span>
         <span className="repl-promptFooterModeDetail">{detail}</span>
         {canCycleMode ? (
-          <button type="button" className="repl-promptFooterModeButton" onClick={onCycleMode} title={`Cycle mode (${modeCycleShortcut})`}>
-            Switch
+          <button type="button" className="repl-promptFooterModeButton" onClick={onCycleMode} title="Switch permission mode" aria-label="Switch permission mode">
+            Change
           </button>
         ) : null}
       </div>

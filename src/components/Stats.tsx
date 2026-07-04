@@ -17,6 +17,7 @@ import { getGlobalConfig } from '../utils/config.js';
 import { formatDuration, formatNumber } from '../utils/format.js';
 import { generateHeatmap } from '../utils/heatmap.js';
 import { renderModelName } from '../utils/model/model.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { copyAnsiToClipboard } from '../utils/screenshotClipboard.js';
 import { aggregateClaudeCodeStatsForRange, type ClaudeCodeStats, type DailyModelTokens, type StatsDateRange } from '../utils/stats.js';
 import { resolveThemeSetting } from '../utils/systemTheme.js';
@@ -293,9 +294,12 @@ function StatsContent(t0: StatsContentProps): React.ReactNode {
   } else {
     t9 = $[28];
   }
+  const browserRuntime = isBrowserRuntime();
   const t10 = copyStatus ? ` · ${copyStatus}` : "";
   let t11;
-  if ($[29] !== t10) {
+  if (browserRuntime) {
+    t11 = <Box flexDirection="row" gap={1} paddingLeft={1} marginTop={1}><Box borderStyle="round" paddingX={1} onClick={() => setDateRange(getNextDateRange(dateRange))}><Text color="claude">{DATE_RANGE_LABELS[dateRange]}</Text></Box>{displayStats ? <Box borderStyle="round" paddingX={1} onClick={() => handleScreenshot(displayStats, activeTab, setCopyStatus)}><Text>{copyStatus ?? "Copy stats"}</Text></Box> : null}<Box borderStyle="round" paddingX={1} onClick={handleClose}><Text dimColor={true}>Close</Text></Box></Box>;
+  } else if ($[29] !== t10) {
     t11 = <Box paddingLeft={2}><Text dimColor={true}>Esc to cancel · r to cycle dates · ctrl+s to copy{t10}</Text></Box>;
     $[29] = t10;
     $[30] = t11;
@@ -728,8 +732,9 @@ function ModelsTab(t0: ModelsTabProps): React.ReactNode {
   const {
     columns: terminalWidth
   } = useTerminalSize();
+  const browserRuntime = isBrowserRuntime();
   const modelEntries: ModelUsageEntry[] = Object.entries(stats.modelUsage).sort(_temp7);
-  const t1 = !headerFocused;
+  const t1 = !browserRuntime && !headerFocused;
   let t2;
   if ($[0] !== t1) {
     t2 = {
@@ -764,13 +769,13 @@ function ModelsTab(t0: ModelsTabProps): React.ReactNode {
   }
   const totalTokens = modelEntries.reduce(_temp9, 0);
   const chartOutput = generateTokenChart(stats.dailyModelTokens, modelEntries.map(_temp0), terminalWidth);
-  const visibleModels = modelEntries.slice(scrollOffset, scrollOffset + 4);
+  const visibleModels = browserRuntime ? modelEntries : modelEntries.slice(scrollOffset, scrollOffset + 4);
   const midpoint = Math.ceil(visibleModels.length / 2);
   const leftModels = visibleModels.slice(0, midpoint);
   const rightModels = visibleModels.slice(midpoint);
-  const canScrollUp = scrollOffset > 0;
-  const canScrollDown = scrollOffset < modelEntries.length - 4;
-  const showScrollHint = modelEntries.length > 4;
+  const canScrollUp = !browserRuntime && scrollOffset > 0;
+  const canScrollDown = !browserRuntime && scrollOffset < modelEntries.length - 4;
+  const showScrollHint = !browserRuntime && modelEntries.length > 4;
   let t3;
   if ($[3] !== dateRange || $[4] !== isLoading) {
     t3 = <DateRangeSelector dateRange={dateRange} isLoading={isLoading} />;

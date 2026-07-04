@@ -12,6 +12,7 @@ import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdated
 import { FileEditToolUseRejectedMessage } from '../../components/FileEditToolUseRejectedMessage.js';
 import { FilePathLink } from '../../components/FilePathLink.js';
 import { HighlightedCode } from '../../components/HighlightedCode.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { Box, Text } from '../../ink.js';
 import type { ToolProgressData } from '../../Tool.js';
@@ -22,6 +23,7 @@ import { getDisplayPath } from '../../utils/file.js';
 import { logError } from '../../utils/log.js';
 import { getPlansDirectory } from '../../utils/plans.js';
 import { openForScan, readCapped } from '../../utils/readEditContext.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Output } from './FileWriteTool.js';
 const MAX_LINES_TO_RENDER = 10;
 // Model output uses \n regardless of platform, so always split on \n.
@@ -41,6 +43,38 @@ type FileWriteToolCreatedMessageProps = {
   content: string;
   verbose: boolean;
 };
+function BrowserFileWriteToolCreatedMessage({
+  filePath,
+  content,
+  verbose,
+  columns,
+}: FileWriteToolCreatedMessageProps & {
+  columns: number;
+}): React.ReactNode {
+  const contentWithFallback = content || "(No content)";
+  const numLines = countLines(content);
+  const previewContent = verbose ? contentWithFallback : contentWithFallback.split("\n").slice(0, MAX_LINES_TO_RENDER).join("\n");
+  const hiddenLines = numLines - MAX_LINES_TO_RENDER;
+  const diffWidth = Math.max(24, columns - 12);
+
+  return (
+    <details className="oc-toolDisclosure oc-toolDisclosure--diff" open>
+      <summary className="oc-toolDisclosureSummary">
+        <span className="oc-toolDisclosureStatus" />
+        <span className="oc-toolDisclosureTitle">Created {getDisplayPath(filePath)}</span>
+        <span className="oc-toolDisclosureMeta">+{numLines} -0</span>
+      </summary>
+      <div className="oc-toolDisclosureBody oc-toolDisclosureBody--diff">
+        <div className="oc-toolDiffPath">{filePath}</div>
+        <HighlightedCode code={previewContent} filePath={filePath} width={diffWidth} />
+        {!verbose && hiddenLines > 0 ? (
+          <div className="oc-toolResultPreviewTruncated">Preview shows {MAX_LINES_TO_RENDER} lines. {hiddenLines} more {hiddenLines === 1 ? 'line' : 'lines'} hidden.</div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 function FileWriteToolCreatedMessage(t0: FileWriteToolCreatedMessageProps): React.ReactNode {
   const $ = _c(25);
   const {
@@ -54,6 +88,9 @@ function FileWriteToolCreatedMessage(t0: FileWriteToolCreatedMessageProps): Reac
   const contentWithFallback = content || "(No content)";
   const numLines = countLines(content);
   const plusLines = numLines - MAX_LINES_TO_RENDER;
+  if (isBrowserRuntime()) {
+    return <BrowserFileWriteToolCreatedMessage filePath={filePath} content={content} verbose={verbose} columns={columns} />;
+  }
   let t1;
   if ($[0] !== numLines) {
     t1 = <Text bold={true}>{numLines}</Text>;
@@ -302,6 +339,13 @@ function WriteRejectionBody(t0: WriteRejectionBodyProps): React.ReactNode {
     return createFallback;
   }
   if (data.type === "error") {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Write skipped" detail="No changes" state="done">
+          <div className="oc-toolResultEmpty">The file already matches the requested content.</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     let t1;
     if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
       t1 = <MessageResponse><Text>(No changes)</Text></MessageResponse>;
@@ -372,6 +416,13 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
   verbose: boolean;
 }): React.ReactNode {
   if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error')) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Write failed" detail="Unable to save file" state="error" defaultOpen>
+          <div className="oc-toolResultError">{extractTag(result, 'tool_use_error') ?? 'Error writing file'}</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <MessageResponse>
         <Text color="error">Error writing file</Text>
       </MessageResponse>;
@@ -401,6 +452,13 @@ export function renderToolResultMessage({
         // - Condensed mode (subagent view): show full content
         if (isPlanFile && !verbose) {
           if (style !== 'condensed') {
+            if (isBrowserRuntime()) {
+              return (
+                <BrowserToolResultDisclosure title="Plan saved" detail="Preview available" state="done">
+                  <div className="oc-toolResultEmpty">Open the plan panel to review the saved plan.</div>
+                </BrowserToolResultDisclosure>
+              );
+            }
             return <MessageResponse>
               <Text dimColor>/plan to preview</Text>
             </MessageResponse>;

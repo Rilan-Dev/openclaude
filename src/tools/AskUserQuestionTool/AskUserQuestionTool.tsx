@@ -1,11 +1,12 @@
-import { c as _c } from "react-compiler-runtime";
 import { feature } from 'bun:bundle';
 import * as React from 'react';
 import { getAllowedChannels, getQuestionPreviewFormat } from 'src/bootstrap/state.js';
+import { BrowserToolResultDisclosure } from 'src/components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from 'src/components/MessageResponse.js';
 import { BLACK_CIRCLE } from 'src/constants/figures.js';
 import { PRODUCT_DISPLAY_NAME } from 'src/constants/product.js';
 import { getModeColor } from 'src/utils/permissions/PermissionMode.js';
+import { isBrowserRuntime } from 'src/utils/runtime.js';
 import { z } from 'zod/v4';
 import { Box, Text } from '../../ink.js';
 import type { Tool } from '../../Tool.js';
@@ -81,31 +82,43 @@ export const _sdkOutputSchema = outputSchema;
 export type Question = z.infer<ReturnType<typeof questionSchema>>;
 export type QuestionOption = z.infer<ReturnType<typeof questionOptionSchema>>;
 export type Output = z.infer<OutputSchema>;
-function AskUserQuestionResultMessage(t0) {
-  const $ = _c(3);
-  const {
-    answers
-  } = t0;
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = <Box flexDirection="row"><Text color={getModeColor("default")}>{BLACK_CIRCLE} </Text><Text>User answered {PRODUCT_DISPLAY_NAME}&apos;s questions:</Text></Box>;
-    $[0] = t1;
-  } else {
-    t1 = $[0];
+function AskUserQuestionResultMessage({
+  answers,
+}: {
+  answers: Record<string, string>;
+}): React.ReactNode {
+  const entries = Object.entries(answers);
+
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="User answered questions" detail={`${entries.length} response${entries.length === 1 ? '' : 's'}`} state="done">
+        <div className="oc-toolResultStack">
+          {entries.map(([questionText, answer]) => (
+            <div className="oc-toolResultRow" key={questionText}>
+              <strong>{questionText}</strong>
+              <span>{answer}</span>
+            </div>
+          ))}
+        </div>
+      </BrowserToolResultDisclosure>
+    );
   }
-  let t2;
-  if ($[1] !== answers) {
-    t2 = <Box flexDirection="column" marginTop={1}>{t1}<MessageResponse><Box flexDirection="column">{Object.entries(answers).map(_temp)}</Box></MessageResponse></Box>;
-    $[1] = answers;
-    $[2] = t2;
-  } else {
-    t2 = $[2];
-  }
-  return t2;
-}
-function _temp(t0) {
-  const [questionText, answer] = t0;
-  return <Text key={questionText} color="inactive">· {questionText} → {answer}</Text>;
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Box flexDirection="row">
+        <Text color={getModeColor('default')}>{BLACK_CIRCLE}&nbsp;</Text>
+        <Text>User answered {PRODUCT_DISPLAY_NAME}&apos;s questions:</Text>
+      </Box>
+      <MessageResponse>
+        <Box flexDirection="column">
+          {entries.map(([questionText, answer]) => (
+            <Text key={questionText} color="inactive">· {questionText} → {answer}</Text>
+          ))}
+        </Box>
+      </MessageResponse>
+    </Box>
+  );
 }
 export const AskUserQuestionTool: Tool<InputSchema, Output> = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,

@@ -2,10 +2,38 @@ import { c as _c } from "react-compiler-runtime";
 import React from 'react';
 import { Box, Text, useTheme } from 'src/ink.js';
 import { env } from '../../utils/env.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 const WELCOME_V2_WIDTH = 58;
+
+function BrowserWelcomeV2(): React.ReactNode {
+  return (
+    <section className="repl-welcomeV2" aria-label="Welcome to OpenClaude">
+      <div className="repl-welcomeMark" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div>
+        <p className="repl-webPickerKicker">OpenClaude v{MACRO.DISPLAY_VERSION ?? MACRO.VERSION}</p>
+        <h1>Open terminal for any LLM</h1>
+        <p>Cloud and local providers, tools, MCP, agents, and project memory in one focused coding workspace.</p>
+      </div>
+      <div className="repl-welcomeStats">
+        <span>Providers</span>
+        <span>Tools</span>
+        <span>MCP</span>
+      </div>
+    </section>
+  );
+}
+
 export function WelcomeV2() {
   const $ = _c(35);
   const [theme] = useTheme();
+  if (isBrowserRuntime()) {
+    return <BrowserWelcomeV2 />;
+  }
   if (env.terminal === "Apple_Terminal") {
     let t0;
     if ($[0] !== theme) {

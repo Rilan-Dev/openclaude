@@ -97,7 +97,10 @@ export function StatusNotices({
   }
 
   if (isBrowserRuntime()) {
-    const visibleNotices = activeNotices.filter(notice => notice.id !== 'third-party-permissive-mode');
+    const browserSuppressedNoticeIds = new Set([
+      'third-party-permissive-mode',
+    ]);
+    const visibleNotices = activeNotices.filter(notice => !browserSuppressedNoticeIds.has(notice.id));
     if (visibleNotices.length === 0) {
       return null;
     }

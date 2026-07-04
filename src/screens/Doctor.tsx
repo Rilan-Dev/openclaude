@@ -28,6 +28,7 @@ import { type DiagnosticInfo, getDoctorDiagnostic } from '../utils/doctorDiagnos
 import { validateBoundedIntEnvVar } from '../utils/envValidation.js';
 import { pathExists } from '../utils/file.js';
 import { cleanupStaleLocks, getAllLockInfo, isPidBasedLockingEnabled, type LockInfo } from '../utils/nativeInstaller/pidLock.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { getInitialSettings } from '../utils/settings/settings.js';
 import { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT } from '../utils/shell/outputLimits.js';
 import { TASK_MAX_OUTPUT_DEFAULT, TASK_MAX_OUTPUT_UPPER_LIMIT } from '../utils/task/outputFormatting.js';
@@ -254,6 +255,9 @@ export function Doctor(t0: Props) {
       t10 = $[16];
     }
     return t10;
+  }
+  if (isBrowserRuntime()) {
+    return <BrowserDoctorSurface diagnostic={diagnostic} diagnosticLoadFailed={diagnosticLoadFailed} autoUpdatesChannel={autoUpdatesChannel} distTagsPromise={distTagsPromise} envValidationErrors={envValidationErrors} errorsExcludingMcp={errorsExcludingMcp} versionLockInfo={versionLockInfo} agentInfo={agentInfo} pluginsErrors={pluginsErrors} contextWarnings={contextWarnings} localModelContextLoad={isActiveProviderLocalModel() ? buildLocalModelContextLoad(contextWarnings) : null} onDismiss={handleDismiss} />;
   }
   let t10;
   if ($[17] === Symbol.for("react.memo_cache_sentinel")) {
@@ -491,6 +495,167 @@ export function Doctor(t0: Props) {
   }
   return t41;
 }
+
+function BrowserDoctorSurface({
+  diagnostic,
+  diagnosticLoadFailed,
+  autoUpdatesChannel,
+  distTagsPromise,
+  envValidationErrors,
+  errorsExcludingMcp,
+  versionLockInfo,
+  agentInfo,
+  pluginsErrors,
+  contextWarnings,
+  localModelContextLoad,
+  onDismiss
+}: {
+  diagnostic: DiagnosticInfo;
+  diagnosticLoadFailed: boolean;
+  autoUpdatesChannel: string;
+  distTagsPromise: Promise<NpmDistTags>;
+  envValidationErrors: Array<{ name: string; status: string; message: string }>;
+  errorsExcludingMcp: unknown[];
+  versionLockInfo: VersionLockInfo | null;
+  agentInfo: AgentInfo | null;
+  pluginsErrors: Array<Parameters<typeof getPluginErrorMessage>[0]>;
+  contextWarnings: ContextWarnings | null;
+  localModelContextLoad: ReturnType<typeof buildLocalModelContextLoad> | null;
+  onDismiss: () => void;
+}) {
+  const [distTags, setDistTags] = useState<NpmDistTags | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    void distTagsPromise.then(tags => {
+      if (mounted) setDistTags(tags);
+    }).catch(() => {
+      if (mounted) setDistTags(null);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [distTagsPromise]);
+  const searchStatus = diagnostic.ripgrepStatus.working ? 'Ready' : 'Needs attention';
+  const searchMode = diagnostic.ripgrepStatus.mode === 'embedded' ? 'Bundled' : diagnostic.ripgrepStatus.mode === 'builtin' ? 'Vendor' : diagnostic.ripgrepStatus.systemPath || 'System';
+  const warningCount = diagnostic.warnings.length + envValidationErrors.length + errorsExcludingMcp.length + pluginsErrors.length + (agentInfo?.failedFiles?.length ?? 0) + (contextWarnings?.unreachableRulesWarning ? 1 : 0) + (contextWarnings?.claudeMdWarning ? 1 : 0) + (contextWarnings?.agentWarning ? 1 : 0) + (contextWarnings?.mcpWarning ? 1 : 0);
+
+  return <section className="repl-doctorSurface">
+      <div className="repl-doctorHero">
+        <span className="repl-webPickerKicker">Diagnostics</span>
+        <h2>OpenClaude health check</h2>
+        <p>{warningCount === 0 && !diagnosticLoadFailed ? 'Everything checked by Doctor is currently clean.' : `${warningCount} item${warningCount === 1 ? '' : 's'} need review.`}</p>
+        <div className="repl-doctorActions">
+          <button type="button" className="repl-webPickerPrimaryButton" onClick={onDismiss}>Return to chat</button>
+        </div>
+      </div>
+
+      <div className="repl-doctorGrid">
+        <div className="repl-doctorCard">
+          <span>Runtime</span>
+          <strong>{diagnostic.installationType}</strong>
+          <small>{diagnostic.version}</small>
+        </div>
+        <div className="repl-doctorCard">
+          <span>Search</span>
+          <strong>{searchStatus}</strong>
+          <small>{searchMode}</small>
+        </div>
+        <div className="repl-doctorCard">
+          <span>Updates</span>
+          <strong>{diagnostic.packageManager ? 'Package managed' : diagnostic.autoUpdates}</strong>
+          <small>{autoUpdatesChannel}</small>
+        </div>
+        <div className="repl-doctorCard">
+          <span>Permissions</span>
+          <strong>{diagnostic.hasUpdatePermissions === null ? 'Unknown' : diagnostic.hasUpdatePermissions ? 'Allowed' : 'Needs sudo'}</strong>
+          <small>Update access</small>
+        </div>
+      </div>
+
+      <div className="repl-doctorSections">
+        <details className="repl-doctorSection" open>
+          <summary>Installation</summary>
+          <div className="repl-doctorRows">
+            <span>Path <strong>{diagnostic.installationPath}</strong></span>
+            <span>Invoked binary <strong>{diagnostic.invokedBinary}</strong></span>
+            <span>Config install method <strong>{diagnostic.configInstallMethod}</strong></span>
+            {diagnostic.packageManager ? <span>Package manager <strong>{diagnostic.packageManager}</strong></span> : null}
+            {diagnostic.multipleInstallations.map((install, index) => <span key={`${install.path}:${index}`}>Found {install.type} <strong>{install.path}</strong></span>)}
+          </div>
+        </details>
+
+        <details className="repl-doctorSection" open={warningCount > 0}>
+          <summary>Warnings and fixes</summary>
+          <div className="repl-doctorWarnings">
+            {diagnosticLoadFailed ? <div className="repl-doctorWarning">Installation status partially failed to load.</div> : null}
+            {diagnostic.recommendation ? <div className="repl-doctorWarning">{diagnostic.recommendation}</div> : null}
+            {diagnostic.warnings.map((warning, index) => <div className="repl-doctorWarning" key={`${warning.issue}:${index}`}>
+                <strong>{warning.issue}</strong>
+                <span>{warning.fix}</span>
+              </div>)}
+            {envValidationErrors.map((validation, index) => <div className="repl-doctorWarning" key={`${validation.name}:${index}`}>
+                <strong>{validation.name}</strong>
+                <span>{validation.message}</span>
+              </div>)}
+            {errorsExcludingMcp.map((issue, index) => <div className="repl-doctorWarning" key={index}>{formatBrowserDoctorIssue(issue)}</div>)}
+            {pluginsErrors.map((pluginError, index) => <div className="repl-doctorWarning" key={index}>{getPluginErrorMessage(pluginError)}</div>)}
+            {agentInfo?.failedFiles?.map((file, index) => <div className="repl-doctorWarning" key={`${file.path}:${index}`}>
+                <strong>{file.path}</strong>
+                <span>{file.error}</span>
+              </div>)}
+            {warningCount === 0 ? <div className="repl-doctorEmpty">No warnings reported.</div> : null}
+          </div>
+        </details>
+
+        <details className="repl-doctorSection">
+          <summary>Context and permissions</summary>
+          <div className="repl-doctorRows">
+            {contextWarnings?.unreachableRulesWarning ? <span>{contextWarnings.unreachableRulesWarning.message} <strong>{contextWarnings.unreachableRulesWarning.details.join(', ')}</strong></span> : null}
+            {contextWarnings?.claudeMdWarning ? <span>{contextWarnings.claudeMdWarning.message} <strong>{contextWarnings.claudeMdWarning.details.join(', ')}</strong></span> : null}
+            {contextWarnings?.agentWarning ? <span>{contextWarnings.agentWarning.message} <strong>{contextWarnings.agentWarning.details.join(', ')}</strong></span> : null}
+            {contextWarnings?.mcpWarning ? <span>{contextWarnings.mcpWarning.message} <strong>{contextWarnings.mcpWarning.details.join(', ')}</strong></span> : null}
+            {localModelContextLoad ? localModelContextLoad.contributors.map(contributor => <span key={contributor.id}>{contributor.message} <strong>{contributor.details.join(', ')}</strong></span>) : null}
+            {!contextWarnings && !localModelContextLoad ? <span>No context warnings loaded.</span> : null}
+          </div>
+        </details>
+
+        <details className="repl-doctorSection">
+          <summary>Agents and version locks</summary>
+          <div className="repl-doctorRows">
+            {agentInfo ? <>
+                <span>User agents <strong>{agentInfo.userDirExists ? agentInfo.userAgentsDir : 'Not configured'}</strong></span>
+                <span>Project agents <strong>{agentInfo.projectDirExists ? agentInfo.projectAgentsDir : 'Not configured'}</strong></span>
+                <span>Active agents <strong>{agentInfo.activeAgents.length}</strong></span>
+              </> : <span>Agent information is still loading.</span>}
+            {versionLockInfo?.enabled ? <>
+                <span>Lock directory <strong>{versionLockInfo.locksDir}</strong></span>
+                <span>Active locks <strong>{versionLockInfo.locks.length}</strong></span>
+                <span>Stale locks cleaned <strong>{versionLockInfo.staleLocksCleaned}</strong></span>
+              </> : <span>Version locking is disabled.</span>}
+          </div>
+        </details>
+
+        <details className="repl-doctorSection">
+          <summary>Version channels</summary>
+          <div className="repl-doctorRows">
+            <span>Stable <strong>{distTags?.stable ?? 'Checking...'}</strong></span>
+            <span>Latest <strong>{distTags?.latest ?? 'Checking...'}</strong></span>
+          </div>
+        </details>
+      </div>
+    </section>;
+}
+
+function formatBrowserDoctorIssue(issue: unknown): string {
+  if (issue && typeof issue === 'object') {
+    const record = issue as Record<string, unknown>;
+    const source = typeof record.source === 'string' ? `${record.source}: ` : '';
+    const message = typeof record.message === 'string' ? record.message : typeof record.error === 'string' ? record.error : JSON.stringify(record);
+    return `${source}${message}`;
+  }
+  return String(issue);
+}
+
 function _temp19(contributor) {
   return <React.Fragment key={contributor.id}><Text>└{" "}<Text color="warning">{figures.warning} {contributor.message}</Text></Text>{contributor.details.map(_temp20)}</React.Fragment>;
 }

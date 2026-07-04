@@ -10,6 +10,7 @@ import { AgentProgressLine } from '../../components/AgentProgressLine.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js';
 import { Markdown } from '../../components/Markdown.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { Message as MessageComponent } from '../../components/Message.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { ToolUseLoader } from '../../components/ToolUseLoader.js';
@@ -99,6 +100,88 @@ function processProgressMessages(messages: ProgressMessage<Progress>[], _tools: 
 const ESTIMATED_LINES_PER_TOOL = 9;
 const TERMINAL_BUFFER_LINES = 7;
 type Output = z.input<ReturnType<typeof outputSchema>>;
+
+function renderBrowserAgentProgress(
+  progressMessages: ProgressMessage<Progress>[],
+  tools: Tools,
+): React.ReactNode {
+  const toolUseCount = count(progressMessages, msg => {
+    if (!hasProgressMessage(msg.data)) {
+      return false;
+    }
+    return msg.data.message.message.content.some(content => content.type === 'tool_use');
+  });
+  const latestAssistant = progressMessages.findLast(
+    (msg): msg is ProgressMessage<AgentToolProgress> =>
+      hasProgressMessage(msg.data) && msg.data.message.type === 'assistant',
+  );
+  const tokens =
+    latestAssistant?.data.message.type === 'assistant'
+      ? (latestAssistant.data.message.message.usage.cache_creation_input_tokens ?? 0) +
+        (latestAssistant.data.message.message.usage.cache_read_input_tokens ?? 0) +
+        latestAssistant.data.message.message.usage.input_tokens +
+        latestAssistant.data.message.message.usage.output_tokens
+      : null;
+  const processedMessages = processProgressMessages(progressMessages, tools, true).slice(-3);
+
+  return (
+    <BrowserToolResultDisclosure
+      title={progressMessages.length > 0 ? 'Agent is working' : 'Agent initializing'}
+      detail={[
+        toolUseCount > 0 ? `${toolUseCount} ${toolUseCount === 1 ? 'tool' : 'tools'}` : null,
+        tokens ? `${formatNumber(tokens)} tokens` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+      state="running"
+    >
+      <div className="oc-agentProgressStack">
+        {processedMessages.length > 0 ? (
+          processedMessages.map(processed => {
+            if (processed.type === 'summary') {
+              return (
+                <div className="oc-agentProgressLine" key={processed.uuid}>
+                  {getSearchReadSummaryText(
+                    processed.searchCount,
+                    processed.readCount,
+                    processed.isActive,
+                    processed.replCount,
+                  )}
+                </div>
+              );
+            }
+
+            const messageText = extractAgentProgressText(processed.message);
+            return messageText ? (
+              <div className="oc-agentProgressLine" key={processed.message.uuid}>
+                {messageText}
+              </div>
+            ) : null;
+          })
+        ) : (
+          <div className="oc-agentProgressLine">Preparing the agent workspace.</div>
+        )}
+      </div>
+    </BrowserToolResultDisclosure>
+  );
+}
+
+function extractAgentProgressText(message: ProgressMessage<AgentToolProgress>): string | null {
+  const textParts = message.data.message.message.content
+    .filter(part => part.type === 'text')
+    .map(part => part.text.trim())
+    .filter(Boolean);
+  if (textParts.length > 0) {
+    return textParts.join(' ');
+  }
+
+  const toolUse = message.data.message.message.content.find(part => part.type === 'tool_use');
+  if (toolUse) {
+    return `Using ${toolUse.name}`;
+  }
+
+  return null;
+}
 export function AgentPromptDisplay(t0) {
   const $ = _c(3);
   const {
@@ -247,21 +330,16 @@ export function renderToolResultMessage(data: Output, progressMessagesForMessage
     } = data;
     if (isBrowserRuntime()) {
       return (
-        <div className="oc-agentInlineCard" data-status="running">
-          <div className="oc-agentInlineHeader">
-            <span className="oc-agentInlinePulse" />
-            <div>
-              <div className="oc-agentInlineTitle">Background agent started</div>
-              <div className="oc-agentInlineMeta">Working in this conversation</div>
-            </div>
-          </div>
+        <BrowserToolResultDisclosure title="Background agent started" detail="Working in this conversation" state="running">
           {prompt ? (
-            <details className="oc-agentInlineDetails">
-              <summary>View agent brief</summary>
-              <div className="oc-agentInlinePrompt">{prompt}</div>
-            </details>
-          ) : null}
-        </div>
+            <div className="oc-agentInlinePrompt">
+              <div className="oc-agentInlineLabel">Agent brief</div>
+              {prompt}
+            </div>
+          ) : (
+            <div className="oc-agentInlineMeta">The agent is running in the background and will report back here.</div>
+          )}
+        </BrowserToolResultDisclosure>
       );
     }
     return <Box flexDirection="column">
@@ -298,23 +376,14 @@ export function renderToolResultMessage(data: Output, progressMessagesForMessage
   const completionMessage = `Done (${result.join(' · ')})`;
   if (isBrowserRuntime()) {
     return (
-      <div className="oc-agentInlineCard" data-status="completed">
-        <div className="oc-agentInlineHeader">
-          <span className="oc-agentInlinePulse" />
-          <div>
-            <div className="oc-agentInlineTitle">Agent completed</div>
-            <div className="oc-agentInlineMeta">{result.join(' · ')}</div>
-          </div>
-        </div>
+      <BrowserToolResultDisclosure title="Agent completed" detail={result.join(' · ')} state="done" defaultOpen={isTranscriptMode}>
         {content && content.length > 0 ? (
-          <details className="oc-agentInlineDetails" open={isTranscriptMode ? true : undefined}>
-            <summary>View agent response</summary>
-            <div className="oc-agentInlineResponse">
-              <AgentResponseDisplay content={content} theme={theme} />
-            </div>
-          </details>
+          <div className="oc-agentInlineResponse">
+            <div className="oc-agentInlineLabel">Agent response</div>
+            <AgentResponseDisplay content={content} theme={theme} />
+          </div>
         ) : null}
-      </div>
+      </BrowserToolResultDisclosure>
     );
   }
   const finalAssistantMessage = createAssistantMessage({
@@ -395,6 +464,10 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
   inProgressToolCallCount?: number;
   isTranscriptMode?: boolean;
 }): React.ReactNode {
+  if (isBrowserRuntime()) {
+    return renderBrowserAgentProgress(progressMessages, tools);
+  }
+
   if (!progressMessages.length) {
     return <MessageResponse height={1}>
         <Text dimColor>{INITIALIZING_TEXT}</Text>
@@ -664,6 +737,32 @@ export function renderGroupedAgentToolUse(toolUses: Array<{
 
   // Check if all resolved agents are async (background)
   const allAsync = agentStats.every(stat => stat.isAsync);
+
+  if (isBrowserRuntime()) {
+    const agentLabel = commonType ? `${commonType} agents` : toolUses.length === 1 ? 'agent' : 'agents';
+    const title = allComplete
+      ? allAsync
+        ? `${toolUses.length} background ${toolUses.length === 1 ? 'agent' : 'agents'} launched`
+        : `${toolUses.length} ${agentLabel} finished`
+      : `Running ${toolUses.length} ${agentLabel}`;
+    const detail = allComplete
+      ? allAsync
+        ? 'Running in background'
+        : 'Completed'
+      : 'Live progress';
+    const state = anyError ? 'error' : allComplete ? 'done' : 'running';
+
+    return (
+      <BrowserToolResultDisclosure title={title} detail={detail} state={state} defaultOpen={!allComplete}>
+        <div className="oc-agentProgressStack">
+          {agentStats.map((stat, index) => (
+            <AgentProgressLine key={stat.id} agentType={stat.agentType} description={stat.description} descriptionColor={stat.descriptionColor} taskDescription={stat.taskDescription} toolUseCount={stat.toolUseCount} tokens={stat.tokens} color={stat.color} isLast={index === agentStats.length - 1} isResolved={stat.isResolved} isError={stat.isError} isAsync={stat.isAsync} shouldAnimate={shouldAnimate} lastToolInfo={stat.lastToolInfo} hideType={allSameType} name={stat.name} />
+          ))}
+        </div>
+      </BrowserToolResultDisclosure>
+    );
+  }
+
   return <Box flexDirection="column" marginTop={1}>
       <Box flexDirection="row">
         <ToolUseLoader shouldAnimate={shouldAnimate && anyUnresolved} isUnresolved={anyUnresolved} isError={anyError} />

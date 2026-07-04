@@ -5,6 +5,7 @@ import { Box, Text } from '../ink.js';
 import type { Screen } from '../screens/REPL.js';
 import type { NormalizedUserMessage } from '../types/message.js';
 import { getUserMessageText } from '../utils/messages.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { MessageResponse } from './MessageResponse.js';
 type Props = {
@@ -28,6 +29,27 @@ export function CompactSummary(t0) {
   }
   const textContent = t1;
   const metadata = message.summarizeMetadata;
+  if (isBrowserRuntime()) {
+    if (metadata) {
+      return (
+        <div className="oc-historyBoundaryCard">
+          <div className="oc-historyBoundaryTitle">Conversation summarized</div>
+          <div className="oc-historyBoundaryMeta">
+            {metadata.messagesSummarized} messages {metadata.direction === 'up_to' ? 'up to this point' : 'from this point'}
+          </div>
+          {metadata.userContext ? <div className="oc-historyBoundaryContext">{metadata.userContext}</div> : null}
+          {isTranscriptMode && textContent ? <pre className="oc-toolCodeBlock">{textContent}</pre> : null}
+        </div>
+      );
+    }
+
+    return (
+      <div className="oc-historyBoundaryCard">
+        <div className="oc-historyBoundaryTitle">Compact summary</div>
+        {isTranscriptMode && textContent ? <pre className="oc-toolCodeBlock">{textContent}</pre> : null}
+      </div>
+    );
+  }
   if (metadata) {
     let t2;
     if ($[2] === Symbol.for("react.memo_cache_sentinel")) {

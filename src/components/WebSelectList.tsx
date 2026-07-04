@@ -8,6 +8,7 @@ type WebSelectOption = {
 }
 
 type Props = {
+  kicker?: string
   title: string
   subtitle?: React.ReactNode
   options: WebSelectOption[]
@@ -22,6 +23,7 @@ type Props = {
 }
 
 export function WebSelectList({
+  kicker = 'OpenClaude',
   title,
   subtitle,
   options,
@@ -47,7 +49,7 @@ export function WebSelectList({
   return (
     <section className={['repl-webPicker', className].filter(Boolean).join(' ')}>
       <div className="repl-webPickerHeader">
-        <span className="repl-webPickerKicker">OpenClaude</span>
+        <span className="repl-webPickerKicker">{kicker}</span>
         <h2>{title}</h2>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
@@ -77,7 +79,7 @@ export function WebSelectList({
               }}
             >
               <span className="repl-webPickerOptionMark" aria-hidden="true">
-                {isSelected ? 'On' : option.disabled ? '--' : 'Go'}
+                {isSelected ? 'On' : option.disabled ? 'Off' : ''}
               </span>
               <span className="repl-webPickerOptionCopy">
                 <span className="repl-webPickerOptionTitle">

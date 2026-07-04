@@ -339,7 +339,7 @@ export function ModelPicker(t0) {
           </span> : null}
         {onRefresh ? <button type="button" className="repl-webPickerGhostButton" onClick={onRefresh}>Refresh</button> : null}
       </div>;
-    const browserContent = <WebSelectList className="repl-modelPickerList" title="Choose model" subtitle={<>{t16}{sessionModel ? <><br />Currently using {modelDisplayString(sessionModel)} for this session. Selecting a model will undo this.</> : null}{discoveryState ? <><br />{discoveryState.message}</> : null}</>} options={browserOptions} selectedValue={initialValue} focusedValue={focusedValue} hiddenCount={0} onSelect={handleSelect} onFocus={handleFocus} onCancel={onCancel} footer={effortFooter} />;
+    const browserContent = <WebSelectList kicker="Model routing" className="repl-modelPickerList" title="Choose model" subtitle={<>{t16}{sessionModel ? <><br />Currently using {modelDisplayString(sessionModel)} for this session. Selecting a model will undo this.</> : null}{discoveryState ? <><br />{discoveryState.message}</> : null}</>} options={browserOptions} selectedValue={initialValue} focusedValue={focusedValue} hiddenCount={0} onSelect={handleSelect} onFocus={handleFocus} onCancel={onCancel} footer={effortFooter} />;
     return isStandaloneCommand ? <div className="repl-commandSurface repl-modelPickerSurface repl-providerManagerSurface">{browserContent}</div> : browserContent;
   }
   const t19 = <Box marginBottom={1} flexDirection="column">{t15}{t17}{t18}{discoveryLine}</Box>;

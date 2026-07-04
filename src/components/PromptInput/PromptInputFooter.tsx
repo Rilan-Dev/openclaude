@@ -237,6 +237,6 @@ function BridgeStatusIndicator({
   }
   return <Text color={bridgeSelected ? 'background' : status.color} inverse={bridgeSelected} wrap="truncate">
       {status.label}
-      {bridgeSelected && <Text dimColor> · Enter to view</Text>}
+      {bridgeSelected && <Text dimColor> · {isBrowserRuntime() ? 'Open details' : 'Enter to view'}</Text>}
     </Text>;
 }

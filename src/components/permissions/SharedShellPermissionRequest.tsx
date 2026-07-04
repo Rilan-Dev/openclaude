@@ -128,29 +128,43 @@ export function SharedShellPermissionRequest<T extends string>({
             {displayedOptions.map((option, index) => {
               const label = plainTextFromNode(option.label) || String(option.value)
               return (
-                <button
+                <div
                   key={String(option.value)}
-                  type="button"
-                  className="repl-webPermissionAction"
-                  data-primary={index === 0 ? 'true' : undefined}
-                  disabled={option.disabled}
-                  onClick={() => onSelect(option.value)}
-                  onMouseEnter={() => onFocus(option.value)}
-                  onFocus={() => onFocus(option.value)}
-                  onDoubleClick={() => onInputModeToggle(option.value)}
+                  className="repl-webPermissionActionWrap"
                 >
-                  <span>{label}</span>
-                  {option.description ? <small>{option.description}</small> : null}
-                </button>
+                  <button
+                    type="button"
+                    className="repl-webPermissionAction"
+                    data-primary={index === 0 ? 'true' : undefined}
+                    disabled={option.disabled}
+                    onClick={() => onSelect(option.value)}
+                    onMouseEnter={() => onFocus(option.value)}
+                    onFocus={() => onFocus(option.value)}
+                  >
+                    <span>{label}</span>
+                    {option.description ? <small>{option.description}</small> : null}
+                  </button>
+                  {option.type === 'input' ? (
+                    <textarea
+                      className="repl-webPermissionTextarea"
+                      defaultValue={option.initialValue}
+                      placeholder={option.placeholder}
+                      rows={2}
+                      disabled={option.disabled}
+                      onChange={event => option.onChange(event.currentTarget.value)}
+                      onFocus={() => onFocus(option.value)}
+                    />
+                  ) : null}
+                </div>
               )
             })}
           </div>
         </div>
         <div className="repl-webPermissionFooter">
-          <button type="button" onClick={onCancel}>Esc to cancel</button>
+          <button type="button" onClick={onCancel}>Cancel request</button>
           <span>
             {explainerState.enabled
-              ? `Ctrl+E to ${explainerState.visible ? 'hide' : 'explain'}`
+              ? (explainerState.visible ? 'Explanation is visible for this request.' : 'Review the command, then choose an action.')
               : 'Review before running'}
           </span>
         </div>

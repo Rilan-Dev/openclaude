@@ -1,9 +1,9 @@
-import { c as _c } from "react-compiler-runtime";
 import { basename, relative } from 'path';
 import React from 'react';
 import { Box, Text } from '../ink.js';
 import { getCwd } from '../utils/cwd.js';
 import { isSupportedVSCodeTerminal } from '../utils/ide.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { Select } from './CustomSelect/index.js';
 import { Pane } from './design-system/Pane.js';
 import type { PermissionOption, PermissionOptionWithLabel } from './permissions/FilePermissionDialog/permissionOptions.js';
@@ -22,156 +22,126 @@ type Props<A> = {
   yesInputMode: boolean;
   noInputMode: boolean;
 };
-export function ShowInIDEPrompt(t0) {
-  const $ = _c(37);
-  const {
-    onChange,
-    options,
-    input,
-    filePath,
-    ideName,
-    symlinkTarget,
-    rejectFeedback,
-    acceptFeedback,
-    setFocusedOption,
-    onInputModeToggle,
-    focusedOption,
-    yesInputMode,
-    noInputMode
-  } = t0;
-  let t1;
-  if ($[0] !== ideName) {
-    t1 = <Text bold={true} color="permission">Opened changes in {ideName} ⧉</Text>;
-    $[0] = ideName;
-    $[1] = t1;
-  } else {
-    t1 = $[1];
-  }
-  let t2;
-  if ($[2] !== symlinkTarget) {
-    t2 = symlinkTarget && <Text color="warning">{relative(getCwd(), symlinkTarget).startsWith("..") ? `This will modify ${symlinkTarget} (outside working directory) via a symlink` : `Symlink target: ${symlinkTarget}`}</Text>;
-    $[2] = symlinkTarget;
-    $[3] = t2;
-  } else {
-    t2 = $[3];
-  }
-  let t3;
-  if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
-    t3 = isSupportedVSCodeTerminal() && <Text dimColor={true}>Save file to continue…</Text>;
-    $[4] = t3;
-  } else {
-    t3 = $[4];
-  }
-  let t4;
-  if ($[5] !== filePath) {
-    t4 = basename(filePath);
-    $[5] = filePath;
-    $[6] = t4;
-  } else {
-    t4 = $[6];
-  }
-  let t5;
-  if ($[7] !== t4) {
-    t5 = <Text>Do you want to make this edit to{" "}<Text bold={true}>{t4}</Text>?</Text>;
-    $[7] = t4;
-    $[8] = t5;
-  } else {
-    t5 = $[8];
-  }
-  let t6;
-  if ($[9] !== acceptFeedback || $[10] !== input || $[11] !== onChange || $[12] !== options || $[13] !== rejectFeedback || $[36] !== noInputMode) {
-    t6 = value => {
-      const selected = options.find(opt => opt.value === value);
-      if (selected) {
-        if (selected.option.type === "reject") {
-          const trimmedFeedback = selected.option.withReason || noInputMode ? rejectFeedback.trim() : "";
-          if (selected.option.withReason && !trimmedFeedback) {
-            return;
-          }
-          onChange(selected.option, input, trimmedFeedback || undefined);
-          return;
-        }
-        if (selected.option.type === "accept-once") {
-          const trimmedFeedback_0 = acceptFeedback.trim();
-          onChange(selected.option, input, trimmedFeedback_0 || undefined);
-          return;
-        }
-        onChange(selected.option, input);
+export function ShowInIDEPrompt<A>({
+  onChange,
+  options,
+  input,
+  filePath,
+  ideName,
+  symlinkTarget,
+  rejectFeedback,
+  acceptFeedback,
+  setFocusedOption,
+  onInputModeToggle,
+  focusedOption,
+  yesInputMode,
+  noInputMode,
+}: Props<A>): React.ReactNode {
+  const fileName = basename(filePath);
+  const symlinkWarning = symlinkTarget
+    ? relative(getCwd(), symlinkTarget).startsWith('..')
+      ? `This will modify ${symlinkTarget} outside the working directory through a symlink.`
+      : `Symlink target: ${symlinkTarget}`
+    : null;
+  const saveHint = isSupportedVSCodeTerminal() ? 'Save file to continue.' : null;
+
+  const selectOption = (value: string) => {
+    const selected = options.find(opt => opt.value === value);
+    if (!selected) {
+      return;
+    }
+    if (selected.option.type === 'reject') {
+      const trimmedFeedback = selected.option.withReason || noInputMode ? rejectFeedback.trim() : '';
+      if (selected.option.withReason && !trimmedFeedback) {
+        return;
       }
-    };
-    $[9] = acceptFeedback;
-    $[10] = input;
-    $[11] = onChange;
-    $[12] = options;
-    $[13] = rejectFeedback;
-    $[36] = noInputMode;
-    $[14] = t6;
-  } else {
-    t6 = $[14];
+      onChange(selected.option, input, trimmedFeedback || undefined);
+      return;
+    }
+    if (selected.option.type === 'accept-once') {
+      const trimmedFeedback = acceptFeedback.trim();
+      onChange(selected.option, input, trimmedFeedback || undefined);
+      return;
+    }
+    onChange(selected.option, input);
+  };
+
+  const reject = () => onChange({ type: 'reject' }, input);
+
+  if (isBrowserRuntime()) {
+    return (
+      <div className="repl-webPermissionCard repl-webPermissionCard--ide" role="dialog" aria-modal="true" aria-label="IDE edit review">
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">IDE review</div>
+            <h2>Opened changes in {ideName}</h2>
+            <p>Review the diff for {fileName}, then choose how to continue.</p>
+          </div>
+          <span className="repl-webPermissionBadge">Review</span>
+        </div>
+        <div className="repl-webPermissionBody">
+          <div className="repl-webPermissionTarget">
+            <span className="repl-webPermissionTargetLabel">File</span>
+            <strong>{filePath}</strong>
+            {symlinkWarning ? <small>{symlinkWarning}</small> : null}
+            {saveHint ? <small>{saveHint}</small> : null}
+          </div>
+          <p className="repl-webPermissionQuestion">Do you want to make this edit?</p>
+          <div className="repl-webPermissionActions">
+            {options.map((option, index) => (
+              <button
+                key={option.value}
+                type="button"
+                className="repl-webPermissionAction"
+                data-primary={index === 0 ? 'true' : undefined}
+                onClick={() => selectOption(option.value)}
+                onMouseEnter={() => setFocusedOption(option.value)}
+                onFocus={() => setFocusedOption(option.value)}
+                onDoubleClick={() => onInputModeToggle(option.value)}
+              >
+                <span>{option.label}</span>
+                {option.description ? <small>{option.description}</small> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="repl-webPermissionFooter">
+          <button type="button" onClick={reject}>Cancel request</button>
+          <span>Approve the IDE diff only after reviewing the changes.</span>
+        </div>
+      </div>
+    );
   }
-  let t7;
-  if ($[15] !== input || $[16] !== onChange) {
-    t7 = () => onChange({
-      type: "reject"
-    }, input);
-    $[15] = input;
-    $[16] = onChange;
-    $[17] = t7;
-  } else {
-    t7 = $[17];
-  }
-  let t8;
-  if ($[18] !== setFocusedOption) {
-    t8 = value_0 => setFocusedOption(value_0);
-    $[18] = setFocusedOption;
-    $[19] = t8;
-  } else {
-    t8 = $[19];
-  }
-  let t9;
-  if ($[20] !== onInputModeToggle || $[21] !== options || $[22] !== t6 || $[23] !== t7 || $[24] !== t8) {
-    t9 = <Select options={options} inlineDescriptions={true} onChange={t6} onCancel={t7} onFocus={t8} onInputModeToggle={onInputModeToggle} onEmptyInputSubmit={value_1 => {
-      if (value_1 !== "no-with-reason") {
-        t7();
-      }
-    }} />;
-    $[20] = onInputModeToggle;
-    $[21] = options;
-    $[22] = t6;
-    $[23] = t7;
-    $[24] = t8;
-    $[25] = t9;
-  } else {
-    t9 = $[25];
-  }
-  let t10;
-  if ($[26] !== t5 || $[27] !== t9) {
-    t10 = <Box flexDirection="column">{t5}{t9}</Box>;
-    $[26] = t5;
-    $[27] = t9;
-    $[28] = t10;
-  } else {
-    t10 = $[28];
-  }
-  const t11 = (focusedOption === "yes" && !yesInputMode || focusedOption === "no" && !noInputMode) && " \xB7 Tab to amend";
-  let t12;
-  if ($[29] !== t11) {
-    t12 = <Box marginTop={1}><Text dimColor={true}>Esc to cancel{t11}</Text></Box>;
-    $[29] = t11;
-    $[30] = t12;
-  } else {
-    t12 = $[30];
-  }
-  let t13;
-  if ($[31] !== t1 || $[32] !== t10 || $[33] !== t12 || $[34] !== t2) {
-    t13 = <Pane color="permission"><Box flexDirection="column" gap={1}>{t1}{t2}{t3}{t10}{t12}</Box></Pane>;
-    $[31] = t1;
-    $[32] = t10;
-    $[33] = t12;
-    $[34] = t2;
-    $[35] = t13;
-  } else {
-    t13 = $[35];
-  }
-  return t13;
+
+  const showTabHint = (focusedOption === 'yes' && !yesInputMode) || (focusedOption === 'no' && !noInputMode);
+
+  return (
+    <Pane color="permission">
+      <Box flexDirection="column" gap={1}>
+        <Text bold={true} color="permission">Opened changes in {ideName} ⧉</Text>
+        {symlinkWarning ? <Text color="warning">{symlinkWarning}</Text> : null}
+        {saveHint ? <Text dimColor={true}>{saveHint}</Text> : null}
+        <Box flexDirection="column">
+          <Text>Do you want to make this edit to <Text bold={true}>{fileName}</Text>?</Text>
+          <Select
+            options={options}
+            inlineDescriptions={true}
+            onChange={selectOption}
+            onCancel={reject}
+            onFocus={value => setFocusedOption(value)}
+            onInputModeToggle={onInputModeToggle}
+            onEmptyInputSubmit={value => {
+              if (value !== 'no-with-reason') {
+                reject();
+              }
+            }}
+          />
+        </Box>
+        <Box marginTop={1}>
+          <Text dimColor={true}>Esc to cancel{showTabHint ? ' · Tab to amend' : ''}</Text>
+        </Box>
+      </Box>
+    </Pane>
+  );
 }

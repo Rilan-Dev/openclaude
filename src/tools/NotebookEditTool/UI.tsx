@@ -8,10 +8,12 @@ import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErr
 import { FilePathLink } from '../../components/FilePathLink.js';
 import { HighlightedCode } from '../../components/HighlightedCode.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { NotebookEditToolUseRejectedMessage } from '../../components/NotebookEditToolUseRejectedMessage.js';
 import { Box, Text } from '../../ink.js';
 import type { Tools } from '../../Tool.js';
 import { getDisplayPath } from '../../utils/file.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { inputSchema, Output } from './NotebookEditTool.js';
 export function getToolUseSummary(input: Partial<z.infer<ReturnType<typeof inputSchema>>> | undefined): string | null {
   if (!input?.notebook_path) {
@@ -63,6 +65,13 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
   verbose: boolean;
 }): React.ReactNode {
   if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error')) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Notebook edit failed" detail="Unable to update cell" state="error" defaultOpen>
+          <div className="oc-toolResultError">{extractTag(result, 'tool_use_error') ?? 'Error editing notebook'}</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <MessageResponse>
         <Text color="error">Error editing notebook</Text>
       </MessageResponse>;
@@ -75,9 +84,23 @@ export function renderToolResultMessage({
   error
 }: Output): React.ReactNode {
   if (error) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Notebook edit failed" detail="Tool returned an error" state="error" defaultOpen>
+          <div className="oc-toolResultError">{error}</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <MessageResponse>
         <Text color="error">{error}</Text>
       </MessageResponse>;
+  }
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="Updated notebook cell" detail={`Cell ${cell_id}`} state="done">
+        <pre className="oc-toolCodeBlock">{new_source}</pre>
+      </BrowserToolResultDisclosure>
+    );
   }
   return <MessageResponse>
       <Box flexDirection="column">

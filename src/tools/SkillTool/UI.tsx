@@ -7,11 +7,13 @@ import type { z } from 'zod/v4';
 import type { Command } from '../../commands.js';
 import { Byline } from '../../components/design-system/Byline.js';
 import { Message as MessageComponent } from '../../components/Message.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { Box, Text } from '../../ink.js';
 import type { Tools } from '../../Tool.js';
 import type { ProgressMessage } from '../../types/message.js';
 import { buildSubagentLookups, EMPTY_LOOKUPS } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { plural } from '../../utils/stringUtils.js';
 import type { inputSchema, Output, Progress } from './SkillTool.js';
 type Input = z.infer<ReturnType<typeof inputSchema>>;
@@ -20,6 +22,13 @@ const INITIALIZING_TEXT = 'Initializing…';
 export function renderToolResultMessage(output: Output): React.ReactNode {
   // Handle forked skill result
   if ('status' in output && output.status === 'forked') {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Skill started" detail="Running in the background" state="running">
+          <div className="oc-agentProgressLine">The skill is working in this conversation.</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <MessageResponse height={1}>
         <Text>
           <Byline>{['Done']}</Byline>
@@ -37,6 +46,13 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
   // Show model if non-default (only for inline skills)
   if ('model' in output && output.model) {
     parts.push(output.model);
+  }
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="Skill loaded" detail={parts.slice(1).join(' · ') || undefined} state="done">
+        <div className="oc-agentProgressLine">{parts.join(' · ')}</div>
+      </BrowserToolResultDisclosure>
+    );
   }
   return <MessageResponse height={1}>
       <Text>
@@ -69,6 +85,22 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
   tools: Tools;
   verbose: boolean;
 }): React.ReactNode {
+  if (isBrowserRuntime()) {
+    const displayedMessages = verbose ? progressMessages : progressMessages.slice(-MAX_PROGRESS_MESSAGES_TO_SHOW);
+    const hiddenCount = progressMessages.length - displayedMessages.length;
+    return (
+      <BrowserToolResultDisclosure title="Running skill" detail={progressMessages.length ? `${progressMessages.length} ${plural(progressMessages.length, 'update')}` : INITIALIZING_TEXT} state="running">
+        <div className="oc-agentProgressStack">
+          {displayedMessages.length > 0 ? displayedMessages.map(progressMessage => {
+          const text = extractSkillProgressText(progressMessage);
+          return text ? <div className="oc-agentProgressLine" key={progressMessage.uuid}>{text}</div> : null;
+        }) : <div className="oc-agentProgressLine">{INITIALIZING_TEXT}</div>}
+          {hiddenCount > 0 ? <div className="oc-agentProgressLine">+{hiddenCount} more tool {plural(hiddenCount, 'use')}</div> : null}
+        </div>
+      </BrowserToolResultDisclosure>
+    );
+  }
+
   if (!progressMessages.length) {
     return <MessageResponse height={1}>
         <Text dimColor>{INITIALIZING_TEXT}</Text>
@@ -93,6 +125,17 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
           </Text>}
       </Box>
     </MessageResponse>;
+}
+
+function extractSkillProgressText(progressMessage: ProgressMessage<Progress>): string | null {
+  const message = progressMessage.data.message;
+  const content = message.message.content;
+  const text = content.filter(part => part.type === 'text').map(part => part.text.trim()).filter(Boolean).join('\n');
+  if (text) {
+    return text;
+  }
+  const toolUse = content.find(part => part.type === 'tool_use');
+  return toolUse ? `Used ${toolUse.name}` : null;
 }
 export function renderToolUseRejectedMessage(_input: Input, {
   progressMessagesForMessage,

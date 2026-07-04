@@ -33,6 +33,10 @@ type Props = {
   isPasting?: boolean
   selectedModel: string
   thinkingEnabled?: boolean
+  permissionModeLabel?: string
+  permissionModeDetail?: string
+  permissionModeActive?: boolean
+  permissionModeTone?: string
   suggestions?: SuggestionItem[]
   selectedSuggestion?: number
   commandArgumentHint?: string
@@ -53,6 +57,7 @@ type Props = {
   onClearSuggestions: () => void
   onOpenModelPicker: () => void
   onOpenThinkingToggle: () => void
+  onCyclePermissionMode?: () => void
 }
 
 const quickActions = [
@@ -70,6 +75,10 @@ export function ClaudeStyleChatInput({
   isPasting = false,
   selectedModel,
   thinkingEnabled,
+  permissionModeLabel,
+  permissionModeDetail,
+  permissionModeActive = false,
+  permissionModeTone = 'default',
   suggestions = [],
   selectedSuggestion = -1,
   commandArgumentHint,
@@ -90,6 +99,7 @@ export function ClaudeStyleChatInput({
   onClearSuggestions,
   onOpenModelPicker,
   onOpenThinkingToggle,
+  onCyclePermissionMode,
 }: Props): React.ReactNode {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -336,6 +346,22 @@ export function ClaudeStyleChatInput({
           </div>
 
           <div className="oc-claude-toolsRight">
+            {permissionModeLabel ? (
+              <button
+                type="button"
+                className="oc-claude-permissionButton"
+                data-active={permissionModeActive ? 'true' : undefined}
+                data-mode={permissionModeTone}
+                onClick={onCyclePermissionMode}
+                aria-label="Change permission mode"
+              >
+                <span className="oc-claude-permissionDot" aria-hidden="true" />
+                <span className="oc-claude-permissionText">
+                  <span>{permissionModeLabel}</span>
+                  {permissionModeDetail ? <small>{permissionModeDetail}</small> : null}
+                </span>
+              </button>
+            ) : null}
             <button
               type="button"
               className="oc-claude-modelButton"

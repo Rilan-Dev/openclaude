@@ -4,6 +4,7 @@ import React, { useContext } from 'react';
 import { Text } from '../ink.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
 import { InVirtualListContext } from './messageActions.js';
 
@@ -31,7 +32,7 @@ export function CtrlOToExpand() {
   const isInSubAgent = useContext(SubAgentContext);
   const inVirtualList = useContext(InVirtualListContext);
   const expandShortcut = useShortcutDisplay("app:toggleTranscript", "Global", "ctrl+o");
-  if (isInSubAgent || inVirtualList) {
+  if (isBrowserRuntime() || isInSubAgent || inVirtualList) {
     return null;
   }
   let t0;

@@ -24,6 +24,7 @@ import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketpla
 import { installPluginFromMarketplace } from '../../utils/plugins/pluginInstallationHelpers.js';
 import { isPluginBlockedByPolicy } from '../../utils/plugins/pluginPolicy.js';
 import { plural } from '../../utils/stringUtils.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { truncateToWidth } from '../../utils/truncate.js';
 import { findPluginOptionsTarget, PluginOptionsFlow } from './PluginOptionsFlow.js';
 import { PluginTrustWarning } from './PluginTrustWarning.js';
@@ -492,11 +493,33 @@ export function DiscoverPlugins({
 
   // Loading state
   if (loading) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugins</span>
+            <h2>Discover plugins</h2>
+            <p>Loading marketplace plugins and install metadata.</p>
+          </div>
+          <div className="repl-webPickerLoading" />
+        </section>;
+    }
     return <Text>Loading…</Text>;
   }
 
   // Error state
   if (error) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugins</span>
+            <h2>Discover plugins</h2>
+            <p className="repl-pluginError">{error}</p>
+          </div>
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+          type: 'menu'
+        })}>Back to plugins</button>
+        </section>;
+    }
     return <Text color="error">{error}</Text>;
   }
 
@@ -505,6 +528,46 @@ export function DiscoverPlugins({
     const hasHomepage_1 = selectedPlugin.entry.homepage;
     const githubRepo_1 = extractGitHubRepo(selectedPlugin);
     const menuOptions = buildPluginDetailsMenuOptions(hasHomepage_1, githubRepo_1);
+    if (isBrowserRuntime()) {
+      const runDetailsAction = (action: string) => {
+        if (action === 'install-user') {
+          void handleSinglePluginInstall(selectedPlugin, 'user');
+        } else if (action === 'install-project') {
+          void handleSinglePluginInstall(selectedPlugin, 'project');
+        } else if (action === 'install-local') {
+          void handleSinglePluginInstall(selectedPlugin, 'local');
+        } else if (action === 'homepage' && hasHomepage_1) {
+          void openBrowser(hasHomepage_1);
+        } else if (action === 'github' && githubRepo_1) {
+          void openBrowser(`https://github.com/${githubRepo_1}`);
+        } else if (action === 'back') {
+          setViewState('plugin-list');
+          setSelectedPlugin(null);
+        }
+      };
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugin details</span>
+            <h2>{selectedPlugin.entry.name}</h2>
+            <p>{selectedPlugin.entry.description || `From ${selectedPlugin.marketplaceName}`}</p>
+          </div>
+          <div className="repl-pluginMetaGrid">
+            <span>Marketplace <strong>{selectedPlugin.marketplaceName}</strong></span>
+            {selectedPlugin.entry.version ? <span>Version <strong>{selectedPlugin.entry.version}</strong></span> : null}
+            {selectedPlugin.entry.author ? <span>Author <strong>{typeof selectedPlugin.entry.author === 'string' ? selectedPlugin.entry.author : selectedPlugin.entry.author.name}</strong></span> : null}
+          </div>
+          <div className="repl-webPickerList">
+            {menuOptions.map((option, index) => <button type="button" key={option.action} className="repl-webPickerOption" data-focused={detailsMenuIndex === index ? 'true' : undefined} onMouseEnter={() => setDetailsMenuIndex(index)} onClick={() => runDetailsAction(option.action)}>
+                <span className="repl-webPickerOptionMark">{option.action.startsWith('install-') ? 'GO' : option.action === 'back' ? 'BACK' : 'OPEN'}</span>
+                <span className="repl-webPickerOptionCopy">
+                  <span className="repl-webPickerOptionTitle">{isInstalling && option.action.startsWith('install-') ? 'Installing…' : option.label}</span>
+                  <span className="repl-webPickerOptionDescription">{option.action.startsWith('install-') ? 'Install this plugin into the selected scope.' : option.action === 'back' ? 'Return to plugin discovery.' : 'Open the external plugin resource.'}</span>
+                </span>
+              </button>)}
+          </div>
+          {installError ? <div className="repl-webPickerNotice repl-pluginError">{installError}</div> : null}
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box marginBottom={1}>
           <Text bold>Plugin details</Text>
@@ -554,6 +617,19 @@ export function DiscoverPlugins({
 
   // Empty state
   if (availablePlugins.length === 0) {
+    if (isBrowserRuntime()) {
+      const emptyMessage = emptyReason === 'git-not-installed' ? 'Git is required to install marketplaces. Install git and restart OpenClaude.' : emptyReason === 'all-blocked-by-policy' ? 'Your organization policy does not allow external marketplaces.' : emptyReason === 'policy-restricts-sources' ? 'Your organization restricts marketplace sources. Open Marketplaces to view allowed sources.' : 'No marketplace plugins are available yet.';
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Plugins</span>
+            <h2>Discover plugins</h2>
+            <p>{emptyMessage}</p>
+          </div>
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+          type: 'menu'
+        })}>Back to plugins</button>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box marginBottom={1}>
           <Text bold>Discover plugins</Text>
@@ -569,6 +645,88 @@ export function DiscoverPlugins({
 
   // Get visible plugins from pagination
   const visiblePlugins = pagination.getVisibleItems(filteredPlugins);
+  if (isBrowserRuntime()) {
+    const toggleInstallSelection = (plugin: InstallablePlugin) => {
+      if (plugin.isInstalled) return;
+      setSelectedForInstall(prev => {
+        const next = new Set(prev);
+        if (next.has(plugin.pluginId)) {
+          next.delete(plugin.pluginId);
+        } else {
+          next.add(plugin.pluginId);
+        }
+        return next;
+      });
+    };
+    const openPlugin = (plugin: InstallablePlugin, index: number) => {
+      setSelectedIndex(index);
+      if (plugin.isInstalled) {
+        setParentViewState({
+          type: 'manage-plugins',
+          targetPlugin: plugin.entry.name,
+          targetMarketplace: plugin.marketplaceName
+        });
+      } else {
+        setSelectedPlugin(plugin);
+        setViewState('plugin-details');
+        setDetailsMenuIndex(0);
+        setInstallError(null);
+      }
+    };
+    return <section className="repl-webPicker repl-pluginSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Plugins</span>
+          <h2>Discover plugins</h2>
+          <p>Browse marketplace plugins, review details, and install without terminal shortcuts.</p>
+        </div>
+        <label className="repl-pluginSearch">
+          <span>Search</span>
+          <input value={searchQuery} onChange={event => {
+          setSearchQuery(event.currentTarget.value);
+          setSelectedIndex(0);
+        }} placeholder="Search plugins…" />
+        </label>
+        {warning ? <div className="repl-webPickerNotice">{warning}</div> : null}
+        {filteredPlugins.length === 0 && searchQuery ? <div className="repl-webPickerNotice">No plugins match “{searchQuery}”.</div> : null}
+        <div className="repl-webPickerList repl-pluginList">
+          {filteredPlugins.map((plugin, index) => {
+          const isSelected = selectedIndex === index;
+          const isSelectedForInstall = selectedForInstall.has(plugin.pluginId);
+          const isInstallingThis = installingPlugins.has(plugin.pluginId);
+          return <div key={plugin.pluginId} className="repl-webPickerOption" role="button" tabIndex={0} data-focused={isSelected ? 'true' : undefined} data-selected={isSelectedForInstall ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openPlugin(plugin, index)} onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openPlugin(plugin, index);
+            }
+          }}>
+                <span className="repl-webPickerOptionMark">{isInstallingThis ? '...' : plugin.isInstalled ? 'ON' : isSelectedForInstall ? 'ADD' : '+'}</span>
+                <span className="repl-webPickerOptionCopy">
+                  <span className="repl-webPickerOptionTitle">{plugin.entry.name}<small>{plugin.marketplaceName}</small></span>
+                  <span className="repl-webPickerOptionDescription">{plugin.entry.description || 'No description provided.'}</span>
+                  <span className="repl-pluginMetaLine">
+                    {plugin.entry.tags?.includes('community-managed') ? <span>Community managed</span> : null}
+                    {installCounts && plugin.marketplaceName === OFFICIAL_MARKETPLACE_NAME ? <span>{formatInstallCount(installCounts.get(plugin.pluginId) ?? 0)} installs</span> : null}
+                    {plugin.isInstalled ? <span>Installed</span> : null}
+                  </span>
+                </span>
+                {!plugin.isInstalled ? <span className="repl-pluginInlineActions" onClick={event => event.stopPropagation()}>
+                    <button type="button" onClick={() => toggleInstallSelection(plugin)}>{isSelectedForInstall ? 'Remove' : 'Queue'}</button>
+                  </span> : null}
+              </div>;
+        })}
+        </div>
+        <div className="repl-webPickerFooter">
+          <span>{filteredPlugins.length} plugins shown</span>
+          <div className="repl-pluginFooterActions">
+            {selectedForInstall.size > 0 ? <button type="button" className="repl-webPickerGhostButton" onClick={() => void installSelectedPlugins()}>Install {selectedForInstall.size}</button> : null}
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setParentViewState({
+          type: 'menu'
+        })}>Back</button>
+          </div>
+        </div>
+        {error ? <div className="repl-webPickerNotice repl-pluginError">{error}</div> : null}
+      </section>;
+  }
   return <Box flexDirection="column">
       <Box>
         <Text bold>Discover plugins</Text>

@@ -334,26 +334,52 @@ export function PermissionPrompt<T extends string>({
             {options.map(option => {
               const label = labelToPlainText(option.label) || option.value
               const isDangerous = Boolean(option.dangerousMode)
+              const feedbackType = option.feedbackConfig?.type
+              const isFeedbackVisible =
+                feedbackType === 'accept' ? acceptInputMode : feedbackType === 'reject' ? rejectInputMode : false
+              const feedbackValue =
+                feedbackType === 'accept' ? acceptFeedback : feedbackType === 'reject' ? rejectFeedback : ''
+              const setFeedbackValue =
+                feedbackType === 'accept' ? setAcceptFeedback : feedbackType === 'reject' ? setRejectFeedback : null
               return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className="repl-webPermissionAction"
-                  data-danger={isDangerous ? 'true' : undefined}
-                  data-primary={option.value === options[0]?.value ? 'true' : undefined}
-                  onClick={() => handleSelect(option.value)}
-                  onMouseEnter={() => setFocusedValue(option.value)}
-                  onFocus={() => setFocusedValue(option.value)}
-                >
-                  <span>{label}</span>
-                </button>
+                <div key={option.value} className="repl-webPermissionActionWrap">
+                  <button
+                    type="button"
+                    className="repl-webPermissionAction"
+                    data-danger={isDangerous ? 'true' : undefined}
+                    data-primary={option.value === options[0]?.value ? 'true' : undefined}
+                    onClick={() => handleSelect(option.value)}
+                    onMouseEnter={() => setFocusedValue(option.value)}
+                    onFocus={() => setFocusedValue(option.value)}
+                  >
+                    <span>{label}</span>
+                  </button>
+                  {feedbackType ? (
+                    <button
+                      type="button"
+                      className="repl-webPermissionInlineToggle"
+                      onClick={() => handleInputModeToggle(option.value)}
+                    >
+                      {isFeedbackVisible ? 'Hide note' : 'Add note'}
+                    </button>
+                  ) : null}
+                  {feedbackType && isFeedbackVisible && setFeedbackValue ? (
+                    <textarea
+                      className="repl-webPermissionTextarea"
+                      value={feedbackValue}
+                      rows={2}
+                      placeholder={option.feedbackConfig?.placeholder ?? DEFAULT_PLACEHOLDERS[feedbackType]}
+                      onChange={event => setFeedbackValue(event.currentTarget.value)}
+                    />
+                  ) : null}
+                </div>
               )
             })}
           </div>
         </div>
         <div className="repl-webPermissionFooter">
-          <button type="button" onClick={handleCancel}>Esc to cancel</button>
-          {showTabHint ? <span>Tab to amend in terminal mode</span> : <span>Choose an option to continue</span>}
+          <button type="button" onClick={handleCancel}>Cancel request</button>
+          <span>Choose an action to continue.</span>
         </div>
       </div>
     )

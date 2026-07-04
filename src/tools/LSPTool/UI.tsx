@@ -3,10 +3,12 @@ import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs
 import React from 'react';
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { Box, Text } from '../../ink.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { extractTag } from '../../utils/messages.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Input, Output } from './LSPTool.js';
 import { getSymbolAtPosition } from './symbolContext.js';
 
@@ -92,6 +94,15 @@ function LSPResultSummary(t0) {
     t2 = $[6];
   }
   const primaryText = t2;
+  if (isBrowserRuntime()) {
+    const title = operation === 'hover' && resultCount > 0 && labelConfig.special ? `Hover info ${labelConfig.special}` : `Found ${resultCount} ${countLabel}`;
+    const detail = fileCount > 1 ? `Across ${fileCount} files` : undefined;
+    return (
+      <BrowserToolResultDisclosure title={title} detail={detail} state="done" defaultOpen={verbose || resultCount > 0}>
+        {content ? <pre className="oc-toolCodeBlock">{content}</pre> : <div className="oc-toolResultEmpty">No LSP details returned.</div>}
+      </BrowserToolResultDisclosure>
+    );
+  }
   let t3;
   if ($[7] !== fileCount) {
     t3 = fileCount > 1 ? <Text>{" "}across <Text bold={true}>{fileCount} </Text>files</Text> : null;
@@ -203,6 +214,13 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
   verbose: boolean;
 }): React.ReactNode {
   if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error')) {
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="LSP operation failed" state="error" defaultOpen>
+          <div className="oc-toolResultError">{extractTag(result, 'tool_use_error') ?? 'The language server operation did not complete.'}</div>
+        </BrowserToolResultDisclosure>
+      );
+    }
     return <MessageResponse>
         <Text color="error">LSP operation failed</Text>
       </MessageResponse>;
@@ -221,6 +239,13 @@ export function renderToolResultMessage(output: Output, _progressMessages: unkno
 
   // Fallback for error cases where counts aren't available
   // (e.g., LSP server initialization failures, request errors)
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="LSP response" state="done" defaultOpen>
+        <pre className="oc-toolCodeBlock">{output.result}</pre>
+      </BrowserToolResultDisclosure>
+    );
+  }
   return <MessageResponse>
       <Text>{output.result}</Text>
     </MessageResponse>;

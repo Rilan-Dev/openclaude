@@ -18,6 +18,7 @@ import { getOauthAccountInfo } from '../../utils/auth.js';
 import { openBrowser } from '../../utils/browser.js';
 import { errorMessage } from '../../utils/errors.js';
 import { logMCPDebug } from '../../utils/log.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { capitalize } from '../../utils/stringUtils.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { Select, type OptionWithDescription } from '../CustomSelect/index.js';
@@ -338,7 +339,91 @@ export function MCPRemoteServerMenu({
       onComplete?.(`Authentication cleared for ${server.name}.`);
     }
   };
+  const handleReconnect = async () => {
+    setIsReconnecting(true);
+    try {
+      const result = await reconnectMcpServer(server.name);
+      if (server.config.type === 'claudeai-proxy') {
+        logEvent('tengu_claudeai_mcp_reconnect', {
+          success: result.client.type === 'connected'
+        });
+      }
+      const {
+        message
+      } = handleReconnectResult(result, server.name);
+      onComplete?.(message);
+    } catch (err) {
+      if (server.config.type === 'claudeai-proxy') {
+        logEvent('tengu_claudeai_mcp_reconnect', {
+          success: false
+        });
+      }
+      onComplete?.(handleReconnectError(err, server.name));
+    } finally {
+      setIsReconnecting(false);
+    }
+  };
+  const copyUrlToClipboard = async (url: string) => {
+    await globalThis.navigator?.clipboard?.writeText(url);
+    setUrlCopied(true);
+    if (copyTimeoutRef.current !== undefined) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = setTimeout(setUrlCopied, 2000, false);
+  };
   if (isAuthenticating) {
+    if (isBrowserRuntime()) {
+      const authCopy = server.config.type !== 'claudeai-proxy' && server.config.oauth?.xaa ? 'Authenticating via your identity provider.' : 'A browser window will open for authentication.';
+      return (
+        <section className="repl-mcpRemoteCard">
+          <p className="repl-webPickerKicker">MCP Authentication</p>
+          <h2>Authenticating {server.name}</h2>
+          <p>{authCopy}</p>
+          {authorizationUrl ? (
+            <div className="repl-mcpUrlBox">
+              <a href={authorizationUrl} target="_blank" rel="noreferrer">{authorizationUrl}</a>
+            </div>
+          ) : null}
+          {manualCallbackSubmit ? (
+            <label className="repl-mcpElicitationField">
+              <span>Callback URL</span>
+              <small>If the redirect page shows a connection error, paste the browser address here.</small>
+              <input
+                value={callbackUrlInput}
+                onChange={event => setCallbackUrlInput(event.currentTarget.value)}
+                placeholder="Paste callback URL"
+              />
+            </label>
+          ) : null}
+          <div className="repl-mcpElicitationActions">
+            {authorizationUrl ? (
+              <button type="button" className="repl-webPickerButton" onClick={() => void copyUrlToClipboard(authorizationUrl)}>
+                {urlCopied ? 'Copied URL' : 'Copy URL'}
+              </button>
+            ) : null}
+            {manualCallbackSubmit ? (
+              <button
+                type="button"
+                className="repl-webPickerPrimary"
+                onClick={() => {
+                  manualCallbackSubmit(callbackUrlInput.trim());
+                  setCallbackUrlInput('');
+                }}
+              >
+                Submit callback
+              </button>
+            ) : null}
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+              authAbortControllerRef.current?.abort();
+              setIsAuthenticating(false);
+              setAuthorizationUrl(null);
+            }}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      );
+    }
     // XAA: silent exchange (cached id_token → no browser), so don't claim
     // one will open. If IdP login IS needed, authorizationUrl populates and
     // the URL fallback block below still renders.
@@ -383,6 +468,36 @@ export function MCPRemoteServerMenu({
       </Box>;
   }
   if (isClaudeAIAuthenticating) {
+    if (isBrowserRuntime()) {
+      return (
+        <section className="repl-mcpRemoteCard">
+          <p className="repl-webPickerKicker">Claude AI Connector</p>
+          <h2>Authenticate {server.name}</h2>
+          <p>Complete the browser authentication, then confirm here.</p>
+          {claudeAIAuthUrl ? (
+            <div className="repl-mcpUrlBox">
+              <a href={claudeAIAuthUrl} target="_blank" rel="noreferrer">{claudeAIAuthUrl}</a>
+            </div>
+          ) : null}
+          <div className="repl-mcpElicitationActions">
+            {claudeAIAuthUrl ? (
+              <button type="button" className="repl-webPickerButton" onClick={() => void copyUrlToClipboard(claudeAIAuthUrl)}>
+                {urlCopied ? 'Copied URL' : 'Copy URL'}
+              </button>
+            ) : null}
+            <button type="button" className="repl-webPickerPrimary" onClick={() => void handleClaudeAIAuthComplete()}>
+              I completed authentication
+            </button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+              setIsClaudeAIAuthenticating(false);
+              setClaudeAIAuthUrl(null);
+            }}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      );
+    }
     return <Box flexDirection="column" gap={1} padding={1}>
         <Text color="claude">Authenticating with {server.name}…</Text>
         <Box>
@@ -412,6 +527,38 @@ export function MCPRemoteServerMenu({
       </Box>;
   }
   if (isClaudeAIClearingAuth) {
+    if (isBrowserRuntime()) {
+      const connectorsUrl = claudeAIClearAuthUrl ?? `${getOauthConfig().CLAUDE_AI_ORIGIN}/settings/connectors`;
+      return (
+        <section className="repl-mcpRemoteCard">
+          <p className="repl-webPickerKicker">Clear MCP Authentication</p>
+          <h2>Disconnect {server.name}</h2>
+          <p>Open Claude settings, find this MCP server, and disconnect it.</p>
+          <div className="repl-mcpUrlBox">
+            <a href={connectorsUrl} target="_blank" rel="noreferrer">{connectorsUrl}</a>
+          </div>
+          <div className="repl-mcpElicitationActions">
+            <button type="button" className="repl-webPickerPrimary" onClick={() => {
+              setClaudeAIClearAuthUrl(connectorsUrl);
+              setClaudeAIClearAuthBrowserOpened(true);
+              void openBrowser(connectorsUrl);
+            }}>
+              Open connector settings
+            </button>
+            <button type="button" className="repl-webPickerButton" onClick={() => void handleClaudeAIClearAuthComplete()}>
+              I disconnected it
+            </button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+              setIsClaudeAIClearingAuth(false);
+              setClaudeAIClearAuthUrl(null);
+              setClaudeAIClearAuthBrowserOpened(false);
+            }}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      );
+    }
     return <Box flexDirection="column" gap={1} padding={1}>
         <Text color="claude">Clear authentication for {server.name}</Text>
         {claudeAIClearAuthBrowserOpened ? <>
@@ -456,6 +603,15 @@ export function MCPRemoteServerMenu({
       </Box>;
   }
   if (isReconnecting) {
+    if (isBrowserRuntime()) {
+      return (
+        <section className="repl-mcpRemoteCard">
+          <p className="repl-webPickerKicker">MCP Reconnect</p>
+          <h2>Connecting to {server.name}</h2>
+          <p>Establishing the MCP server connection. This can take a few moments.</p>
+        </section>
+      );
+    }
     return <Box flexDirection="column" gap={1} padding={1}>
         <Text color="text">
           Connecting to <Text bold>{server.name}</Text>…
@@ -532,6 +688,78 @@ export function MCPRemoteServerMenu({
       value: 'back'
     });
   }
+  if (isBrowserRuntime()) {
+    const statusLabel = server.client.type === 'disabled' ? 'Disabled' : server.client.type === 'connected' ? 'Connected' : server.client.type === 'pending' ? 'Connecting' : server.client.type === 'needs-auth' ? 'Needs authentication' : 'Failed';
+    return (
+      <section className="repl-mcpRemoteCard">
+        <header className="repl-mcpRemoteHeader">
+          <div>
+            <p className="repl-webPickerKicker">Remote MCP Server</p>
+            <h2>{capitalizedServerName}</h2>
+            <p>{server.config.url}</p>
+          </div>
+          <span data-status={server.client.type}>{statusLabel}</span>
+        </header>
+        <div className="repl-contextStats">
+          <div>
+            <span>Auth</span>
+            <strong>{isEffectivelyAuthenticated ? 'Authenticated' : 'Not authenticated'}</strong>
+          </div>
+          <div>
+            <span>Tools</span>
+            <strong>{serverToolsCount}</strong>
+          </div>
+          <div>
+            <span>Config</span>
+            <strong>{describeMcpConfigFilePath(server.scope)}</strong>
+          </div>
+        </div>
+        {error ? <div className="repl-pluginError">{error}</div> : null}
+        <div className="repl-mcpElicitationActions">
+          {server.client.type === 'connected' && serverToolsCount > 0 ? (
+            <button type="button" className="repl-webPickerPrimary" onClick={onViewTools}>
+              View tools
+            </button>
+          ) : null}
+          {server.config.type === 'claudeai-proxy' ? (
+            server.client.type === 'connected' ? (
+              <button type="button" className="repl-webPickerButton" onClick={handleClaudeAIClearAuth}>
+                Clear authentication
+              </button>
+            ) : server.client.type !== 'disabled' ? (
+              <button type="button" className="repl-webPickerPrimary" onClick={() => void handleClaudeAIAuth()}>
+                Authenticate
+              </button>
+            ) : null
+          ) : isEffectivelyAuthenticated ? (
+            <>
+              <button type="button" className="repl-webPickerButton" onClick={() => void handleAuthenticate()}>
+                Re-authenticate
+              </button>
+              <button type="button" className="repl-webPickerButton" onClick={() => void handleClearAuth()}>
+                Clear authentication
+              </button>
+            </>
+          ) : (
+            <button type="button" className="repl-webPickerPrimary" onClick={() => void handleAuthenticate()}>
+              Authenticate
+            </button>
+          )}
+          {server.client.type !== 'disabled' && server.client.type !== 'needs-auth' ? (
+            <button type="button" className="repl-webPickerButton" onClick={() => void handleReconnect()}>
+              Reconnect
+            </button>
+          ) : null}
+          <button type="button" className="repl-webPickerButton" onClick={() => void handleToggleEnabled()}>
+            {server.client.type === 'disabled' ? 'Enable' : 'Disable'}
+          </button>
+          <button type="button" className="repl-webPickerGhostButton" onClick={onCancel}>
+            Back
+          </button>
+        </div>
+      </section>
+    );
+  }
   return <Box flexDirection="column">
       <Box flexDirection="column" paddingX={1} borderStyle={borderless ? undefined : 'round'}>
         <Box marginBottom={1}>
@@ -601,28 +829,7 @@ export function MCPRemoteServerMenu({
               handleClaudeAIClearAuth();
               break;
             case 'reconnectMcpServer':
-              setIsReconnecting(true);
-              try {
-                const result_1 = await reconnectMcpServer(server.name);
-                if (server.config.type === 'claudeai-proxy') {
-                  logEvent('tengu_claudeai_mcp_reconnect', {
-                    success: result_1.client.type === 'connected'
-                  });
-                }
-                const {
-                  message: message_0
-                } = handleReconnectResult(result_1, server.name);
-                onComplete?.(message_0);
-              } catch (err_2) {
-                if (server.config.type === 'claudeai-proxy') {
-                  logEvent('tengu_claudeai_mcp_reconnect', {
-                    success: false
-                  });
-                }
-                onComplete?.(handleReconnectError(err_2, server.name));
-              } finally {
-                setIsReconnecting(false);
-              }
+              await handleReconnect();
               break;
             case 'toggle-enabled':
               await handleToggleEnabled();

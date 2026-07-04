@@ -1,72 +1,75 @@
-import { c as _c } from "react-compiler-runtime";
-import figures from 'figures';
 import React from 'react';
 import { GITHUB_ACTION_SETUP_DOCS_URL } from '../../constants/github-app.js';
 import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Warning } from './types.js';
+
 interface WarningsStepProps {
   warnings: Warning[];
   onContinue: () => void;
 }
-export function WarningsStep(t0) {
-  const $ = _c(8);
-  const {
-    warnings,
-    onContinue
-  } = t0;
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = {
-      context: "Confirmation"
-    };
-    $[0] = t1;
-  } else {
-    t1 = $[0];
+
+export function WarningsStep({ warnings, onContinue }: WarningsStepProps): React.ReactNode {
+  useKeybinding('confirm:yes', onContinue, {
+    context: 'Confirmation',
+  });
+
+  if (isBrowserRuntime()) {
+    return (
+      <section className="repl-webPicker repl-githubAppSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Setup warnings</span>
+          <h2>Review before continuing</h2>
+          <p>OpenClaude found possible setup issues. You can continue, or use manual setup if needed.</p>
+        </div>
+        <div className="repl-webPickerList">
+          {warnings.map((warning, index) => (
+            <div key={index} className="repl-webPickerOption repl-githubWarning">
+              <span className="repl-webPickerOptionMark">WARN</span>
+              <span className="repl-webPickerOptionCopy">
+                <span className="repl-webPickerOptionTitle">{warning.title}</span>
+                <span className="repl-webPickerOptionDescription">{warning.message}</span>
+                {warning.instructions.length > 0 ? (
+                  <span className="repl-pluginMetaLine">
+                    {warning.instructions.map((instruction, instructionIndex) => <span key={instructionIndex}>{instruction}</span>)}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="repl-webPickerFooter">
+          <button type="button" className="repl-webPickerGhostButton" onClick={onContinue}>Continue anyway</button>
+          <a className="repl-githubAppLink" href={GITHUB_ACTION_SETUP_DOCS_URL} target="_blank" rel="noreferrer">Manual setup</a>
+        </div>
+      </section>
+    );
   }
-  useKeybinding("confirm:yes", onContinue, t1);
-  let t2;
-  if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = <Box flexDirection="column" marginBottom={1}><Text bold={true}>{figures.warning} Setup Warnings</Text><Text dimColor={true}>We found some potential issues, but you can continue anyway</Text></Box>;
-    $[1] = t2;
-  } else {
-    t2 = $[1];
-  }
-  let t3;
-  if ($[2] !== warnings) {
-    t3 = warnings.map(_temp2);
-    $[2] = warnings;
-    $[3] = t3;
-  } else {
-    t3 = $[3];
-  }
-  let t4;
-  if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = <Box marginTop={1}><Text bold={true} color="permission">Press Enter to continue anyway, or Ctrl+C to exit and fix issues</Text></Box>;
-    $[4] = t4;
-  } else {
-    t4 = $[4];
-  }
-  let t5;
-  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-    t5 = <Box marginTop={1}><Text dimColor={true}>You can also try the manual setup steps if needed:{" "}<Text color="claude">{GITHUB_ACTION_SETUP_DOCS_URL}</Text></Text></Box>;
-    $[5] = t5;
-  } else {
-    t5 = $[5];
-  }
-  let t6;
-  if ($[6] !== t3) {
-    t6 = <><Box flexDirection="column" borderStyle="round" paddingX={1}>{t2}{t3}{t4}{t5}</Box></>;
-    $[6] = t3;
-    $[7] = t6;
-  } else {
-    t6 = $[7];
-  }
-  return t6;
-}
-function _temp2(warning, index) {
-  return <Box key={index} flexDirection="column" marginBottom={1}><Text color="warning" bold={true}>{warning.title}</Text><Text>{warning.message}</Text>{warning.instructions.length > 0 && <Box flexDirection="column" marginLeft={2} marginTop={1}>{warning.instructions.map(_temp)}</Box>}</Box>;
-}
-function _temp(instruction, i) {
-  return <Text key={i} dimColor={true}>• {instruction}</Text>;
+
+  return (
+      <Box flexDirection="column" borderStyle="round" paddingX={1}>
+        <Box flexDirection="column" marginBottom={1}>
+        <Text bold>Setup Warnings</Text>
+        <Text dimColor>We found some potential issues, but you can continue anyway</Text>
+      </Box>
+      {warnings.map((warning, index) => (
+        <Box key={index} flexDirection="column" marginBottom={1}>
+          <Text color="warning" bold>{warning.title}</Text>
+          <Text>{warning.message}</Text>
+          {warning.instructions.length > 0 ? (
+            <Box flexDirection="column" marginLeft={2} marginTop={1}>
+              {warning.instructions.map((instruction, instructionIndex) => <Text key={instructionIndex} dimColor>• {instruction}</Text>)}
+            </Box>
+          ) : null}
+        </Box>
+      ))}
+      <Box marginTop={1}>
+        <Text bold color="permission">Press Enter to continue anyway, or Ctrl+C to exit and fix issues</Text>
+      </Box>
+      <Box marginTop={1}>
+        <Text dimColor>You can also try the manual setup steps if needed: <Text color="claude">{GITHUB_ACTION_SETUP_DOCS_URL}</Text></Text>
+      </Box>
+    </Box>
+  );
 }

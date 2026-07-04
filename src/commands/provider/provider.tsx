@@ -11,6 +11,7 @@ import {
   Select,
   type OptionWithDescription,
 } from '../../components/CustomSelect/index.js'
+import { WebSelectList } from '../../components/WebSelectList.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { LoadingState } from '../../components/design-system/LoadingState.js'
 import { useCodexOAuthFlow } from '../../components/useCodexOAuthFlow.js'
@@ -640,6 +641,46 @@ export function TextEntryDialog({
     [allowEmpty, onSubmit, validate],
   )
 
+  if (isBrowserRuntime()) {
+    const inputType = mask ? 'password' : 'text'
+
+    return (
+      <section className="repl-providerFormSurface repl-providerCommandFormSurface" aria-label={title}>
+        <div className="repl-providerFormHeader">
+          <span className="repl-webPickerKicker">{subtitle ?? 'Provider setup'}</span>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <form
+          className="repl-providerCommandForm"
+          onSubmit={event => {
+            event.preventDefault()
+            handleSubmit(value)
+          }}
+        >
+          <input
+            type={inputType}
+            value={value}
+            placeholder={placeholder}
+            autoFocus
+            onChange={event => setValue(event.currentTarget.value)}
+            onKeyDown={event => {
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                onCancel()
+              }
+            }}
+          />
+          {error ? <div className="repl-providerFormError" role="alert">{error}</div> : null}
+          <div className="repl-providerFormActions">
+            <button type="submit">Continue</button>
+            <button type="button" onClick={onCancel}>Back</button>
+          </div>
+        </form>
+      </section>
+    )
+  }
+
   return (
     <Dialog title={title} subtitle={subtitle} onCancel={onCancel}>
       <Box flexDirection="column" gap={1}>
@@ -730,6 +771,32 @@ function ProviderChooser({
     })
   }
 
+  if (isBrowserRuntime()) {
+    return (
+      <section className="repl-providerManagerSurface repl-providerCommandPickerSurface" aria-label="Set up provider profile">
+        <WebSelectList
+          kicker="Provider setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Set up a provider profile"
+          subtitle={helperText}
+          options={options}
+          selectedValue={options[0]?.value}
+          hiddenCount={0}
+          onSelect={onChoose}
+        />
+        <div className="repl-providerFormMeta repl-providerFormMeta--below" aria-label="Current provider details">
+          <span>Current provider: {summary.providerLabel}</span>
+          <span>Current model: {summary.modelLabel}</span>
+          <span>Current endpoint: {summary.endpointLabel}</span>
+          <span>Saved profile: {summary.savedProfileLabel}</span>
+        </div>
+        <div className="repl-providerFormActions">
+          <button type="button" onClick={onCancel}>Back to chat</button>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <Dialog
       title="Set up a provider profile"
@@ -779,6 +846,26 @@ function AutoGoalChooser({
       description: 'Prefer faster local models or gpt-4o-mini defaults',
     },
   ]
+
+  if (isBrowserRuntime()) {
+    return (
+      <section className="repl-providerManagerSurface repl-providerCommandPickerSurface" aria-label="Auto setup goal">
+        <WebSelectList
+          kicker="Auto setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Choose setup goal"
+          subtitle="Pick what OpenClaude should optimize for when preparing this provider."
+          options={options}
+          selectedValue="balanced"
+          hiddenCount={0}
+          onSelect={onChoose}
+        />
+        <div className="repl-providerFormActions">
+          <button type="button" onClick={onBack}>Back</button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <Dialog title="Auto setup goal" onCancel={onBack}>
@@ -899,6 +986,31 @@ function AutoRecommendationStep({
   }
 
   if (status.state === 'error') {
+    if (isBrowserRuntime()) {
+      return (
+        <WebSelectList
+          kicker="Auto setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Auto setup failed"
+          subtitle={status.message}
+          options={[
+            { label: 'Back', value: 'back', description: 'Return to setup goal selection' },
+            { label: 'Cancel', value: 'cancel', description: 'Return to chat' },
+          ]}
+          selectedValue="back"
+          hiddenCount={0}
+          onSelect={value => {
+            if (value === 'back') {
+              onBack()
+            } else {
+              onCancel()
+            }
+          }}
+          onCancel={onCancel}
+        />
+      )
+    }
+
     return (
       <Dialog title="Auto setup failed" onCancel={onCancel} color="warning">
         <Box flexDirection="column" gap={1}>
@@ -919,6 +1031,42 @@ function AutoRecommendationStep({
   }
 
   if (status.state === 'openai') {
+    if (isBrowserRuntime()) {
+      return (
+        <WebSelectList
+          kicker="Auto setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Continue with OpenAI-compatible setup"
+          subtitle={
+            <>
+              Auto setup can continue with a default model of {status.defaultModel}. {status.reason}
+            </>
+          }
+          options={[
+            {
+              label: 'Continue setup',
+              value: 'continue',
+              description: 'Enter API key, endpoint, and model details',
+            },
+            { label: 'Back', value: 'back', description: 'Return to setup goal selection' },
+            { label: 'Cancel', value: 'cancel', description: 'Return to chat' },
+          ]}
+          selectedValue="continue"
+          hiddenCount={0}
+          onSelect={value => {
+            if (value === 'continue') {
+              onNeedOpenAI(status.defaultModel)
+            } else if (value === 'back') {
+              onBack()
+            } else {
+              onCancel()
+            }
+          }}
+          onCancel={onCancel}
+        />
+      )
+    }
+
     return (
       <Dialog title="Auto setup fallback" onCancel={onCancel}>
         <Box flexDirection="column" gap={1}>
@@ -946,6 +1094,47 @@ function AutoRecommendationStep({
           />
         </Box>
       </Dialog>
+    )
+  }
+
+  if (isBrowserRuntime()) {
+    const recommendedDescription = status.summary
+      ? `${status.model} · ${status.summary}`
+      : status.model
+
+    return (
+      <WebSelectList
+        kicker="Auto setup"
+        className="repl-providerChoiceList repl-providerPresetList"
+        title="Save recommended profile"
+        subtitle={`Auto setup recommends a local Ollama profile for ${goal}.`}
+        options={[
+          {
+            label: 'Save Ollama profile',
+            value: 'save',
+            description: recommendedDescription,
+          },
+          { label: 'Back', value: 'back', description: 'Return to setup goal selection' },
+          { label: 'Cancel', value: 'cancel', description: 'Return to chat' },
+        ]}
+        selectedValue="save"
+        hiddenCount={0}
+        onSelect={value => {
+          if (value === 'save') {
+            onSave(
+              'ollama',
+              buildOllamaProfileEnv(status.model, {
+                getOllamaChatBaseUrl,
+              }),
+            )
+          } else if (value === 'back') {
+            onBack()
+          } else {
+            onCancel()
+          }
+        }}
+        onCancel={onBack}
+      />
     )
   }
 
@@ -1056,6 +1245,31 @@ function OllamaModelStep({
   }
 
   if (status.state === 'unavailable') {
+    if (isBrowserRuntime()) {
+      return (
+        <WebSelectList
+          kicker="Provider setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Ollama setup"
+          subtitle={status.message}
+          options={[
+            { label: 'Back', value: 'back', description: 'Choose a different provider' },
+            { label: 'Cancel', value: 'cancel', description: 'Return to chat' },
+          ]}
+          selectedValue="back"
+          hiddenCount={0}
+          onSelect={value => {
+            if (value === 'back') {
+              onBack()
+            } else {
+              onCancel()
+            }
+          }}
+          onCancel={onCancel}
+        />
+      )
+    }
+
     return (
       <Dialog title="Ollama setup" onCancel={onCancel} color="warning">
         <Box flexDirection="column" gap={1}>
@@ -1072,6 +1286,29 @@ function OllamaModelStep({
           />
         </Box>
       </Dialog>
+    )
+  }
+
+  if (isBrowserRuntime()) {
+    return (
+      <WebSelectList
+        kicker="Provider setup"
+        className="repl-providerChoiceList repl-providerPresetList"
+        title="Choose an Ollama model"
+        subtitle="Pick one of the installed Ollama models to save into a local provider profile."
+        options={status.options}
+        selectedValue={status.defaultValue}
+        hiddenCount={0}
+        onSelect={value => {
+          onSave(
+            'ollama',
+            buildOllamaProfileEnv(value, {
+              getOllamaChatBaseUrl,
+            }),
+          )
+        }}
+        onCancel={onBack}
+      />
     )
   }
 
@@ -1268,6 +1505,31 @@ function CodexCredentialStep({
   const credentials = resolveCodexCredentials(process.env)
 
   if (!credentials.ok) {
+    if (isBrowserRuntime()) {
+      return (
+        <WebSelectList
+          kicker="Provider setup"
+          className="repl-providerChoiceList repl-providerPresetList"
+          title="Codex setup"
+          subtitle={credentials.message}
+          options={[
+            { label: 'Back', value: 'back', description: 'Choose a different provider' },
+            { label: 'Cancel', value: 'cancel', description: 'Return to chat' },
+          ]}
+          selectedValue="back"
+          hiddenCount={0}
+          onSelect={value => {
+            if (value === 'back') {
+              onBack()
+            } else {
+              onCancel()
+            }
+          }}
+          onCancel={onCancel}
+        />
+      )
+    }
+
     return (
       <Dialog title="Codex setup" onCancel={onCancel} color="warning">
         <Box flexDirection="column" gap={1}>
@@ -1299,6 +1561,31 @@ function CodexCredentialStep({
       description: 'Faster Codex Spark tool loop profile',
     },
   ]
+
+  if (isBrowserRuntime()) {
+    return (
+      <WebSelectList
+        kicker="Provider setup"
+        className="repl-providerChoiceList repl-providerPresetList"
+        title="Choose a Codex profile"
+        subtitle={`Reuse existing Codex credentials from ${credentials.sourceDescription}.`}
+        options={options}
+        selectedValue="codexplan"
+        hiddenCount={0}
+        onSelect={value => {
+          const env = buildCodexProfileEnv({
+            model: value,
+            credentialSource: credentials.credentialSource,
+            processEnv: process.env,
+          })
+          if (env) {
+            onSave('codex', env)
+          }
+        }}
+        onCancel={onBack}
+      />
+    )
+  }
 
   return (
     <Dialog title="Choose a Codex profile" onCancel={onBack}>
@@ -1693,6 +1980,33 @@ export function ProviderWizard({
             : 'Use local Google ADC credentials after running gcloud auth application-default login',
         },
       ]
+
+      if (isBrowserRuntime()) {
+        return (
+          <WebSelectList
+            kicker="Provider setup"
+            className="repl-providerChoiceList repl-providerPresetList"
+            title="Gemini setup"
+            subtitle="Choose how this Gemini profile should authenticate."
+            options={options}
+            selectedValue="api-key"
+            hiddenCount={0}
+            onSelect={value => {
+              if (value === 'api-key') {
+                setStep({ name: 'gemini-key' })
+              } else if (value === 'access-token') {
+                setStep({ name: 'gemini-access-token' })
+              } else {
+                setStep({
+                  name: 'gemini-model',
+                  authMode: 'adc',
+                })
+              }
+            }}
+            onCancel={() => setStep({ name: 'choose' })}
+          />
+        )
+      }
 
       return (
         <Dialog title="Gemini setup" onCancel={() => onDone()}>

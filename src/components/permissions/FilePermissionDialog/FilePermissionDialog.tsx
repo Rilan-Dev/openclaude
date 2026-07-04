@@ -7,6 +7,7 @@ import { getLanguageName } from '../../../utils/cliHighlight.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { getFsImplementation, safeResolvePath } from '../../../utils/fsOperations.js';
 import { expandPath } from '../../../utils/path.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import type { CompletionType } from '../../../utils/unaryLogging.js';
 import { Select } from '../../CustomSelect/index.js';
 import { ShowInIDEPrompt } from '../../ShowInIDEPrompt.js';
@@ -174,38 +175,103 @@ export function FilePermissionDialog<T extends ToolInput = ToolInput>({
     return <ShowInIDEPrompt onChange={(option_1: PermissionOption, _input, feedback_0?: string) => onChange(option_1, feedback_0)} options={options} filePath={path} input={parsedInput} ideName={ideName} symlinkTarget={symlinkTarget} rejectFeedback={rejectFeedback} acceptFeedback={acceptFeedback} setFocusedOption={setFocusedOption} onInputModeToggle={handleInputModeToggle} focusedOption={focusedOption} yesInputMode={yesInputMode} noInputMode={noInputMode} />;
   }
   const isSymlinkOutsideCwd = symlinkTarget != null && relative(getCwd(), symlinkTarget).startsWith('..');
-  const symlinkWarning = symlinkTarget ? <Box paddingX={1} marginBottom={1}>
+  const symlinkWarningText = symlinkTarget
+    ? isSymlinkOutsideCwd
+      ? `This will modify ${symlinkTarget} outside the working directory through a symlink.`
+      : `Symlink target: ${symlinkTarget}`
+    : null;
+  const symlinkWarning = symlinkWarningText ? <Box paddingX={1} marginBottom={1}>
       <Text color="warning">
-        {isSymlinkOutsideCwd ? `This will modify ${symlinkTarget} (outside working directory) via a symlink` : `Symlink target: ${symlinkTarget}`}
+        {symlinkWarningText}
       </Text>
     </Box> : null;
+  const handleOptionValue = (value: string) => {
+    const selected = options.find(opt => opt.value === value);
+    if (!selected) {
+      return;
+    }
+    if (selected.option.type === 'reject') {
+      const trimmedFeedback = selected.option.withReason || noInputMode ? rejectFeedback.trim() : '';
+      if (selected.option.withReason && !trimmedFeedback) {
+        return;
+      }
+      onChange(selected.option, trimmedFeedback || undefined);
+      return;
+    }
+    if (selected.option.type === 'accept-once') {
+      const trimmedFeedback = acceptFeedback.trim();
+      onChange(selected.option, trimmedFeedback || undefined);
+      return;
+    }
+    onChange(selected.option);
+  };
+  if (isBrowserRuntime()) {
+    return (
+      <div className="repl-webPermissionCard repl-webPermissionCard--file" role="dialog" aria-modal="true" aria-label={`${title} permission request`}>
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">{operationType === 'read' ? 'file access' : 'file change'}</div>
+            <h2>{title}</h2>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          <span className="repl-webPermissionBadge">Review</span>
+        </div>
+        <div className="repl-webPermissionBody">
+          {path ? (
+            <div className="repl-webPermissionTarget">
+              <span className="repl-webPermissionTargetLabel">{operationType === 'read' ? 'Read' : 'Path'}</span>
+              <strong>{path}</strong>
+              {symlinkWarningText ? <small>{symlinkWarningText}</small> : null}
+            </div>
+          ) : null}
+          {content ? <div className="repl-webPermissionContent">{content}</div> : null}
+          <p className="repl-webPermissionQuestion">{typeof question === 'string' ? question : 'Do you want to proceed?'}</p>
+          <div className="repl-webPermissionActions">
+            {options.map((option, index) => {
+              const inputValue = option.value === 'yes' ? acceptFeedback : rejectFeedback
+              return (
+                <div key={option.value} className="repl-webPermissionActionWrap">
+                  <button
+                    type="button"
+                    className="repl-webPermissionAction"
+                    data-primary={index === 0 ? 'true' : undefined}
+                    onClick={() => handleOptionValue(option.value)}
+                    onMouseEnter={() => setFocusedOption(option.value)}
+                    onFocus={() => setFocusedOption(option.value)}
+                  >
+                    <span>{option.label}</span>
+                    {option.description ? <small>{option.description}</small> : null}
+                  </button>
+                  {option.type === 'input' ? (
+                    <textarea
+                      className="repl-webPermissionTextarea"
+                      value={inputValue}
+                      placeholder={option.placeholder}
+                      rows={2}
+                      onChange={event => option.onChange(event.currentTarget.value)}
+                      onFocus={() => setFocusedOption(option.value)}
+                    />
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <div className="repl-webPermissionFooter">
+          <button type="button" onClick={() => onChange({ type: 'reject' })}>Cancel request</button>
+          <span>Approve once, approve with context, or reject before the tool runs.</span>
+        </div>
+      </div>
+    );
+  }
   return <>
       <PermissionScaffold title={title} subtitle={subtitle} innerPaddingX={0} workerBadge={workerBadge} permissionResult={toolUseConfirm.permissionResult} toolType={operationType === 'read' ? 'read' : 'edit'}>
         {symlinkWarning}
         {content}
         <Box flexDirection="column" paddingX={1}>
           {typeof question === 'string' ? <Text>{question}</Text> : question}
-          <Select options={options} inlineDescriptions onChange={value => {
-          const selected = options.find(opt => opt.value === value);
-          if (selected) {
-            // For reject option
-            if (selected.option.type === 'reject') {
-              const trimmedFeedback = selected.option.withReason || noInputMode ? rejectFeedback.trim() : '';
-              if (selected.option.withReason && !trimmedFeedback) {
-                return;
-              }
-              onChange(selected.option, trimmedFeedback || undefined);
-              return;
-            }
-            // For accept-once option, pass accept feedback if present
-            if (selected.option.type === 'accept-once') {
-              const trimmedFeedback_0 = acceptFeedback.trim();
-              onChange(selected.option, trimmedFeedback_0 || undefined);
-              return;
-            }
-            onChange(selected.option);
-          }
-        }} onCancel={() => onChange({
+          <Select options={options} inlineDescriptions onChange={handleOptionValue} onCancel={() => onChange({
           type: 'reject'
         })} onFocus={value_0 => setFocusedOption(value_0)} onInputModeToggle={handleInputModeToggle} onEmptyInputSubmit={value_1 => {
           if (value_1 !== 'no-with-reason') {

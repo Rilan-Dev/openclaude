@@ -13,6 +13,7 @@ import { checkHasTrustDialogAccepted, saveCurrentProjectConfig } from '../../uti
 import { getCwd } from '../../utils/cwd.js';
 import { getFsImplementation } from '../../utils/fsOperations.js';
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { getApiKeyHelperSources, getAwsCommandsSources, getBashPermissionSources, getDangerousEnvVarsSources, getGcpCommandsSources, getHooksSources, getOtelHeadersHelperSources } from './utils.js';
@@ -234,6 +235,35 @@ export function TrustDialog(t0) {
     $[24] = t20;
   } else {
     t20 = $[24];
+  }
+  if (isBrowserRuntime()) {
+    const riskItems = [
+      hasMcpServers ? 'Project MCP servers can expose tools and resources.' : null,
+      hasHooks ? 'Project hooks can run commands around tool calls.' : null,
+      hasAnyBashExecution ? 'Project configuration can allow shell execution.' : null,
+      hasApiKeyHelper ? 'API key helper configuration is present.' : null,
+      hasAwsCommands ? 'AWS command permissions are configured.' : null,
+      hasGcpCommands ? 'GCP command permissions are configured.' : null,
+      hasOtelHeadersHelper ? 'Telemetry header helper configuration is present.' : null,
+      hasDangerousEnvVars ? 'Sensitive environment variable configuration is present.' : null,
+    ].filter(Boolean);
+    return <section className="repl-webPicker repl-securitySurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Workspace trust</span>
+          <h2>Trust this workspace?</h2>
+          <p>OpenClaude will be able to read, edit, and execute files in this workspace.</p>
+        </div>
+        <div className="repl-pluginPath">{getFsImplementation().cwd()}</div>
+        <div className="repl-webPickerNotice">Only continue if this is your own project, a trusted team project, or a known open-source repository.</div>
+        {riskItems.length > 0 ? <div className="repl-pluginCompactList">
+            {riskItems.map((item, index) => <span key={index}>{item}</span>)}
+          </div> : null}
+        <div className="repl-webPickerFooter">
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => onChange('enable_all')}>Trust workspace</button>
+          <button type="button" className="repl-webPickerGhostButton repl-pluginDangerButton" onClick={() => onChange('exit')}>Exit</button>
+          <a className="repl-githubAppLink" href="https://code.claude.com/docs/en/security" target="_blank" rel="noreferrer">Security guide</a>
+        </div>
+      </section>;
   }
   let t21;
   if ($[25] !== onChange) {

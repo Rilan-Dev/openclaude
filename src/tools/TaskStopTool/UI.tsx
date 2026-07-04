@@ -1,8 +1,10 @@
 import React from 'react';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { stringWidth } from '../../ink/stringWidth.js';
 import { Text } from '../../ink.js';
 import { truncateToWidthNoEllipsis } from '../../utils/format.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Output } from './TaskStopTool.js';
 export function renderToolUseMessage(): React.ReactNode {
   return '';
@@ -28,6 +30,13 @@ export function renderToolResultMessage(output: Output, _progressMessagesForMess
   const rawCommand = output.command ?? '';
   const command = verbose ? rawCommand : truncateCommand(rawCommand);
   const suffix = command !== rawCommand ? '… · stopped' : ' · stopped';
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserToolResultDisclosure title="Stopped task" detail={command ? 'Command stopped' : undefined} state="done">
+        {command ? <pre className="oc-toolCodeBlock">{command}</pre> : <div className="oc-toolResultEmpty">The running task was stopped.</div>}
+      </BrowserToolResultDisclosure>
+    );
+  }
   return <MessageResponse>
       <Text>
         {command}

@@ -7,9 +7,11 @@ import { Text } from '../../../ink.js';
 import { filterToolProgressMessages, type Tool, type Tools } from '../../../Tool.js';
 import type { ProgressMessage } from '../../../types/message.js';
 import { INTERRUPT_MESSAGE_FOR_TOOL_USE, isClassifierDenial, PLAN_REJECTION_PREFIX, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../utils/messages.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import { FallbackToolUseErrorMessage } from '../../FallbackToolUseErrorMessage.js';
 import { InterruptedByUser } from '../../InterruptedByUser.js';
 import { MessageResponse } from '../../MessageResponse.js';
+import { BrowserToolResultDisclosure, isDisclosureElement } from './BrowserToolResultDisclosure.js';
 import { RejectedPlanMessage } from './RejectedPlanMessage.js';
 import { RejectedToolUseMessage } from './RejectedToolUseMessage.js';
 type Props = {
@@ -31,6 +33,9 @@ export function UserToolErrorMessage(t0) {
     isTranscriptMode
   } = t0;
   if (typeof param.content === "string" && param.content.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)) {
+    if (isBrowserRuntime()) {
+      return <BrowserToolResultDisclosure title="Tool use canceled" detail="Interrupted" state="error"><div className="oc-toolReadReceipt">The tool call was interrupted before it completed.</div></BrowserToolResultDisclosure>;
+    }
     let t1;
     if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
       t1 = <MessageResponse height={1}><InterruptedByUser /></MessageResponse>;
@@ -71,6 +76,9 @@ export function UserToolErrorMessage(t0) {
     return t1;
   }
   if (feature("TRANSCRIPT_CLASSIFIER") && typeof param.content === "string" && isClassifierDenial(param.content)) {
+    if (isBrowserRuntime()) {
+      return <BrowserToolResultDisclosure title="Tool denied" detail="Auto mode classifier" state="error"><div className="oc-toolReadReceipt">Denied by auto mode classifier. Open an issue if this was incorrect.</div></BrowserToolResultDisclosure>;
+    }
     let t1;
     if ($[6] === Symbol.for("react.memo_cache_sentinel")) {
       t1 = <MessageResponse height={1}><Text dimColor={true}>Denied by auto mode classifier {BULLET_OPERATOR} open an issue if incorrect</Text></MessageResponse>;
@@ -97,6 +105,9 @@ export function UserToolErrorMessage(t0) {
     $[13] = t1;
   } else {
     t1 = $[13];
+  }
+  if (isBrowserRuntime()) {
+    return isDisclosureElement(t1) ? t1 : <BrowserToolResultDisclosure title={tool?.userFacingName(undefined) || "Tool error"} detail="Failed" state="error">{t1}</BrowserToolResultDisclosure>;
   }
   return t1;
 }

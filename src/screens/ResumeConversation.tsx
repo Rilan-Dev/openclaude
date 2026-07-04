@@ -29,6 +29,7 @@ import { errorMessage } from '../utils/errors.js';
 import type { FileHistorySnapshot } from '../utils/fileHistory.js';
 import { logError } from '../utils/log.js';
 import { createSystemMessage } from '../utils/messages.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { computeStandaloneAgentContext, createForkSessionInfoMessage, restoreAgentFromSession, restoreWorktreeForResume } from '../utils/sessionRestore.js';
 import { adoptResumedSessionFile, enrichLogs, isCustomTitleEnabled, loadAllProjectsMessageLogsProgressive, loadSameRepoMessageLogsProgressive, recordContentReplacement, resetSessionFilePointer, restoreSessionMetadata, type SessionLogResult } from '../utils/sessionStorage.js';
 import type { ModelSetting } from '../utils/model/model.js';
@@ -58,6 +59,27 @@ type Props = {
   fallbackModel?: string;
   onTurnComplete?: (messages: Message[]) => void | Promise<void>;
 };
+
+function BrowserResumeState({
+  title,
+  detail,
+  tone = 'default',
+}: {
+  title: string;
+  detail?: string;
+  tone?: 'default' | 'error' | 'empty';
+}): React.ReactNode {
+  return (
+    <div className="oc-resumeStateCard" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'}>
+      <div className={tone === 'default' ? 'oc-resumeStateSpinner' : 'oc-resumeStateIcon'} />
+      <div>
+        <div className="oc-resumeStateTitle">{title}</div>
+        {detail ? <div className="oc-resumeStateDetail">{detail}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 export function ResumeConversation({
   commands,
   worktreePaths,
@@ -98,7 +120,6 @@ export function ResumeConversation({
     mainThreadAgentDefinition?: AgentDefinition;
   } | null>(null);
   const [resumeError, setResumeError] = React.useState<string | null>(null);
-  const [crossProjectCommand, setCrossProjectCommand] = React.useState<string | null>(null);
   const sessionLogResultRef = React.useRef<SessionLogResult | null>(null);
   // Mirror of logs.length so loadMoreLogs can compute value indices outside
   // the setLogs updater (keeping it pure per React's contract).
@@ -156,6 +177,10 @@ export function ResumeConversation({
     loadLogs(newValue);
   }, [showAllProjects, loadLogs]);
   function onCancel() {
+    if (isBrowserRuntime()) {
+      setResumeError(null);
+      return;
+    }
     // eslint-disable-next-line custom-rules/no-process-exit
     process.exit(1);
   }
@@ -164,11 +189,15 @@ export function ResumeConversation({
     setResuming(true);
     const resumeStart = performance.now();
     const crossProjectCheck = checkCrossProjectResume(log_0, showAllProjects, worktreePaths);
-    if (crossProjectCheck.isCrossProject) {
+    if (isBrowserRuntime() && crossProjectCheck.isCrossProject && !crossProjectCheck.isSameRepoWorktree) {
+      setResuming(false);
+      setResumeError('This conversation is attached to another workspace. Choose a session from this workspace, or switch the WebUI workspace before opening it.');
+      return;
+    }
+    if (!isBrowserRuntime() && crossProjectCheck.isCrossProject) {
       if (!crossProjectCheck.isSameRepoWorktree) {
         const raw = await setClipboard(crossProjectCheck.command);
         if (raw) process.stdout.write(raw);
-        setCrossProjectCommand(crossProjectCheck.command);
         return;
       }
     }
@@ -282,32 +311,44 @@ export function ResumeConversation({
       setResuming(false);
     }
   }
-  if (crossProjectCommand) {
-    return <CrossProjectMessage command={crossProjectCommand} />;
-  }
   if (resumeData) {
     return <REPL debug={debug} commands={commands} initialTools={initialTools} initialMessages={resumeData.messages} initialFileHistorySnapshots={resumeData.fileHistorySnapshots} initialContentReplacements={resumeData.contentReplacements} initialAgentName={resumeData.agentName} initialAgentColor={resumeData.agentColor} mcpClients={mcpClients} dynamicMcpConfig={dynamicMcpConfig} strictMcpConfig={strictMcpConfig} systemPrompt={systemPrompt} appendSystemPrompt={appendSystemPrompt} mainThreadAgentDefinition={resumeData.mainThreadAgentDefinition} baseMainLoopModel={baseMainLoopModel} hasExplicitModelOverride={hasExplicitModelOverride} autoConnectIdeFlag={autoConnectIdeFlag} disableSlashCommands={disableSlashCommands} thinkingConfig={thinkingConfig} fallbackModel={fallbackModel} onTurnComplete={onTurnComplete} />;
   }
   if (loading) {
+    if (isBrowserRuntime()) {
+      return <BrowserResumeState title="Loading conversations" detail="Finding sessions from this workspace." />;
+    }
     return <Box>
         <Spinner />
         <Text> Loading conversations…</Text>
       </Box>;
   }
   if (resuming) {
+    if (isBrowserRuntime()) {
+      return <BrowserResumeState title="Opening conversation" detail="Restoring the transcript and active session context." />;
+    }
     return <Box>
         <Spinner />
         <Text> Resuming conversation…</Text>
       </Box>;
   }
-  const resumeErrorBanner = resumeError ? <Box flexDirection="column" marginBottom={1}>
+  const resumeErrorBanner = resumeError ? (isBrowserRuntime() ? <BrowserResumeState title="Failed to resume conversation" detail={`${resumeError} Choose a different conversation to continue.`} tone="error" /> : <Box flexDirection="column" marginBottom={1}>
       <Text color="red">Failed to resume conversation.</Text>
       <Text>{resumeError}</Text>
       <Text dimColor={true}>Choose a different conversation to continue.</Text>
-    </Box> : null;
+    </Box>) : null;
   if (filteredLogs.length === 0) {
     return <NoConversationsMessage />;
   }
+  if (isBrowserRuntime()) {
+    return (
+      <div className="oc-resumeShell">
+        {resumeErrorBanner}
+        <LogSelector logs={filteredLogs} maxHeight={rows} onCancel={onCancel} onSelect={onSelect} onLogsChanged={isResumeWithRenameEnabled ? () => loadLogs(showAllProjects) : undefined} onLoadMore={loadMoreLogs} initialSearchQuery={initialSearchQuery} showAllProjects={showAllProjects} onToggleAllProjects={handleToggleAllProjects} onAgenticSearch={agenticSessionSearch} />
+      </div>
+    );
+  }
+
   return <Box flexDirection="column">
       {resumeErrorBanner}
       <LogSelector logs={filteredLogs} maxHeight={rows} onCancel={onCancel} onSelect={onSelect} onLogsChanged={isResumeWithRenameEnabled ? () => loadLogs(showAllProjects) : undefined} onLoadMore={loadMoreLogs} initialSearchQuery={initialSearchQuery} showAllProjects={showAllProjects} onToggleAllProjects={handleToggleAllProjects} onAgenticSearch={agenticSessionSearch} />
@@ -325,6 +366,15 @@ function NoConversationsMessage() {
     t0 = $[0];
   }
   useKeybinding("app:interrupt", _temp, t0);
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserResumeState
+        title="No conversations found"
+        detail="There are no resumable sessions for this workspace yet. Start a new chat from the prompt below."
+        tone="empty"
+      />
+    );
+  }
   let t1;
   if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = <Box flexDirection="column"><Text>No conversations found to resume.</Text><Text dimColor={true}>Press Ctrl+C to exit and start a new conversation.</Text></Box>;
@@ -336,63 +386,4 @@ function NoConversationsMessage() {
 }
 function _temp() {
   process.exit(1);
-}
-function CrossProjectMessage(t0) {
-  const $ = _c(8);
-  const {
-    command
-  } = t0;
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = [];
-    $[0] = t1;
-  } else {
-    t1 = $[0];
-  }
-  React.useEffect(_temp3, t1);
-  let t2;
-  if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = <Text>This conversation is from a different directory.</Text>;
-    $[1] = t2;
-  } else {
-    t2 = $[1];
-  }
-  let t3;
-  if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-    t3 = <Text>To resume, run:</Text>;
-    $[2] = t3;
-  } else {
-    t3 = $[2];
-  }
-  let t4;
-  if ($[3] !== command) {
-    t4 = <Box flexDirection="column">{t3}<Text> {command}</Text></Box>;
-    $[3] = command;
-    $[4] = t4;
-  } else {
-    t4 = $[4];
-  }
-  let t5;
-  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-    t5 = <Text dimColor={true}>(Command copied to clipboard)</Text>;
-    $[5] = t5;
-  } else {
-    t5 = $[5];
-  }
-  let t6;
-  if ($[6] !== t4) {
-    t6 = <Box flexDirection="column" gap={1}>{t2}{t4}{t5}</Box>;
-    $[6] = t4;
-    $[7] = t6;
-  } else {
-    t6 = $[7];
-  }
-  return t6;
-}
-function _temp3() {
-  const timeout = setTimeout(_temp2, 100);
-  return () => clearTimeout(timeout);
-}
-function _temp2() {
-  process.exit(0);
 }

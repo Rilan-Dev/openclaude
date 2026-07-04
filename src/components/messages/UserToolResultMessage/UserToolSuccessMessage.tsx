@@ -8,8 +8,10 @@ import { filterToolProgressMessages, type Tool, type Tools } from '../../../Tool
 import type { NormalizedUserMessage, ProgressMessage } from '../../../types/message.js';
 import { deleteClassifierApproval, getClassifierApproval, getYoloClassifierApproval } from '../../../utils/classifierApprovals.js';
 import { extractTag, type buildMessageLookups } from '../../../utils/messages.js';
+import { isBrowserRuntime } from '../../../utils/runtime.js';
 import { MessageResponse } from '../../MessageResponse.js';
 import { HookProgressMessage } from '../HookProgressMessage.js';
+import { BrowserToolResultDisclosure, isDisclosureElement } from './BrowserToolResultDisclosure.js';
 type Props = {
   message: NormalizedUserMessage;
   lookups: ReturnType<typeof buildMessageLookups>;
@@ -22,6 +24,7 @@ type Props = {
   width: number | string;
   isTranscriptMode?: boolean;
 };
+
 export function UserToolSuccessMessage({
   message,
   lookups,
@@ -35,6 +38,8 @@ export function UserToolSuccessMessage({
   isTranscriptMode
 }: Props): React.ReactNode {
   const [theme] = useTheme();
+  const browserRuntime = isBrowserRuntime();
+  const toolResultWidth = browserRuntime ? '100%' : width;
   // Hook stays inside feature() ternary so external builds don't pay a
   // per-scrollback-message store subscription — same pattern as
   // UserPromptMessage.tsx.
@@ -60,7 +65,7 @@ export function UserToolSuccessMessage({
   }, [message.message.content]);
   if (!message.toolUseResult || !tool) {
     return fallbackContent ? <Box flexDirection="column">
-          <Box flexDirection="column" width={width}>
+          <Box flexDirection="column" width={toolResultWidth}>
             <Text>{fallbackContent}</Text>
             {feature('BASH_CLASSIFIER') ? classifierRule && <MessageResponse height={1}>
                     <Text dimColor>
@@ -86,7 +91,7 @@ export function UserToolSuccessMessage({
   const parsedOutput = tool.outputSchema?.safeParse(message.toolUseResult);
   if (parsedOutput && !parsedOutput.success) {
     return fallbackContent ? <Box flexDirection="column">
-          <Box flexDirection="column" width={width}>
+          <Box flexDirection="column" width={toolResultWidth}>
             <Text>{fallbackContent}</Text>
             {feature('BASH_CLASSIFIER') ? classifierRule && <MessageResponse height={1}>
                     <Text dimColor>
@@ -104,6 +109,7 @@ export function UserToolSuccessMessage({
           </SentryErrorBoundary>
         </Box> : null;
   }
+  const toolUseInput = lookups.toolUseByToolUseID.get(toolUseID)?.input;
   const toolResult = parsedOutput?.data ?? message.toolUseResult;
   const renderedMessage = tool.renderToolResultMessage?.(toolResult as never, filterToolProgressMessages(progressMessagesForMessage), {
     style,
@@ -112,7 +118,7 @@ export function UserToolSuccessMessage({
     verbose,
     isTranscriptMode,
     isBriefOnly,
-    input: lookups.toolUseByToolUseID.get(toolUseID)?.input
+    input: toolUseInput
   }) ?? null;
 
   // Don't render anything if the tool result message is null
@@ -125,9 +131,10 @@ export function UserToolSuccessMessage({
   // so MarkdownTable's SAFETY_MARGIN=4 (tuned for the assistant-text 2-col
   // dot gutter) holds — otherwise tables wrap their box-drawing chars.
   const rendersAsAssistantText = tool.userFacingName(undefined) === '';
+  const displayedMessage = browserRuntime && !rendersAsAssistantText && !isDisclosureElement(renderedMessage) ? <BrowserToolResultDisclosure title={tool.userFacingName(toolUseInput) || 'Tool result'} detail="Completed">{renderedMessage}</BrowserToolResultDisclosure> : renderedMessage;
   return <Box flexDirection="column">
-      <Box flexDirection="column" width={rendersAsAssistantText ? undefined : width}>
-        {renderedMessage}
+      <Box flexDirection="column" width={rendersAsAssistantText ? undefined : toolResultWidth}>
+        {displayedMessage}
         {feature('BASH_CLASSIFIER') ? classifierRule && <MessageResponse height={1}>
                 <Text dimColor>
                   <Text color="success">{figures.tick}</Text>

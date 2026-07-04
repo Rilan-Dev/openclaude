@@ -20,6 +20,7 @@ import { updatePluginsForMarketplaces } from '../../utils/plugins/pluginAutoupda
 import { loadAllPlugins } from '../../utils/plugins/pluginLoader.js';
 import { isMarketplaceAutoUpdate } from '../../utils/plugins/schemas.js';
 import { getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { plural } from '../../utils/stringUtils.js';
 import type { ViewState } from './types.js';
 type Props = {
@@ -536,9 +537,44 @@ export function ManageMarketplaces({
     isActive: !isProcessing && internalView === 'confirm-remove'
   });
   if (loading) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplaces</span>
+            <h2>Manage marketplaces</h2>
+            <p>Loading plugin marketplace sources.</p>
+          </div>
+          <div className="repl-webPickerLoading" />
+        </section>;
+    }
     return <Text>Loading marketplaces…</Text>;
   }
   if (marketplaceStates.length === 0) {
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplaces</span>
+            <h2>Manage marketplaces</h2>
+            <p>No marketplace sources are configured yet.</p>
+          </div>
+          <div className="repl-webPickerList">
+            <button type="button" className="repl-webPickerOption" data-focused="true" onClick={() => setViewState({
+            type: 'add-marketplace'
+          })}>
+              <span className="repl-webPickerOptionMark">ADD</span>
+              <span className="repl-webPickerOptionCopy">
+                <span className="repl-webPickerOptionTitle">Add marketplace</span>
+                <span className="repl-webPickerOptionDescription">Connect a marketplace source for plugins.</span>
+              </span>
+            </button>
+          </div>
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => setViewState({
+            type: 'menu'
+          })}>Back</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Box marginBottom={1}>
           <Text bold>Manage marketplaces</Text>
@@ -566,6 +602,25 @@ export function ManageMarketplaces({
   // Show confirmation dialog
   if (internalView === 'confirm-remove' && selectedMarketplace) {
     const pluginCount = selectedMarketplace.installedPlugins?.length || 0;
+    if (isBrowserRuntime()) {
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Remove marketplace</span>
+            <h2>{selectedMarketplace.name}</h2>
+            <p>{pluginCount > 0 ? `This will also uninstall ${pluginCount} ${plural(pluginCount, 'plugin')} from this marketplace.` : 'Remove this marketplace source from OpenClaude.'}</p>
+          </div>
+          {selectedMarketplace.installedPlugins && selectedMarketplace.installedPlugins.length > 0 ? <div className="repl-pluginCompactList">
+              {selectedMarketplace.installedPlugins.map(plugin => <span key={plugin.name}>{plugin.name}</span>)}
+            </div> : null}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton repl-pluginDangerButton" onClick={() => void confirmRemove()}>Remove marketplace</button>
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+            setInternalView('list');
+            setSelectedMarketplace(null);
+          }}>Cancel</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Text bold color="warning">
           Remove marketplace <Text italic>{selectedMarketplace.name}</Text>?
@@ -598,6 +653,60 @@ export function ManageMarketplaces({
     // Check pendingUpdate first so we show updating state immediately when user presses Enter
     const isUpdating = selectedMarketplace.pendingUpdate || isProcessing;
     const menuOptions = buildDetailsMenuOptions(selectedMarketplace);
+    if (isBrowserRuntime()) {
+      const runMarketplaceAction = (value: string) => {
+        if (value === 'browse') {
+          setViewState({
+            type: 'browse-marketplace',
+            targetMarketplace: selectedMarketplace.name
+          });
+        } else if (value === 'update') {
+          const newStates = marketplaceStates.map(state => state.name === selectedMarketplace.name ? {
+            ...state,
+            pendingUpdate: true
+          } : state);
+          setMarketplaceStates(newStates);
+          void applyChanges(newStates);
+        } else if (value === 'toggle-auto-update') {
+          void handleToggleAutoUpdate(selectedMarketplace);
+        } else if (value === 'remove') {
+          setInternalView('confirm-remove');
+        }
+      };
+      return <section className="repl-webPicker repl-pluginSurface">
+          <div className="repl-webPickerHeader">
+            <span className="repl-webPickerKicker">Marketplace details</span>
+            <h2>{selectedMarketplace.name}</h2>
+            <p>{selectedMarketplace.source}</p>
+          </div>
+          <div className="repl-pluginMetaGrid">
+            <span>Available <strong>{selectedMarketplace.pluginCount || 0}</strong></span>
+            <span>Installed <strong>{selectedMarketplace.installedPlugins?.length || 0}</strong></span>
+            <span>Auto-update <strong>{selectedMarketplace.autoUpdate ? 'On' : 'Off'}</strong></span>
+          </div>
+          {selectedMarketplace.installedPlugins && selectedMarketplace.installedPlugins.length > 0 ? <div className="repl-pluginCompactList">
+              {selectedMarketplace.installedPlugins.map(plugin => <span key={plugin.name}>{plugin.name}</span>)}
+            </div> : null}
+          {isUpdating ? <div className="repl-webPickerNotice">{progressMessage || 'Updating marketplace…'}</div> : null}
+          {!isUpdating && successMessage ? <div className="repl-webPickerNotice">{successMessage}</div> : null}
+          {!isUpdating && processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+          {!isUpdating ? <div className="repl-webPickerList">
+              {menuOptions.filter(Boolean).map((option, index) => <button type="button" key={option!.value} className="repl-webPickerOption" data-focused={detailsMenuIndex === index ? 'true' : undefined} onMouseEnter={() => setDetailsMenuIndex(index)} onClick={() => runMarketplaceAction(option!.value)}>
+                  <span className="repl-webPickerOptionMark">{option!.value === 'remove' ? 'DEL' : option!.value === 'update' ? 'UPD' : 'GO'}</span>
+                  <span className="repl-webPickerOptionCopy">
+                    <span className="repl-webPickerOptionTitle">{option!.label}</span>
+                    <span className="repl-webPickerOptionDescription">{option!.secondaryLabel || 'Apply this marketplace action.'}</span>
+                  </span>
+                </button>)}
+            </div> : null}
+          <div className="repl-webPickerFooter">
+            <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+            setInternalView('list');
+            setSelectedMarketplace(null);
+          }}>Back to marketplaces</button>
+          </div>
+        </section>;
+    }
     return <Box flexDirection="column">
         <Text bold>{selectedMarketplace.name}</Text>
         <Text dimColor>{selectedMarketplace.source}</Text>
@@ -679,6 +788,84 @@ export function ManageMarketplaces({
     updateCount,
     removeCount
   } = getPendingCounts();
+  if (isBrowserRuntime()) {
+    const openMarketplace = (state: MarketplaceState, index: number) => {
+      setSelectedIndex(index + 1);
+      setSelectedMarketplace(state);
+      setInternalView('details');
+      setDetailsMenuIndex(0);
+    };
+    const toggleUpdate = (index: number) => {
+      setMarketplaceStates(prev => prev.map((state, idx) => idx === index ? {
+        ...state,
+        pendingUpdate: !state.pendingUpdate,
+        pendingRemove: state.pendingUpdate ? state.pendingRemove : false
+      } : state));
+    };
+    return <section className="repl-webPicker repl-pluginSurface">
+        <div className="repl-webPickerHeader">
+          <span className="repl-webPickerKicker">Marketplaces</span>
+          <h2>Manage marketplaces</h2>
+          <p>Review plugin sources, update marketplaces, or remove stale sources.</p>
+        </div>
+        <div className="repl-webPickerList repl-pluginList">
+          <button type="button" className="repl-webPickerOption" data-focused={selectedIndex === 0 ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(0)} onClick={() => setViewState({
+          type: 'add-marketplace'
+        })}>
+            <span className="repl-webPickerOptionMark">ADD</span>
+            <span className="repl-webPickerOptionCopy">
+              <span className="repl-webPickerOptionTitle">Add marketplace</span>
+              <span className="repl-webPickerOptionDescription">Register another plugin marketplace source.</span>
+            </span>
+          </button>
+          {marketplaceStates.map((state, index) => <div key={state.name} className="repl-webPickerOption" role="button" tabIndex={0} data-focused={selectedIndex === index + 1 ? 'true' : undefined} data-selected={state.pendingUpdate || state.pendingRemove ? 'true' : undefined} onMouseEnter={() => setSelectedIndex(index + 1)} onClick={() => openMarketplace(state, index)} onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openMarketplace(state, index);
+          }
+        }}>
+              <span className="repl-webPickerOptionMark">{state.pendingRemove ? 'DEL' : state.pendingUpdate ? 'UPD' : 'SRC'}</span>
+              <span className="repl-webPickerOptionCopy">
+                <span className="repl-webPickerOptionTitle">{state.name}</span>
+                <span className="repl-webPickerOptionDescription">{state.source}</span>
+                <span className="repl-pluginMetaLine">
+                  {state.pluginCount !== undefined ? <span>{state.pluginCount} available</span> : null}
+                  {state.installedPlugins && state.installedPlugins.length > 0 ? <span>{state.installedPlugins.length} installed</span> : null}
+                  {state.lastUpdated ? <span>Updated {new Date(state.lastUpdated).toLocaleDateString()}</span> : null}
+                </span>
+              </span>
+              <span className="repl-pluginInlineActions" onClick={event => event.stopPropagation()}>
+                <button type="button" onClick={() => toggleUpdate(index)}>{state.pendingUpdate ? 'Cancel update' : 'Update'}</button>
+                <button type="button" onClick={() => {
+              setSelectedMarketplace(state);
+              setInternalView('confirm-remove');
+            }}>Remove</button>
+              </span>
+            </div>)}
+        </div>
+        {hasPendingChanges() ? <div className="repl-webPickerNotice">
+            Pending changes: {updateCount > 0 ? `${updateCount} ${plural(updateCount, 'marketplace')} to update` : null}
+            {updateCount > 0 && removeCount > 0 ? ' · ' : null}
+            {removeCount > 0 ? `${removeCount} ${plural(removeCount, 'marketplace')} to remove` : null}
+          </div> : null}
+        {isProcessing ? <div className="repl-webPickerNotice">Processing changes…</div> : null}
+        {processError ? <div className="repl-webPickerNotice repl-pluginError">{processError}</div> : null}
+        <div className="repl-webPickerFooter">
+          {hasPendingChanges() ? <button type="button" className="repl-webPickerGhostButton" onClick={() => void applyChanges()}>Apply changes</button> : null}
+          {hasPendingChanges() ? <button type="button" className="repl-webPickerGhostButton" onClick={() => {
+          setMarketplaceStates(prev => prev.map(state => ({
+            ...state,
+            pendingUpdate: false,
+            pendingRemove: false
+          })));
+          setSelectedIndex(0);
+        }}>Clear changes</button> : null}
+          <button type="button" className="repl-webPickerGhostButton" onClick={() => setViewState({
+          type: 'menu'
+        })}>Back</button>
+        </div>
+      </section>;
+  }
   return <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text bold>Manage marketplaces</Text>

@@ -1,6 +1,7 @@
 import { c as _c } from "react-compiler-runtime";
 import * as React from 'react';
 import { Box } from '../../ink.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import type { Theme } from '../../utils/theme.js';
 import { PermissionRequestTitle } from './PermissionRequestTitle.js';
 import type { WorkerBadgeProps } from './WorkerBadge.js';
@@ -28,6 +29,26 @@ export function PermissionDialog(t0) {
   } = t0;
   const color = t1 === undefined ? "permission" : t1;
   const innerPaddingX = t2 === undefined ? 1 : t2;
+
+  if (isBrowserRuntime()) {
+    return (
+      <div className="repl-webPermissionCard repl-webPermissionCard--generic" data-tone={String(color)} role="dialog" aria-modal="true" aria-label={`${title} permission request`}>
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">Action needed</div>
+            <h2>{title}</h2>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          {titleRight ? <div className="repl-webPermissionTitleRight">{titleRight}</div> : <span className="repl-webPermissionBadge">Review</span>}
+        </div>
+        <div className="repl-webPermissionBody">
+          <div className="repl-webPermissionContent">{children}</div>
+        </div>
+      </div>
+    );
+  }
+
   let t3;
   if ($[0] !== subtitle || $[1] !== title || $[2] !== titleColor || $[3] !== workerBadge) {
     t3 = <PermissionRequestTitle title={title} subtitle={subtitle} color={titleColor} workerBadge={workerBadge} />;

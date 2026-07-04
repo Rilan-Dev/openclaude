@@ -6,6 +6,7 @@ import type { ContextData } from '../utils/analyzeContext.js';
 import { generateContextSuggestions } from '../utils/contextSuggestions.js';
 import { getDisplayPath } from '../utils/file.js';
 import { formatTokens } from '../utils/format.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 import { getSourceDisplayName, type SettingSource } from '../utils/settings/constants.js';
 import { plural } from '../utils/stringUtils.js';
 import { ContextSuggestions } from './ContextSuggestions.js';
@@ -102,6 +103,187 @@ function groupBySource<T extends {
 interface Props {
   data: ContextData;
 }
+
+function browserContextColor(color: string): string {
+  const colors: Record<string, string> = {
+    claude: '#d97757',
+    success: '#45b97c',
+    warning: '#f5b85c',
+    error: '#ff6b8a',
+    info: '#7dd3fc',
+    secondaryText: '#9ca3af',
+  };
+  return colors[color] ?? color;
+}
+
+function BrowserContextVisualization({ data }: Props): React.ReactNode {
+  const {
+    categories,
+    totalTokens,
+    rawMaxTokens,
+    percentage,
+    gridRows,
+    model,
+    memoryFiles,
+    mcpTools,
+    agents,
+    skills,
+  } = data;
+  const visibleCategories = categories.filter(_temp);
+  const suggestions = generateContextSuggestions(data);
+  const loadedMcpTools = mcpTools.filter(tool => tool.isLoaded);
+  const availableMcpTools = mcpTools.filter(tool => !tool.isLoaded);
+  const freeSpace = Math.max(0, rawMaxTokens - totalTokens);
+  const progressStyle = {
+    width: `${Math.max(0, Math.min(100, percentage))}%`,
+  } as React.CSSProperties;
+
+  return (
+    <section className="repl-contextPanel" aria-label="Context usage">
+      <header className="repl-contextHeader">
+        <div>
+          <p className="repl-webPickerKicker">Context Window</p>
+          <h2>Context usage</h2>
+          <p>{model} · {formatTokens(totalTokens)} of {formatTokens(rawMaxTokens)} tokens</p>
+        </div>
+        <div className="repl-contextMeter" aria-label={`${percentage}% used`}>
+          <strong>{percentage}%</strong>
+          <span>used</span>
+        </div>
+      </header>
+
+      <div className="repl-contextProgress">
+        <span style={progressStyle} />
+      </div>
+
+      <div className="repl-contextGrid" aria-label="Context block map">
+        {gridRows.flatMap((row, rowIndex) =>
+          row.map((square, colIndex) => (
+            <span
+              key={`${rowIndex}-${colIndex}`}
+              className={square.isFilled ? 'is-filled' : undefined}
+              title={`${square.categoryName}: ${formatTokens(square.tokens)}`}
+              style={{ backgroundColor: square.isFilled ? browserContextColor(square.color) : undefined }}
+            />
+          )),
+        )}
+      </div>
+
+      <div className="repl-contextStats">
+        <div>
+          <span>Used</span>
+          <strong>{formatTokens(totalTokens)}</strong>
+        </div>
+        <div>
+          <span>Available</span>
+          <strong>{formatTokens(freeSpace)}</strong>
+        </div>
+        <div>
+          <span>Limit</span>
+          <strong>{formatTokens(rawMaxTokens)}</strong>
+        </div>
+      </div>
+
+      <details className="repl-contextSection" open>
+        <summary>Category breakdown</summary>
+        <div className="repl-contextBreakdown">
+          {visibleCategories.map(category => (
+            <div key={category.name} className="repl-contextBreakdownRow">
+              <span style={{ backgroundColor: browserContextColor(category.color) }} />
+              <strong>{category.name}</strong>
+              <em>{formatTokens(category.tokens)} · {category.isDeferred ? 'loaded on demand' : `${(category.tokens / rawMaxTokens * 100).toFixed(1)}%`}</em>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      {mcpTools.length > 0 ? (
+        <details className="repl-contextSection">
+          <summary>MCP tools</summary>
+          <div className="repl-contextResourceGrid">
+            {loadedMcpTools.map(tool => (
+              <div key={`${tool.serverName}:${tool.name}`} className="repl-contextResource">
+                <strong>{tool.name}</strong>
+                <span>{tool.serverName}</span>
+                <em>{formatTokens(tool.tokens)}</em>
+              </div>
+            ))}
+            {availableMcpTools.map(tool => (
+              <div key={`${tool.serverName}:${tool.name}`} className="repl-contextResource is-muted">
+                <strong>{tool.name}</strong>
+                <span>{tool.serverName}</span>
+                <em>available on demand</em>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
+      {agents.length > 0 ? (
+        <details className="repl-contextSection">
+          <summary>Custom agents</summary>
+          <div className="repl-contextResourceGrid">
+            {Array.from(groupBySource(agents).entries()).flatMap(([source, sourceAgents]) =>
+              sourceAgents.map(agent => (
+                <div key={`${source}:${agent.agentType}`} className="repl-contextResource">
+                  <strong>{agent.agentType}</strong>
+                  <span>{source}</span>
+                  <em>{formatTokens(agent.tokens)}</em>
+                </div>
+              )),
+            )}
+          </div>
+        </details>
+      ) : null}
+
+      {memoryFiles.length > 0 ? (
+        <details className="repl-contextSection">
+          <summary>Memory files</summary>
+          <div className="repl-contextResourceGrid">
+            {memoryFiles.map(file => (
+              <div key={file.path} className="repl-contextResource">
+                <strong>{getDisplayPath(file.path)}</strong>
+                <span>{file.type}</span>
+                <em>{formatTokens(file.tokens)}</em>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
+      {skills && skills.tokens > 0 ? (
+        <details className="repl-contextSection">
+          <summary>Skills</summary>
+          <div className="repl-contextResourceGrid">
+            {Array.from(groupBySource(skills.skillFrontmatter).entries()).flatMap(([source, sourceSkills]) =>
+              sourceSkills.map(skill => (
+                <div key={`${source}:${skill.name}`} className="repl-contextResource">
+                  <strong>{skill.name}</strong>
+                  <span>{source}</span>
+                  <em>{formatTokens(skill.tokens)}</em>
+                </div>
+              )),
+            )}
+          </div>
+        </details>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <aside className="repl-contextSuggestions">
+          <p className="repl-webPickerKicker">Suggestions</p>
+          {suggestions.map(suggestion => (
+            <div key={`${suggestion.title}:${suggestion.detail}`} className="repl-contextSuggestion" data-severity={suggestion.severity}>
+              <strong>{suggestion.title}</strong>
+              <span>{suggestion.detail}</span>
+              {suggestion.savingsTokens ? <em>Can save about {formatTokens(suggestion.savingsTokens)}</em> : null}
+            </div>
+          ))}
+        </aside>
+      ) : null}
+    </section>
+  );
+}
+
 export function ContextVisualization(t0) {
   const $ = _c(87);
   const {
@@ -123,6 +305,9 @@ export function ContextVisualization(t0) {
     skills,
     messageBreakdown
   } = data;
+  if (isBrowserRuntime()) {
+    return <BrowserContextVisualization data={data} />;
+  }
   let T0;
   let T1;
   let t2;

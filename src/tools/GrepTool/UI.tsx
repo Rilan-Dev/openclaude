@@ -2,6 +2,7 @@ import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs
 import React from 'react';
 import { CtrlOToExpand } from '../../components/CtrlOToExpand.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
+import { BrowserToolResultDisclosure } from '../../components/messages/UserToolResultMessage/BrowserToolResultDisclosure.js';
 import { MessageResponse } from '../../components/MessageResponse.js';
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js';
 import { Box, Text } from '../../ink.js';
@@ -55,26 +56,27 @@ function SearchResultSummary({
   if (isBrowserRuntime()) {
     const preview = getPreviewContent(content);
     return (
-      <MessageResponse>
-        <div className="oc-toolResultPreview oc-toolResultPreview--search" data-empty={count === 0 ? 'true' : undefined}>
-          <div className="oc-toolResultPreviewHeader">
-            <div>
-              <div className="oc-toolResultPreviewKicker">Search</div>
-              <div className="oc-toolResultPreviewTitle">{primarySummary}{secondarySummary}</div>
+      <details className="oc-toolDisclosure oc-toolDisclosure--search" data-empty={count === 0 ? 'true' : undefined}>
+        <summary className="oc-toolDisclosureSummary">
+          <span className="oc-toolDisclosureStatus" />
+          <span className="oc-toolDisclosureTitle">{primarySummary}</span>
+          {secondarySummary ? <span className="oc-toolDisclosureMeta">{secondarySummary.trim()}</span> : null}
+        </summary>
+        <div className="oc-toolDisclosureBody">
+          <div className="oc-toolResultPreview oc-toolResultPreview--search" data-empty={count === 0 ? 'true' : undefined}>
+            <div className="oc-toolResultPreviewBody">
+              {preview.content ? (
+                <pre>{preview.content}</pre>
+              ) : (
+                <div className="oc-toolResultPreviewEmpty">No matching content returned for this search.</div>
+              )}
             </div>
+            {preview.isTruncated ? (
+              <div className="oc-toolResultPreviewTruncated">Preview truncated for browser performance. Refine the search or open transcript mode for more context.</div>
+            ) : null}
           </div>
-          <div className="oc-toolResultPreviewBody">
-            {preview.content ? (
-              <pre>{preview.content}</pre>
-            ) : (
-              <div className="oc-toolResultPreviewEmpty">No matching content returned for this search.</div>
-            )}
-          </div>
-          {preview.isTruncated ? (
-            <div className="oc-toolResultPreviewTruncated">Preview truncated for browser performance. Refine the search or open transcript mode for more context.</div>
-          ) : null}
         </div>
-      </MessageResponse>
+      </details>
     );
   }
 
@@ -137,9 +139,23 @@ export function renderToolUseErrorMessage(result: ToolResultBlockParam['content'
   if (!verbose && typeof result === 'string' && extractTag(result, 'tool_use_error')) {
     const errorMessage = extractTag(result, 'tool_use_error');
     if (errorMessage?.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+      if (isBrowserRuntime()) {
+        return (
+          <BrowserToolResultDisclosure title="Search failed" detail="File not found" state="error" defaultOpen>
+            <div className="oc-toolResultError">The search path could not be found in this workspace.</div>
+          </BrowserToolResultDisclosure>
+        );
+      }
       return <MessageResponse>
           <Text color="error">File not found</Text>
         </MessageResponse>;
+    }
+    if (isBrowserRuntime()) {
+      return (
+        <BrowserToolResultDisclosure title="Search failed" detail="Unable to search files" state="error" defaultOpen>
+          <div className="oc-toolResultError">{errorMessage ?? 'Error searching files'}</div>
+        </BrowserToolResultDisclosure>
+      );
     }
     return <MessageResponse>
         <Text color="error">Error searching files</Text>

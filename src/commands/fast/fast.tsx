@@ -12,6 +12,7 @@ import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { clearFastModeCooldown, FAST_MODE_MODEL_DISPLAY, getFastModeModel, getFastModeRuntimeState, getFastModeUnavailableReason, isFastModeEnabled, isFastModeSupportedByModel, prefetchFastModeStatus } from '../../utils/fastMode.js';
 import { formatDuration } from '../../utils/format.js';
 import { formatModelPricing, getOpus46CostTier } from '../../utils/modelCost.js';
+import { isBrowserRuntime } from '../../utils/runtime.js';
 import { updateSettingsForSource } from '../../utils/settings/settings.js';
 function applyFastMode(enable: boolean, setAppState: (f: (prev: AppState) => AppState) => void): void {
   clearFastModeCooldown();
@@ -162,6 +163,41 @@ export function FastModePicker(t0) {
     t7 = $[18];
   }
   useKeybindings(t6, t7);
+  if (isBrowserRuntime()) {
+    return (
+      <div className="oc-fastModeCard" data-unavailable={isUnavailable ? 'true' : undefined}>
+        <div className="oc-fastModeHeader">
+          <span className="oc-fastModeKicker">Session speed</span>
+          <h2>Fast mode</h2>
+          <p>High-speed mode for {FAST_MODE_MODEL_DISPLAY}. Billed as extra usage at a premium rate with separate rate limits.</p>
+        </div>
+        {unavailableReason ? (
+          <div className="oc-toolResultError">{unavailableReason}</div>
+        ) : (
+          <div className="oc-fastModeToggle" role="group" aria-label="Fast mode">
+            <button type="button" data-selected={enableFastMode ? 'true' : undefined} onClick={() => setEnableFastMode(true)}>
+              <strong>On</strong>
+              <span>{pricing}</span>
+            </button>
+            <button type="button" data-selected={!enableFastMode ? 'true' : undefined} onClick={() => setEnableFastMode(false)}>
+              <strong>Off</strong>
+              <span>Standard response cadence</span>
+            </button>
+          </div>
+        )}
+        {isCooldown && runtimeState.status === 'cooldown' ? (
+          <div className="oc-toolResultWarning">
+            {runtimeState.reason === 'overloaded' ? 'Fast mode is temporarily overloaded.' : "You've hit your fast limit."} Resets in {formatDuration(runtimeState.resetAt - Date.now(), { hideTrailingZeros: true })}.
+          </div>
+        ) : null}
+        <div className="oc-fastModeActions">
+          <button type="button" className="oc-fastModePrimary" disabled={isUnavailable} onClick={handleConfirm}>Apply</button>
+          <button type="button" className="oc-fastModeGhost" onClick={handleCancel}>Close</button>
+        </div>
+        <a className="oc-toolLink" href="https://code.claude.com/docs/en/fast-mode" target="_blank" rel="noreferrer">Learn more about fast mode</a>
+      </div>
+    );
+  }
   let t8;
   if ($[19] === Symbol.for("react.memo_cache_sentinel")) {
     t8 = <Text><FastIcon cooldown={isCooldown} /> Fast mode (research preview)</Text>;

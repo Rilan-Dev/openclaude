@@ -3,6 +3,7 @@ import * as React from 'react';
 import type { KeybindingAction, KeybindingContextName } from '../keybindings/types.js';
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
+import { isBrowserRuntime } from '../utils/runtime.js';
 type Props = {
   /** The keybinding action (e.g., 'app:toggleTranscript') */
   action: KeybindingAction;
@@ -40,6 +41,9 @@ export function ConfigurableShortcutHint(t0) {
     parens,
     bold
   } = t0;
+  if (isBrowserRuntime()) {
+    return null;
+  }
   const shortcut = useShortcutDisplay(action, context, fallback);
   let t1;
   if ($[0] !== bold || $[1] !== description || $[2] !== parens || $[3] !== shortcut) {

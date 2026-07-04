@@ -10439,6 +10439,158 @@
   margin-top: 0.25rem;
 }
 
+.repl-webPermissionCard--mode {
+  width: min(100%, 52rem);
+  margin-inline: auto;
+}
+
+.repl-webPermissionCard[data-tone='error'],
+.repl-webPermissionCard--mode[data-tone='error'] {
+  border-color: rgba(255, 93, 122, 0.24);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 93, 122, 0.12), transparent 18rem),
+    linear-gradient(135deg, rgba(41, 35, 32, 0.97), rgba(31, 30, 28, 0.99));
+}
+
+.repl-webPermissionCard[data-tone='error'] .repl-webPermissionBadge,
+.repl-webPermissionCard--mode[data-tone='error'] .repl-webPermissionBadge {
+  border-color: rgba(255, 93, 122, 0.30);
+  color: #ff9aae;
+  background: rgba(255, 93, 122, 0.10);
+}
+
+.repl-webPermissionContent p {
+  margin: 0 0 0.58rem;
+  color: rgba(244, 241, 234, 0.74);
+  line-height: 1.5;
+}
+
+.repl-webPermissionContent p:last-child {
+  margin-bottom: 0;
+}
+
+.repl-webPermissionContent a {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.2rem;
+  color: #f0b78b;
+  font-weight: 720;
+  text-decoration: none;
+}
+
+.repl-webPermissionContent a:hover,
+.repl-webPermissionContent a:focus-visible {
+  color: #ffd0aa;
+  outline: none;
+  text-decoration: underline;
+}
+
+.repl-webPermissionAction[data-danger='true'] {
+  border-color: rgba(255, 93, 122, 0.24);
+}
+
+.repl-webPermissionAction[data-danger='true']:hover,
+.repl-webPermissionAction[data-danger='true']:focus-visible {
+  border-color: rgba(255, 93, 122, 0.42);
+  background: rgba(255, 93, 122, 0.09);
+}
+
+.oc-sessionPreviewCard {
+  width: min(100%, 58rem);
+  max-height: min(76vh, 42rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.82rem;
+  margin: 0.75rem 0;
+  border: 1px solid rgba(244, 241, 234, 0.12);
+  border-radius: 1.18rem;
+  padding: 0.95rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(210, 153, 110, 0.12), transparent 20rem),
+    linear-gradient(135deg, rgba(39, 38, 35, 0.96), rgba(29, 29, 27, 0.98));
+  box-shadow: 0 22px 68px rgba(0, 0, 0, 0.30);
+  color: rgba(250, 249, 245, 0.93);
+}
+
+.oc-sessionPreviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(244, 241, 234, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.oc-sessionPreviewHeader span {
+  color: #f0b78b;
+  font-size: 0.74rem;
+  font-weight: 780;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.oc-sessionPreviewHeader p {
+  margin: 0.28rem 0 0;
+  color: rgba(235, 231, 221, 0.60);
+  font-size: 0.82rem;
+}
+
+.oc-sessionPreviewActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.oc-sessionPreviewHeader button,
+.oc-sessionPreviewActions button {
+  border: 1px solid rgba(244, 241, 234, 0.10);
+  border-radius: 999px;
+  padding: 0.48rem 0.72rem;
+  color: rgba(250, 249, 245, 0.9);
+  background: rgba(255, 255, 255, 0.045);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.oc-sessionPreviewHeader button:hover,
+.oc-sessionPreviewHeader button:focus-visible,
+.oc-sessionPreviewActions button:hover,
+.oc-sessionPreviewActions button:focus-visible {
+  border-color: rgba(210, 153, 110, 0.42);
+  background: rgba(210, 153, 110, 0.12);
+  outline: none;
+}
+
+.oc-sessionPreviewTranscript {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 0.9rem;
+  padding-right: 0.25rem;
+}
+
+.repl-webFullscreen .oc-webMessageContent .oc-webInkBox:has(.oc-toolDisclosure),
+.repl-webFullscreen .oc-webMessageContent .oc-webInkBox:has(.oc-toolResultPreview),
+.repl-webFullscreen .oc-webMessageContent .oc-webInkBox:has(.oc-toolReadReceipt),
+.repl-webFullscreen .oc-webMessageContent .oc-webInkBox:has(.oc-toolPlainPre),
+.repl-webFullscreen .oc-webMessageResponse:has(.oc-toolDisclosure),
+.repl-webFullscreen .oc-webMessageResponse:has(.oc-toolResultPreview),
+.repl-webFullscreen .oc-messageBubble:has(.oc-toolDisclosure),
+.repl-webFullscreen .oc-messageBubble:has(.oc-toolResultPreview) {
+  width: 100% !important;
+  max-width: 100% !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.repl-webFullscreen .oc-toolDisclosure {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 @media (max-width: 860px) {
   .repl-doctorGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

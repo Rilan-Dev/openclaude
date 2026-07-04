@@ -355,6 +355,15 @@ export function ResumeConversation({
     </Box>;
 }
 function NoConversationsMessage() {
+  if (isBrowserRuntime()) {
+    return (
+      <BrowserResumeState
+        title="No conversations found"
+        detail="There are no resumable sessions for this workspace yet. Start a new chat from the prompt below."
+        tone="empty"
+      />
+    );
+  }
   const $ = _c(2);
   let t0;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -366,15 +375,6 @@ function NoConversationsMessage() {
     t0 = $[0];
   }
   useKeybinding("app:interrupt", _temp, t0);
-  if (isBrowserRuntime()) {
-    return (
-      <BrowserResumeState
-        title="No conversations found"
-        detail="There are no resumable sessions for this workspace yet. Start a new chat from the prompt below."
-        tone="empty"
-      />
-    );
-  }
   let t1;
   if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = <Box flexDirection="column"><Text>No conversations found to resume.</Text><Text dimColor={true}>Press Ctrl+C to exit and start a new conversation.</Text></Box>;

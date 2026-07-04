@@ -7,6 +7,7 @@ import {
   type PermissionMode,
   permissionModeTitle,
 } from '../utils/permissions/PermissionMode.js'
+import { isBrowserRuntime } from '../utils/runtime.js'
 import { Select } from './CustomSelect/index.js'
 import { Dialog } from './design-system/Dialog.js'
 
@@ -57,6 +58,47 @@ export function BypassPermissionsModeDialog({
   )
 
   const modeTitle = permissionModeTitle(mode)
+
+  if (isBrowserRuntime()) {
+    return (
+      <div className="repl-webPermissionCard repl-webPermissionCard--mode" data-tone="error" role="dialog" aria-modal="true" aria-label={`${modeTitle} mode warning`}>
+        <div className="repl-webPermissionHalo" />
+        <div className="repl-webPermissionHeader">
+          <div>
+            <div className="repl-webPermissionKicker">Safety mode</div>
+            <h2>{PRODUCT_DISPLAY_NAME} is running in {modeTitle} mode</h2>
+          </div>
+          <span className="repl-webPermissionBadge">High risk</span>
+        </div>
+        <div className="repl-webPermissionBody">
+          <div className="repl-webPermissionContent">
+            <p>
+              In {modeTitle} mode, {PRODUCT_DISPLAY_NAME} will not ask for approval
+              before running potentially dangerous commands.
+            </p>
+            <p>
+              Use this only in a sandboxed container or VM with restricted internet
+              access and a clean restore path.
+            </p>
+            <p>
+              By proceeding, you accept responsibility for actions taken while this
+              mode is active.
+            </p>
+          </div>
+          <div className="repl-webPermissionActions">
+            <button type="button" className="repl-webPermissionAction" onClick={handleDecline}>
+              <span>No, exit</span>
+              <small>Leave this mode disabled.</small>
+            </button>
+            <button type="button" className="repl-webPermissionAction" data-primary="true" data-danger="true" onClick={() => handleChange('accept')}>
+              <span>Yes, I accept</span>
+              <small>Continue with approval prompts disabled.</small>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Dialog
